@@ -1,0 +1,52 @@
+﻿using System;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
+using WBSL.Models;
+
+namespace WBSL.Data;
+
+public partial class QPlannerDbContext : DbContext
+{
+    public QPlannerDbContext(DbContextOptions<QPlannerDbContext> options)
+        : base(options)
+    {
+    }
+
+    public virtual DbSet<external_account> external_accounts { get; set; }
+
+    public virtual DbSet<user> users { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasPostgresExtension("pgcrypto");
+
+        modelBuilder.Entity<external_account>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("external_accounts_pkey");
+
+            entity.Property(e => e.added_at)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.user).WithMany(p => p.external_accounts)
+                .HasForeignKey(d => d.user_id)
+                .HasConstraintName("fk_user");
+        });
+
+        modelBuilder.Entity<user>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("users_pkey");
+
+            entity.HasIndex(e => e.user_name, "users_user_name_key").IsUnique();
+
+            entity.Property(e => e.id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(e => e.created_at)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+        });
+
+        OnModelCreatingPartial(modelBuilder);
+    }
+
+    partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+}

@@ -1,0 +1,89 @@
+﻿@page "/my-accounts"
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<MudPaper Class="pa-6 mx-auto mt-8" Style="max-width: 800px;" Elevation="4">
+    <MudText Typo="Typo.h5">Подключённые аккаунты</MudText>
+
+    <MudTable Items="_accounts" Hover="true">
+        <HeaderContent>
+            <MudTh>Платформа</MudTh>
+            <MudTh>Имя аккаунта</MudTh>
+            <MudTh>Дата добавления</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.platform</MudTd>
+            <MudTd>@context.name</MudTd>
+            <MudTd>@context.added_at.ToLocalTime().ToString("g")</MudTd>
+            <MudTd>
+                <MudButton Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteAccount(context.id))">Удалить</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    <MudDivider Class="my-4" />
+
+    <MudText Typo="Typo.h6">Добавить аккаунт</MudText>
+    <MudSelect T="string" @bind-Value="_newAccount.Platform" Label="Платформа">
+        <MudSelectItem Value="@SimaLand">Sima-Land</MudSelectItem>
+        <MudSelectItem Value="@Wildberries">Wildberries</MudSelectItem>
+    </MudSelect>
+    <MudTextField @bind-Value="_newAccount.Name" Label="Имя аккаунта" />
+    <MudTextField @bind-Value="_newAccount.Token" Label="Токен доступа" />
+    <MudButton OnClick="AddAccount" Variant="Variant.Filled" Color="Color.Primary" Class="mt-2">Добавить</MudButton>
+</MudPaper>
+
+@code {
+    private List<AccountView> _accounts = new();
+    private AddAccountDto _newAccount = new();
+    private const string SimaLand = "SimaLand";
+    private const string Wildberries = "Wildberries";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccounts();
+    }
+
+    private async Task LoadAccounts()
+    {
+        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        _accounts = await Http.GetFromJsonAsync<List<AccountView>>("api/accounts") ?? new();
+    }
+
+    private async Task AddAccount()
+    {
+        var res = await Http.PostAsJsonAsync("api/accounts", _newAccount);
+        if (res.IsSuccessStatusCode)
+        {
+            _newAccount = new();
+            await LoadAccounts();
+        }
+    }
+
+    private async Task DeleteAccount(int id)
+    {
+        var res = await Http.DeleteAsync($"api/accounts/{id}");
+        if (res.IsSuccessStatusCode)
+        {
+            await LoadAccounts();
+        }
+    }
+
+    public class AccountView
+    {
+        public int id { get; set; }
+        public string platform { get; set; } = default!;
+        public string name { get; set; } = default!;
+        public DateTime added_at { get; set; }
+    }
+
+    public class AddAccountDto
+    {
+        public string Platform { get; set; } = "";
+        public string Token { get; set; } = "";
+        public string Name { get; set; } = "";
+    }
+}

@@ -1,0 +1,79 @@
+﻿@page "/login"
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<MudPaper Class="pa-6 mx-auto mt-12" Style="max-width: 400px;" Elevation="6">
+    <MudTabs @bind-ActivePanelIndex="_activeTab">
+        <MudTabPanel Text="Вход">
+            <MudTextField @bind-Value="_login.UserName" Label="Логин" Required />
+            <MudTextField @bind-Value="_login.Password" Label="Пароль" InputType="InputType.Password" Required />
+            <MudButton OnClick="Login" Color="Color.Primary" Variant="Variant.Filled" Class="mt-3" FullWidth>Войти</MudButton>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Регистрация">
+            <MudTextField @bind-Value="_register.UserName" Label="Логин" Required />
+            <MudTextField @bind-Value="_register.Email" Label="Email" Required />
+            <MudTextField @bind-Value="_register.Password" Label="Пароль" InputType="InputType.Password" Required />
+            <MudButton OnClick="Register" Color="Color.Secondary" Variant="Variant.Filled" Class="mt-3" FullWidth>Зарегистрироваться</MudButton>
+        </MudTabPanel>
+    </MudTabs>
+
+    <MudSnackbarProvider />
+</MudPaper>
+
+@code {
+    private int _activeTab = 0;
+
+    private LoginDto _login = new();
+    private RegisterDto _register = new();
+
+    private async Task Login()
+    {
+        var res = await Http.PostAsJsonAsync("api/auth/login", _login);
+        if (res.IsSuccessStatusCode)
+        {
+            var data = await res.Content.ReadFromJsonAsync<AuthResponse>();
+            await JS.InvokeVoidAsync("localStorage.setItem", "authToken", data!.Token);
+            Nav.NavigateTo("/my-accounts");
+        }
+        else
+        {
+            Console.WriteLine("Ошибка входа");
+        }
+    }
+
+    private async Task Register()
+    {
+        var res = await Http.PostAsJsonAsync("api/auth/register", _register);
+        if (res.IsSuccessStatusCode)
+        {
+            var data = await res.Content.ReadFromJsonAsync<AuthResponse>();
+            await JS.InvokeVoidAsync("localStorage.setItem", "authToken", data!.Token);
+            Nav.NavigateTo("/my-accounts");
+        }
+        else
+        {
+            Console.WriteLine("Ошибка регистрации");
+        }
+    }
+
+    public class LoginDto
+    {
+        public string UserName { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class RegisterDto
+    {
+        public string UserName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class AuthResponse
+    {
+        public string Token { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+    }
+}
