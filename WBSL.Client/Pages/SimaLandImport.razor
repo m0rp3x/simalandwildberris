@@ -1,0 +1,207 @@
+@page "/simaland-import"
+@using System.Text
+@using System.Text.Json
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<MudPaper Class="pa-6 mx-auto mt-8" Style="max-width: 1920px;" Elevation="4">
+    <MudText Typo="Typo.h5">Импорт товаров из Сима-Ленд</MudText>
+
+    <MudSelect T="ExternalAccount" @bind-Value="_selectedAccount" Label="Выберите аккаунт" Variant="Variant.Outlined" FullWidth>
+        @foreach (var account in _accounts)
+        {
+            <MudSelectItem Value="@account">@account.Name</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudTextField T="string" @bind-Value="_rawArticles" Label="Артикулы (через запятую)" Variant="Variant.Outlined" Lines="3" FullWidth />
+
+    <MudButton OnClick="Fetch" Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Disabled="_selectedAccount == null">Загрузить товары</MudButton>
+    <MudStack Row="true" Class="mt-4" Spacing="2">
+        <MudButton Variant="Variant.Outlined" OnClick="DownloadJson">Скачать JSON</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="DownloadCsv">Скачать CSV</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="DownloadExcel">Скачать Excel</MudButton>
+    </MudStack>
+   
+
+
+    <MudDivider Class="my-4" />
+
+    @if (_products.Any())
+    {
+        <MudTable Items="_products" Hover="true">
+            <HeaderContent>
+                <MudTh>Артикул</MudTh>
+                <MudTh>Наименование</MudTh>
+                <MudTh>Габариты (Ш×В×Г)</MudTh>
+                <MudTh>Описание</MudTh>
+                <MudTh>Вес (г)</MudTh>
+                <MudTh>Фото</MudTh>
+                <MudTh>Категория</MudTh>
+                <MudTh>Остаток</MudTh>
+                <MudTh>Мин. партия</MudTh>
+                <MudTh>Опт. цена</MudTh>
+                <MudTh>Розн. цена</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.sid</MudTd>
+                <MudTd>@context.name</MudTd>
+                <MudTd>@($"{context.width}×{context.height}×{context.depth}")</MudTd>
+                <MudTd>@context.description</MudTd>
+                <MudTd>@context.weight</MudTd>
+                <MudTd>@context.base_photo_url</MudTd>
+                <MudTd>@context.category_id</MudTd>
+                <MudTd>@context.balance</MudTd>
+                <MudTd>@context.qty_multiplier</MudTd>
+                <MudTd>@context.wholesale_price</MudTd>
+                <MudTd>@context.price</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
+
+@code {
+    private List<ExternalAccount> _accounts = new();
+    private ExternalAccount? _selectedAccount;
+    private string _rawArticles = string.Empty;
+    private bool _initialized = false;
+    private string _resultJson = string.Empty;
+    private List<Product> _products = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_initialized)
+        {
+            _initialized = true;
+            await LoadAccounts();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadAccounts()
+    {
+        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        _accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
+    }
+
+    private async Task Fetch()
+    {
+        if (_selectedAccount == null) return;
+
+        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                   .Select(long.Parse)
+                                   .ToList();
+
+        var res = await Http.PostAsJsonAsync("api/simaland/fetch", new
+        {
+            AccountId = _selectedAccount.Id,
+            Articles = articles
+        });
+
+        if (res.IsSuccessStatusCode)
+        {
+            var json = await res.Content.ReadAsStringAsync();
+            _products = JsonSerializer.Deserialize<List<Product>>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? new List<Product>();
+        }
+    }
+    
+    private async Task DownloadExcel()
+    {
+        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+
+        var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(long.Parse)
+            .ToList();
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "api/simaland/export-excel")
+        {
+            Content = JsonContent.Create(new
+            {
+                AccountId = _selectedAccount!.Id,
+                Articles = articles
+            })
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        var response = await Http.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            _resultJson = $"Ошибка: {response.StatusCode}";
+            return;
+        }
+
+        var data = await response.Content.ReadAsByteArrayAsync();
+        var base64 = Convert.ToBase64String(data);
+
+        await JS.InvokeVoidAsync("downloadFileFromBlazor", "simaland-products.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
+    }
+
+    
+    private async Task DownloadJson()
+    {
+        var json = JsonSerializer.Serialize(
+            _products,
+            new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+
+        await DownloadFile("products.json", "application/json", json);
+    }
+
+
+    private async Task DownloadCsv()
+    {
+        var csv = new StringBuilder();
+        csv.AppendLine("Артикул,Наименование,Описание,Ширина,Высота,Глубина,Вес,Фото,Категория,Остаток,МинПартия,ОптЦена,РознЦена");
+
+        foreach (var p in _products)
+        {
+            csv.AppendLine($"{p.sid},\"{p.name}\",\"{p.description}\",{p.width},{p.height},{p.depth},{p.weight},{p.base_photo_url},{p.category_id},{p.balance},{p.qty_multiplier},{p.wholesale_price},{p.price}");
+        }
+
+        await DownloadFile("products.csv", "text/csv", csv.ToString());
+    }
+
+    private async Task DownloadFile(string filename, string contentType, string content)
+    {
+        var byteArray = System.Text.Encoding.UTF8.GetBytes(content);
+        var base64 = Convert.ToBase64String(byteArray);
+
+        await JS.InvokeVoidAsync("downloadFileFromBlazor", filename, contentType, base64);
+    }
+
+
+    public class ExternalAccount
+    {
+        public int Id { get; set; }
+        public string Platform { get; set; } = "";
+        public string Name { get; set; } = "";
+    }
+
+    public class Product
+    {
+        public long sid { get; set; }
+        public string name { get; set; } = "";
+        public string description { get; set; } = "";
+        public int width { get; set; }
+        public int height { get; set; }
+        public int depth { get; set; }
+        public int weight { get; set; }
+        public string base_photo_url { get; set; } = "";
+        public int category_id { get; set; }
+        public string balance { get; set; } = "";
+        public int qty_multiplier { get; set; }
+        public decimal wholesale_price { get; set; }
+        public decimal price { get; set; }
+    }
+}

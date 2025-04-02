@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WBSL.Client")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+91e5711f63ddd8b0b303f5e5fdadaac547ccb038")]
 [assembly: System.Reflection.AssemblyProductAttribute("WBSL.Client")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WBSL.Client")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

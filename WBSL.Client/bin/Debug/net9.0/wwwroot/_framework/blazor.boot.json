@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "WBSL.Client",
   "resources": {
-    "hash": "sha256-Id3HpeCfCIOBwP9JF5bFVHclV+1e5xgTfciFAtMJKFo=",
+    "hash": "sha256-7CiHZHFc+4goh+MI5cRG/RmBus+vJ1X5MO0VfVAWUrM=",
     "fingerprinting": {
       "Microsoft.AspNetCore.Authorization.da83xzpz5r.wasm": "Microsoft.AspNetCore.Authorization.wasm",
       "Microsoft.AspNetCore.Components.vmzb2angnn.wasm": "Microsoft.AspNetCore.Components.wasm",
@@ -32,7 +32,7 @@
       "Microsoft.Extensions.Primitives.j8wpr8jzql.wasm": "Microsoft.Extensions.Primitives.wasm",
       "Microsoft.JSInterop.fehvqxd8e9.wasm": "Microsoft.JSInterop.wasm",
       "Microsoft.JSInterop.WebAssembly.lao5cp8gqq.wasm": "Microsoft.JSInterop.WebAssembly.wasm",
-      "MudBlazor.9396zap6k3.wasm": "MudBlazor.wasm",
+      "MudBlazor.3w2vmwd22m.wasm": "MudBlazor.wasm",
       "Npgsql.bs2a852x5e.wasm": "Npgsql.wasm",
       "Npgsql.EntityFrameworkCore.PostgreSQL.n9bm89u08q.wasm": "Npgsql.EntityFrameworkCore.PostgreSQL.wasm",
       "Microsoft.CSharp.qzjvm9hz38.wasm": "Microsoft.CSharp.wasm",
@@ -211,8 +211,8 @@
       "icudt_CJK.tjcz0u77k5.dat": "icudt_CJK.dat",
       "icudt_EFIGS.tptq2av103.dat": "icudt_EFIGS.dat",
       "icudt_no_CJK.lfu7j35m59.dat": "icudt_no_CJK.dat",
-      "WBSL.Client.10t6j7tgnw.wasm": "WBSL.Client.wasm",
-      "WBSL.Client.rg65yhrxqi.pdb": "WBSL.Client.pdb"
+      "WBSL.Client.i3nl787qeo.wasm": "WBSL.Client.wasm",
+      "WBSL.Client.edh8je2n40.pdb": "WBSL.Client.pdb"
     },
     "jsModuleNative": {
       "dotnet.native.1p93gcv9fh.js": "sha256-1UPiprzN3JhPftx3be7XEMaYlUN+chRF41CuttiWVtQ="
@@ -262,7 +262,7 @@
       "Microsoft.Extensions.Primitives.j8wpr8jzql.wasm": "sha256-c3q6DqetjnVCASwVQf1HEJPSXiGtOzmzRbNsXrQRnpw=",
       "Microsoft.JSInterop.fehvqxd8e9.wasm": "sha256-KUgYboUywTiNc2KAn4+PwXUpsvPc+qyNcWlyUHCiuUA=",
       "Microsoft.JSInterop.WebAssembly.lao5cp8gqq.wasm": "sha256-w+WvmTYZ9xv2XDrEoF7buW47/o7dUeKdnYWKUgyFEkU=",
-      "MudBlazor.9396zap6k3.wasm": "sha256-he7tpwKbRnJFUfXAlrrXJaLUg/6CFw98oTra0wQ293k=",
+      "MudBlazor.3w2vmwd22m.wasm": "sha256-Y8YofQkG+L06F5LqsNglaVVs0mxdiopt1YcRJycjWXQ=",
       "Npgsql.bs2a852x5e.wasm": "sha256-m8iqOvS0eO8rCPcpsZDK+jTsoIdLh7PpQHnm9qeTm+U=",
       "Npgsql.EntityFrameworkCore.PostgreSQL.n9bm89u08q.wasm": "sha256-dXF/liO/XrqNJx2IFzwI1wg8mnGmWcOJbc0gCRdpwJg=",
       "Microsoft.CSharp.qzjvm9hz38.wasm": "sha256-9uB/7IFSiKE1yWAQ/EFaS3ub/zf5RJXVK6CMmA7mxhY=",
@@ -432,10 +432,10 @@
       "WindowsBase.ag32297siy.wasm": "sha256-BgyZxTgdU9rIYlNC9ZMiMjnvBAJSL0eQH8Y87o1M+q4=",
       "mscorlib.vt9pwshhot.wasm": "sha256-/aFxOaPc1iTNlJw0z4/RGEMD0nzl4qVE3SF4wMsLgp0=",
       "netstandard.or41gtprh3.wasm": "sha256-nD1KqAI5YYz+YohqHaZ5EmXi7Eq9Uy9sUknnI8sj1AM=",
-      "WBSL.Client.10t6j7tgnw.wasm": "sha256-UReG+HOpJqQHy1MwON5mbEJnekZTvUdITJhKLxv0gn4="
+      "WBSL.Client.i3nl787qeo.wasm": "sha256-0iCesG8tPvG1Jv22M5u4Q6oqLJcCIHfG41GEKOhIYNw="
     },
     "pdb": {
-      "WBSL.Client.rg65yhrxqi.pdb": "sha256-++Xu8H/G+yMGIUiI/1iy5JNFj7ukbLbUaVSxvgt2OzY="
+      "WBSL.Client.edh8je2n40.pdb": "sha256-DivEJOGYSSuZf8wtGp6CAvz823FoD4RwAGS5pjBgxgQ="
     }
   },
   "cacheBootResources": true,

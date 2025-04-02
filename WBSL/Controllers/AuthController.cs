@@ -16,11 +16,14 @@ public class AuthController : ControllerBase
 {
     private readonly QPlannerDbContext _db;
     private readonly IConfiguration _config;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    
 
-    public AuthController(QPlannerDbContext db, IConfiguration config)
+    public AuthController(QPlannerDbContext db, IConfiguration config,IHttpContextAccessor httpContextAccessor)
     {
         _db = db;
         _config = config;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     [HttpPost("register")]
@@ -67,6 +70,20 @@ public class AuthController : ControllerBase
 
         return Ok(new { user.id, user.user_name, user.email });
     }
+    [HttpGet]
+    public async Task<IActionResult> GetAccounts()
+    {
+        var userId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null)
+            return Unauthorized();
+
+        var accounts = await _db.external_accounts
+            .Where(a => a.user_id == Guid.Parse(userId))
+            .ToListAsync();
+
+        return Ok(accounts);
+    }
+
 
     private string GenerateJwtToken(user user)
     {
@@ -90,6 +107,8 @@ public class AuthController : ControllerBase
         return tokenHandler.WriteToken(token);
     }
 }
+
+
 
 public class RegisterDto
 {

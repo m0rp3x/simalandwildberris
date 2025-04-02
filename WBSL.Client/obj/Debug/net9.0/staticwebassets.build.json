@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "Wq+pXk+LkiosZ0RQK+2F64oSPEyU+SQgXrphIARIyRk=",
+  "Hash": "VMizJtObiuED0oPhmz+wjrluPaltIgyFdjyrIdTZf6U=",
   "Source": "WBSL.Client",
   "BasePath": "/",
   "Mode": "Default",
@@ -17,10 +17,10 @@
   ],
   "Assets": [
     {
-      "Identity": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\MudBlazor.min.css",
+      "Identity": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\MudBlazor.min.css",
       "SourceId": "MudBlazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\",
+      "ContentRoot": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\",
       "BasePath": "_content/MudBlazor",
       "RelativePath": "MudBlazor.min.css",
       "AssetKind": "All",
@@ -35,13 +35,13 @@
       "Integrity": "NgHobvE5wu6MFuX0QImF1lk8IP4UUN3UDirKa0WQVYc=",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\MudBlazor.min.css"
+      "OriginalItemSpec": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\MudBlazor.min.css"
     },
     {
-      "Identity": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\MudBlazor.min.js",
+      "Identity": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\MudBlazor.min.js",
       "SourceId": "MudBlazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\",
+      "ContentRoot": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\",
       "BasePath": "_content/MudBlazor",
       "RelativePath": "MudBlazor.min.js",
       "AssetKind": "All",
@@ -56,7 +56,7 @@
       "Integrity": "TOPYwKltorv5iM1JqqzJayZWZx7LFnfSq2AhkWFNwrg=",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\MudBlazor.min.js"
+      "OriginalItemSpec": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\MudBlazor.min.js"
     },
     {
       "Identity": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\blazor.boot.json",
@@ -73,8 +73,8 @@
       "RelatedAsset": "",
       "AssetTraitName": "WasmResource",
       "AssetTraitValue": "manifest",
-      "Fingerprint": "o2j294neg8",
-      "Integrity": "EPZkzfl20wgLEP4oqv91P62iSumkgq1XuJUjSw7omkg=",
+      "Fingerprint": "fwr1omzp6i",
+      "Integrity": "gRyMIuIC+Ou9j/t3zVvytaQOwv8k2CuAB8DmLRTB/1g=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "obj\\Debug\\net9.0\\blazor.boot.json"
@@ -1039,8 +1039,8 @@
       "RelatedAsset": "",
       "AssetTraitName": "WasmResource",
       "AssetTraitValue": "runtime",
-      "Fingerprint": "9396zap6k3",
-      "Integrity": "he7tpwKbRnJFUfXAlrrXJaLUg/6CFw98oTra0wQ293k=",
+      "Fingerprint": "3w2vmwd22m",
+      "Integrity": "Y8YofQkG+L06F5LqsNglaVVs0mxdiopt1YcRJycjWXQ=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\webcil\\MudBlazor.wasm"
@@ -4504,8 +4504,8 @@
       "RelatedAsset": "",
       "AssetTraitName": "WasmResource",
       "AssetTraitValue": "symbol",
-      "Fingerprint": "rg65yhrxqi",
-      "Integrity": "++Xu8H/G+yMGIUiI/1iy5JNFj7ukbLbUaVSxvgt2OzY=",
+      "Fingerprint": "edh8je2n40",
+      "Integrity": "DivEJOGYSSuZf8wtGp6CAvz823FoD4RwAGS5pjBgxgQ=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "obj\\Debug\\net9.0\\WBSL.Client.pdb"
@@ -4525,8 +4525,8 @@
       "RelatedAsset": "",
       "AssetTraitName": "WasmResource",
       "AssetTraitValue": "runtime",
-      "Fingerprint": "10t6j7tgnw",
-      "Integrity": "UReG+HOpJqQHy1MwON5mbEJnekZTvUdITJhKLxv0gn4=",
+      "Fingerprint": "i3nl787qeo",
+      "Integrity": "0iCesG8tPvG1Jv22M5u4Q6oqLJcCIHfG41GEKOhIYNw=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\webcil\\WBSL.Client.wasm"
@@ -4732,14 +4732,14 @@
       "AssetRole": "Alternative",
       "AssetMergeBehavior": "",
       "AssetMergeSource": "",
-      "RelatedAsset": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\MudBlazor.min.js",
+      "RelatedAsset": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\MudBlazor.min.js",
       "AssetTraitName": "Content-Encoding",
       "AssetTraitValue": "gzip",
       "Fingerprint": "vhce4buw2j",
       "Integrity": "PVlggn2KAsf5eErcnJMnZr/WjTiWMQcGEwRpw47DsZ8=",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\MudBlazor.min.js"
+      "OriginalItemSpec": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\MudBlazor.min.js"
     },
     {
       "Identity": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\134hm2oxu1-1p93gcv9fh.gz",
@@ -7136,7 +7136,7 @@
       "OriginalItemSpec": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\System.Text.Encoding.Extensions.wasm"
     },
     {
-      "Identity": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\ljajdekqyz-o2j294neg8.gz",
+      "Identity": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\ljajdekqyz-fwr1omzp6i.gz",
       "SourceId": "WBSL.Client",
       "SourceType": "Computed",
       "ContentRoot": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\",
@@ -7150,8 +7150,8 @@
       "RelatedAsset": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\blazor.boot.json",
       "AssetTraitName": "Content-Encoding",
       "AssetTraitValue": "gzip",
-      "Fingerprint": "ug2ymd3or7",
-      "Integrity": "/pqgYa9IxGQippsYjpc3GpKkTkB1cwwL1p/qJ2pymFI=",
+      "Fingerprint": "nkx7mux2v4",
+      "Integrity": "t0N1PoYVV1JBtxujMDWLTS28FVgFZ89GBNmyCvsirj4=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\blazor.boot.json"
@@ -7640,12 +7640,12 @@
       "OriginalItemSpec": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\System.Runtime.Loader.wasm"
     },
     {
-      "Identity": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-10t6j7tgnw.gz",
+      "Identity": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-i3nl787qeo.gz",
       "SourceId": "WBSL.Client",
       "SourceType": "Computed",
       "ContentRoot": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\",
       "BasePath": "/",
-      "RelativePath": "_framework/WBSL.Client#[.{fingerprint=10t6j7tgnw}]!.wasm.gz",
+      "RelativePath": "_framework/WBSL.Client#[.{fingerprint=i3nl787qeo}]!.wasm.gz",
       "AssetKind": "Build",
       "AssetMode": "All",
       "AssetRole": "Alternative",
@@ -7654,8 +7654,8 @@
       "RelatedAsset": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.wasm",
       "AssetTraitName": "Content-Encoding",
       "AssetTraitValue": "gzip",
-      "Fingerprint": "jnlw3tvum7",
-      "Integrity": "YeMmo7CBhuT4ewv4Kix1MsHPg9fsHhrsTlIALsXIHSo=",
+      "Fingerprint": "3uq6ygfmhm",
+      "Integrity": "pSCVFKWPs8bnPaYESkeMpYxinIyDL1vh4IIp6T3s5dI=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.wasm"
@@ -7934,12 +7934,12 @@
       "OriginalItemSpec": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\System.Reflection.Emit.ILGeneration.wasm"
     },
     {
-      "Identity": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-rg65yhrxqi.gz",
+      "Identity": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-edh8je2n40.gz",
       "SourceId": "WBSL.Client",
       "SourceType": "Computed",
       "ContentRoot": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\",
       "BasePath": "/",
-      "RelativePath": "_framework/WBSL.Client#[.{fingerprint=rg65yhrxqi}]!.pdb.gz",
+      "RelativePath": "_framework/WBSL.Client#[.{fingerprint=edh8je2n40}]!.pdb.gz",
       "AssetKind": "Build",
       "AssetMode": "All",
       "AssetRole": "Alternative",
@@ -7948,8 +7948,8 @@
       "RelatedAsset": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.pdb",
       "AssetTraitName": "Content-Encoding",
       "AssetTraitValue": "gzip",
-      "Fingerprint": "p5p5zb12wz",
-      "Integrity": "na1hVtC8G+NfeVvQgSxoYtNz06UHYHnfkYnZcBhR/Og=",
+      "Fingerprint": "uf2iep8dug",
+      "Integrity": "JpFCUj3Z04SWa3HCryaYXpTsut3amu83Ocb9kHQVtfY=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.pdb"
@@ -8197,14 +8197,14 @@
       "AssetRole": "Alternative",
       "AssetMergeBehavior": "",
       "AssetMergeSource": "",
-      "RelatedAsset": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\MudBlazor.min.css",
+      "RelatedAsset": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\MudBlazor.min.css",
       "AssetTraitName": "Content-Encoding",
       "AssetTraitValue": "gzip",
       "Fingerprint": "f1boftegma",
       "Integrity": "Hc8UZ3CPbAu3gn/NSgcO918UcMER+IuOVPthfdZ93ks=",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\MudBlazor.min.css"
+      "OriginalItemSpec": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\MudBlazor.min.css"
     },
     {
       "Identity": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\u7qz6464x5-uk9h1gfypt.gz",
@@ -8984,12 +8984,12 @@
       "OriginalItemSpec": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\System.Runtime.Intrinsics.wasm"
     },
     {
-      "Identity": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\z4c5y128uo-9396zap6k3.gz",
+      "Identity": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\z4c5y128uo-3w2vmwd22m.gz",
       "SourceId": "WBSL.Client",
       "SourceType": "Computed",
       "ContentRoot": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\",
       "BasePath": "/",
-      "RelativePath": "_framework/MudBlazor#[.{fingerprint=9396zap6k3}]!.wasm.gz",
+      "RelativePath": "_framework/MudBlazor#[.{fingerprint=3w2vmwd22m}]!.wasm.gz",
       "AssetKind": "Build",
       "AssetMode": "All",
       "AssetRole": "Alternative",
@@ -8998,8 +8998,8 @@
       "RelatedAsset": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\MudBlazor.wasm",
       "AssetTraitName": "Content-Encoding",
       "AssetTraitValue": "gzip",
-      "Fingerprint": "anu9wu22lf",
-      "Integrity": "mgTqcxZvX/+lVUS9ULVxwJ3je7FjFckkmg2seyDYjVQ=",
+      "Fingerprint": "ef21j8m38x",
+      "Integrity": "dgoRSjBA9BbR8CEvVBNPgJz7oCConGOnMxafzj81Brg=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\MudBlazor.wasm"
@@ -9176,7 +9176,7 @@
   "Endpoints": [
     {
       "Route": "_content/MudBlazor/MudBlazor.min.css",
-      "AssetFile": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\MudBlazor.min.css",
+      "AssetFile": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\MudBlazor.min.css",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -9201,7 +9201,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 30 Mar 2025 20:41:19 GMT"
+          "Value": "Mon, 31 Mar 2025 21:02:30 GMT"
         }
       ],
       "EndpointProperties": [
@@ -9236,7 +9236,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 30 Mar 2025 20:41:18 GMT"
+          "Value": "Mon, 31 Mar 2025 21:02:30 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -9289,7 +9289,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 30 Mar 2025 20:41:18 GMT"
+          "Value": "Mon, 31 Mar 2025 21:02:30 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -9313,7 +9313,7 @@
     },
     {
       "Route": "_content/MudBlazor/MudBlazor.min.gtd3sm4n1q.js",
-      "AssetFile": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\MudBlazor.min.js",
+      "AssetFile": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\MudBlazor.min.js",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -9338,7 +9338,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 30 Mar 2025 20:41:19 GMT"
+          "Value": "Mon, 31 Mar 2025 21:02:30 GMT"
         }
       ],
       "EndpointProperties": [
@@ -9358,7 +9358,7 @@
     },
     {
       "Route": "_content/MudBlazor/MudBlazor.min.js",
-      "AssetFile": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\MudBlazor.min.js",
+      "AssetFile": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\MudBlazor.min.js",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -9383,7 +9383,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 30 Mar 2025 20:41:19 GMT"
+          "Value": "Mon, 31 Mar 2025 21:02:30 GMT"
         }
       ],
       "EndpointProperties": [
@@ -9418,7 +9418,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 30 Mar 2025 20:41:18 GMT"
+          "Value": "Mon, 31 Mar 2025 21:02:30 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -9471,7 +9471,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 30 Mar 2025 20:41:18 GMT"
+          "Value": "Mon, 31 Mar 2025 21:02:30 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -9495,7 +9495,7 @@
     },
     {
       "Route": "_content/MudBlazor/MudBlazor.min.u34o0xbo4m.css",
-      "AssetFile": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.0\\staticwebassets\\MudBlazor.min.css",
+      "AssetFile": "C:\\Users\\koval\\.nuget\\packages\\mudblazor\\8.5.1\\staticwebassets\\MudBlazor.min.css",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -9520,7 +9520,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 30 Mar 2025 20:41:19 GMT"
+          "Value": "Mon, 31 Mar 2025 21:02:30 GMT"
         }
       ],
       "EndpointProperties": [
@@ -9557,11 +9557,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"EPZkzfl20wgLEP4oqv91P62iSumkgq1XuJUjSw7omkg=\""
+          "Value": "\"gRyMIuIC+Ou9j/t3zVvytaQOwv8k2CuAB8DmLRTB/1g=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:42:05 GMT"
+          "Value": "Wed, 02 Apr 2025 17:02:17 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -9571,18 +9571,18 @@
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-EPZkzfl20wgLEP4oqv91P62iSumkgq1XuJUjSw7omkg="
+          "Value": "sha256-gRyMIuIC+Ou9j/t3zVvytaQOwv8k2CuAB8DmLRTB/1g="
         }
       ]
     },
     {
       "Route": "_framework/blazor.boot.json",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\ljajdekqyz-o2j294neg8.gz",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\ljajdekqyz-fwr1omzp6i.gz",
       "Selectors": [
         {
           "Name": "Content-Encoding",
           "Value": "gzip",
-          "Quality": "0.000077124788"
+          "Quality": "0.000077136686"
         }
       ],
       "ResponseHeaders": [
@@ -9592,15 +9592,15 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "12965"
+          "Value": "12963"
         },
         {
           "Name": "ETag",
-          "Value": "\"/pqgYa9IxGQippsYjpc3GpKkTkB1cwwL1p/qJ2pymFI=\""
+          "Value": "\"t0N1PoYVV1JBtxujMDWLTS28FVgFZ89GBNmyCvsirj4=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:10 GMT"
+          "Value": "Wed, 02 Apr 2025 16:58:42 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -9620,19 +9620,19 @@
         },
         {
           "Name": "ETag",
-          "Value": "W/\"EPZkzfl20wgLEP4oqv91P62iSumkgq1XuJUjSw7omkg=\""
+          "Value": "W/\"gRyMIuIC+Ou9j/t3zVvytaQOwv8k2CuAB8DmLRTB/1g=\""
         }
       ],
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-EPZkzfl20wgLEP4oqv91P62iSumkgq1XuJUjSw7omkg="
+          "Value": "sha256-gRyMIuIC+Ou9j/t3zVvytaQOwv8k2CuAB8DmLRTB/1g="
         }
       ]
     },
     {
       "Route": "_framework/blazor.boot.json.gz",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\ljajdekqyz-o2j294neg8.gz",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\ljajdekqyz-fwr1omzp6i.gz",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -9641,7 +9641,7 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "12965"
+          "Value": "12963"
         },
         {
           "Name": "Content-Type",
@@ -9649,11 +9649,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"/pqgYa9IxGQippsYjpc3GpKkTkB1cwwL1p/qJ2pymFI=\""
+          "Value": "\"t0N1PoYVV1JBtxujMDWLTS28FVgFZ89GBNmyCvsirj4=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:10 GMT"
+          "Value": "Wed, 02 Apr 2025 16:58:42 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -9671,7 +9671,7 @@
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-/pqgYa9IxGQippsYjpc3GpKkTkB1cwwL1p/qJ2pymFI="
+          "Value": "sha256-t0N1PoYVV1JBtxujMDWLTS28FVgFZ89GBNmyCvsirj4="
         }
       ]
     },
@@ -22925,7 +22925,7 @@
       ]
     },
     {
-      "Route": "_framework/MudBlazor.9396zap6k3.wasm",
+      "Route": "_framework/MudBlazor.3w2vmwd22m.wasm",
       "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\MudBlazor.wasm",
       "Selectors": [],
       "ResponseHeaders": [
@@ -22935,7 +22935,7 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "9298713"
+          "Value": "9299737"
         },
         {
           "Name": "Content-Type",
@@ -22943,11 +22943,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"he7tpwKbRnJFUfXAlrrXJaLUg/6CFw98oTra0wQ293k=\""
+          "Value": "\"Y8YofQkG+L06F5LqsNglaVVs0mxdiopt1YcRJycjWXQ=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 14:22:18 GMT"
+          "Value": "Wed, 02 Apr 2025 16:58:40 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -22957,7 +22957,7 @@
       "EndpointProperties": [
         {
           "Name": "fingerprint",
-          "Value": "9396zap6k3"
+          "Value": "3w2vmwd22m"
         },
         {
           "Name": "label",
@@ -22965,18 +22965,18 @@
         },
         {
           "Name": "integrity",
-          "Value": "sha256-he7tpwKbRnJFUfXAlrrXJaLUg/6CFw98oTra0wQ293k="
+          "Value": "sha256-Y8YofQkG+L06F5LqsNglaVVs0mxdiopt1YcRJycjWXQ="
         }
       ]
     },
     {
-      "Route": "_framework/MudBlazor.9396zap6k3.wasm",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\z4c5y128uo-9396zap6k3.gz",
+      "Route": "_framework/MudBlazor.3w2vmwd22m.wasm",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\z4c5y128uo-3w2vmwd22m.gz",
       "Selectors": [
         {
           "Name": "Content-Encoding",
           "Value": "gzip",
-          "Quality": "0.000000500856"
+          "Quality": "0.000000500718"
         }
       ],
       "ResponseHeaders": [
@@ -22986,15 +22986,15 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "1996580"
+          "Value": "1997131"
         },
         {
           "Name": "ETag",
-          "Value": "\"mgTqcxZvX/+lVUS9ULVxwJ3je7FjFckkmg2seyDYjVQ=\""
+          "Value": "\"dgoRSjBA9BbR8CEvVBNPgJz7oCConGOnMxafzj81Brg=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 14:22:21 GMT"
+          "Value": "Wed, 02 Apr 2025 16:58:42 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -23014,13 +23014,13 @@
         },
         {
           "Name": "ETag",
-          "Value": "W/\"he7tpwKbRnJFUfXAlrrXJaLUg/6CFw98oTra0wQ293k=\""
+          "Value": "W/\"Y8YofQkG+L06F5LqsNglaVVs0mxdiopt1YcRJycjWXQ=\""
         }
       ],
       "EndpointProperties": [
         {
           "Name": "fingerprint",
-          "Value": "9396zap6k3"
+          "Value": "3w2vmwd22m"
         },
         {
           "Name": "label",
@@ -23028,13 +23028,13 @@
         },
         {
           "Name": "integrity",
-          "Value": "sha256-he7tpwKbRnJFUfXAlrrXJaLUg/6CFw98oTra0wQ293k="
+          "Value": "sha256-Y8YofQkG+L06F5LqsNglaVVs0mxdiopt1YcRJycjWXQ="
         }
       ]
     },
     {
-      "Route": "_framework/MudBlazor.9396zap6k3.wasm.gz",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\z4c5y128uo-9396zap6k3.gz",
+      "Route": "_framework/MudBlazor.3w2vmwd22m.wasm.gz",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\z4c5y128uo-3w2vmwd22m.gz",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -23043,7 +23043,7 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "1996580"
+          "Value": "1997131"
         },
         {
           "Name": "Content-Type",
@@ -23051,11 +23051,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"mgTqcxZvX/+lVUS9ULVxwJ3je7FjFckkmg2seyDYjVQ=\""
+          "Value": "\"dgoRSjBA9BbR8CEvVBNPgJz7oCConGOnMxafzj81Brg=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 14:22:21 GMT"
+          "Value": "Wed, 02 Apr 2025 16:58:42 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -23073,7 +23073,7 @@
       "EndpointProperties": [
         {
           "Name": "fingerprint",
-          "Value": "9396zap6k3"
+          "Value": "3w2vmwd22m"
         },
         {
           "Name": "label",
@@ -23081,7 +23081,7 @@
         },
         {
           "Name": "integrity",
-          "Value": "sha256-mgTqcxZvX/+lVUS9ULVxwJ3je7FjFckkmg2seyDYjVQ="
+          "Value": "sha256-dgoRSjBA9BbR8CEvVBNPgJz7oCConGOnMxafzj81Brg="
         }
       ]
     },
@@ -23096,7 +23096,7 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "9298713"
+          "Value": "9299737"
         },
         {
           "Name": "Content-Type",
@@ -23104,11 +23104,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"he7tpwKbRnJFUfXAlrrXJaLUg/6CFw98oTra0wQ293k=\""
+          "Value": "\"Y8YofQkG+L06F5LqsNglaVVs0mxdiopt1YcRJycjWXQ=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 14:22:18 GMT"
+          "Value": "Wed, 02 Apr 2025 16:58:40 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -23118,18 +23118,18 @@
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-he7tpwKbRnJFUfXAlrrXJaLUg/6CFw98oTra0wQ293k="
+          "Value": "sha256-Y8YofQkG+L06F5LqsNglaVVs0mxdiopt1YcRJycjWXQ="
         }
       ]
     },
     {
       "Route": "_framework/MudBlazor.wasm",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\z4c5y128uo-9396zap6k3.gz",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\z4c5y128uo-3w2vmwd22m.gz",
       "Selectors": [
         {
           "Name": "Content-Encoding",
           "Value": "gzip",
-          "Quality": "0.000000500856"
+          "Quality": "0.000000500718"
         }
       ],
       "ResponseHeaders": [
@@ -23139,15 +23139,15 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "1996580"
+          "Value": "1997131"
         },
         {
           "Name": "ETag",
-          "Value": "\"mgTqcxZvX/+lVUS9ULVxwJ3je7FjFckkmg2seyDYjVQ=\""
+          "Value": "\"dgoRSjBA9BbR8CEvVBNPgJz7oCConGOnMxafzj81Brg=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 14:22:21 GMT"
+          "Value": "Wed, 02 Apr 2025 16:58:42 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -23167,19 +23167,19 @@
         },
         {
           "Name": "ETag",
-          "Value": "W/\"he7tpwKbRnJFUfXAlrrXJaLUg/6CFw98oTra0wQ293k=\""
+          "Value": "W/\"Y8YofQkG+L06F5LqsNglaVVs0mxdiopt1YcRJycjWXQ=\""
         }
       ],
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-he7tpwKbRnJFUfXAlrrXJaLUg/6CFw98oTra0wQ293k="
+          "Value": "sha256-Y8YofQkG+L06F5LqsNglaVVs0mxdiopt1YcRJycjWXQ="
         }
       ]
     },
     {
       "Route": "_framework/MudBlazor.wasm.gz",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\z4c5y128uo-9396zap6k3.gz",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\z4c5y128uo-3w2vmwd22m.gz",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -23188,7 +23188,7 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "1996580"
+          "Value": "1997131"
         },
         {
           "Name": "Content-Type",
@@ -23196,11 +23196,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"mgTqcxZvX/+lVUS9ULVxwJ3je7FjFckkmg2seyDYjVQ=\""
+          "Value": "\"dgoRSjBA9BbR8CEvVBNPgJz7oCConGOnMxafzj81Brg=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 14:22:21 GMT"
+          "Value": "Wed, 02 Apr 2025 16:58:42 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -23218,7 +23218,7 @@
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-mgTqcxZvX/+lVUS9ULVxwJ3je7FjFckkmg2seyDYjVQ="
+          "Value": "sha256-dgoRSjBA9BbR8CEvVBNPgJz7oCConGOnMxafzj81Brg="
         }
       ]
     },
@@ -72095,168 +72095,7 @@
       ]
     },
     {
-      "Route": "_framework/WBSL.Client.10t6j7tgnw.wasm",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.wasm",
-      "Selectors": [],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "55061"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/wasm"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"UReG+HOpJqQHy1MwON5mbEJnekZTvUdITJhKLxv0gn4=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:09 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "max-age=31536000, immutable"
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "fingerprint",
-          "Value": "10t6j7tgnw"
-        },
-        {
-          "Name": "label",
-          "Value": "_framework/WBSL.Client.wasm"
-        },
-        {
-          "Name": "integrity",
-          "Value": "sha256-UReG+HOpJqQHy1MwON5mbEJnekZTvUdITJhKLxv0gn4="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.10t6j7tgnw.wasm",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-10t6j7tgnw.gz",
-      "Selectors": [
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip",
-          "Quality": "0.000046487843"
-        }
-      ],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "21510"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"YeMmo7CBhuT4ewv4Kix1MsHPg9fsHhrsTlIALsXIHSo=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:11 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "max-age=31536000, immutable"
-        },
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip"
-        },
-        {
-          "Name": "Vary",
-          "Value": "Content-Encoding"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/wasm"
-        },
-        {
-          "Name": "ETag",
-          "Value": "W/\"UReG+HOpJqQHy1MwON5mbEJnekZTvUdITJhKLxv0gn4=\""
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "fingerprint",
-          "Value": "10t6j7tgnw"
-        },
-        {
-          "Name": "label",
-          "Value": "_framework/WBSL.Client.wasm"
-        },
-        {
-          "Name": "integrity",
-          "Value": "sha256-UReG+HOpJqQHy1MwON5mbEJnekZTvUdITJhKLxv0gn4="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.10t6j7tgnw.wasm.gz",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-10t6j7tgnw.gz",
-      "Selectors": [],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "21510"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/wasm"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"YeMmo7CBhuT4ewv4Kix1MsHPg9fsHhrsTlIALsXIHSo=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:11 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "max-age=31536000, immutable"
-        },
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip"
-        },
-        {
-          "Name": "Vary",
-          "Value": "Content-Encoding"
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "fingerprint",
-          "Value": "10t6j7tgnw"
-        },
-        {
-          "Name": "label",
-          "Value": "_framework/WBSL.Client.wasm.gz"
-        },
-        {
-          "Name": "integrity",
-          "Value": "sha256-YeMmo7CBhuT4ewv4Kix1MsHPg9fsHhrsTlIALsXIHSo="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.pdb",
+      "Route": "_framework/WBSL.Client.edh8je2n40.pdb",
       "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.pdb",
       "Selectors": [],
       "ResponseHeaders": [
@@ -72266,7 +72105,7 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "39292"
+          "Value": "48612"
         },
         {
           "Name": "Content-Type",
@@ -72274,148 +72113,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"++Xu8H/G+yMGIUiI/1iy5JNFj7ukbLbUaVSxvgt2OzY=\""
+          "Value": "\"DivEJOGYSSuZf8wtGp6CAvz823FoD4RwAGS5pjBgxgQ=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:09 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "no-cache"
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "integrity",
-          "Value": "sha256-++Xu8H/G+yMGIUiI/1iy5JNFj7ukbLbUaVSxvgt2OzY="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.pdb",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-rg65yhrxqi.gz",
-      "Selectors": [
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip",
-          "Quality": "0.000032349896"
-        }
-      ],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "30911"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"na1hVtC8G+NfeVvQgSxoYtNz06UHYHnfkYnZcBhR/Og=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:10 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "no-cache"
-        },
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip"
-        },
-        {
-          "Name": "Vary",
-          "Value": "Content-Encoding"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/octet-stream"
-        },
-        {
-          "Name": "ETag",
-          "Value": "W/\"++Xu8H/G+yMGIUiI/1iy5JNFj7ukbLbUaVSxvgt2OzY=\""
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "integrity",
-          "Value": "sha256-++Xu8H/G+yMGIUiI/1iy5JNFj7ukbLbUaVSxvgt2OzY="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.pdb.gz",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-rg65yhrxqi.gz",
-      "Selectors": [],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "30911"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/octet-stream"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"na1hVtC8G+NfeVvQgSxoYtNz06UHYHnfkYnZcBhR/Og=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:10 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "no-cache"
-        },
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip"
-        },
-        {
-          "Name": "Vary",
-          "Value": "Content-Encoding"
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "integrity",
-          "Value": "sha256-na1hVtC8G+NfeVvQgSxoYtNz06UHYHnfkYnZcBhR/Og="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.rg65yhrxqi.pdb",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.pdb",
-      "Selectors": [],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "39292"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/octet-stream"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"++Xu8H/G+yMGIUiI/1iy5JNFj7ukbLbUaVSxvgt2OzY=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:09 GMT"
+          "Value": "Wed, 02 Apr 2025 17:02:16 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -72425,7 +72127,7 @@
       "EndpointProperties": [
         {
           "Name": "fingerprint",
-          "Value": "rg65yhrxqi"
+          "Value": "edh8je2n40"
         },
         {
           "Name": "label",
@@ -72433,18 +72135,18 @@
         },
         {
           "Name": "integrity",
-          "Value": "sha256-++Xu8H/G+yMGIUiI/1iy5JNFj7ukbLbUaVSxvgt2OzY="
+          "Value": "sha256-DivEJOGYSSuZf8wtGp6CAvz823FoD4RwAGS5pjBgxgQ="
         }
       ]
     },
     {
-      "Route": "_framework/WBSL.Client.rg65yhrxqi.pdb",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-rg65yhrxqi.gz",
+      "Route": "_framework/WBSL.Client.edh8je2n40.pdb",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-edh8je2n40.gz",
       "Selectors": [
         {
           "Name": "Content-Encoding",
           "Value": "gzip",
-          "Quality": "0.000032349896"
+          "Quality": "0.000026053879"
         }
       ],
       "ResponseHeaders": [
@@ -72454,15 +72156,15 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "30911"
+          "Value": "38381"
         },
         {
           "Name": "ETag",
-          "Value": "\"na1hVtC8G+NfeVvQgSxoYtNz06UHYHnfkYnZcBhR/Og=\""
+          "Value": "\"JpFCUj3Z04SWa3HCryaYXpTsut3amu83Ocb9kHQVtfY=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:10 GMT"
+          "Value": "Wed, 02 Apr 2025 17:02:17 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -72482,13 +72184,13 @@
         },
         {
           "Name": "ETag",
-          "Value": "W/\"++Xu8H/G+yMGIUiI/1iy5JNFj7ukbLbUaVSxvgt2OzY=\""
+          "Value": "W/\"DivEJOGYSSuZf8wtGp6CAvz823FoD4RwAGS5pjBgxgQ=\""
         }
       ],
       "EndpointProperties": [
         {
           "Name": "fingerprint",
-          "Value": "rg65yhrxqi"
+          "Value": "edh8je2n40"
         },
         {
           "Name": "label",
@@ -72496,13 +72198,13 @@
         },
         {
           "Name": "integrity",
-          "Value": "sha256-++Xu8H/G+yMGIUiI/1iy5JNFj7ukbLbUaVSxvgt2OzY="
+          "Value": "sha256-DivEJOGYSSuZf8wtGp6CAvz823FoD4RwAGS5pjBgxgQ="
         }
       ]
     },
     {
-      "Route": "_framework/WBSL.Client.rg65yhrxqi.pdb.gz",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-rg65yhrxqi.gz",
+      "Route": "_framework/WBSL.Client.edh8je2n40.pdb.gz",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-edh8je2n40.gz",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -72511,7 +72213,7 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "30911"
+          "Value": "38381"
         },
         {
           "Name": "Content-Type",
@@ -72519,11 +72221,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"na1hVtC8G+NfeVvQgSxoYtNz06UHYHnfkYnZcBhR/Og=\""
+          "Value": "\"JpFCUj3Z04SWa3HCryaYXpTsut3amu83Ocb9kHQVtfY=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:10 GMT"
+          "Value": "Wed, 02 Apr 2025 17:02:17 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -72541,7 +72243,7 @@
       "EndpointProperties": [
         {
           "Name": "fingerprint",
-          "Value": "rg65yhrxqi"
+          "Value": "edh8je2n40"
         },
         {
           "Name": "label",
@@ -72549,7 +72251,305 @@
         },
         {
           "Name": "integrity",
-          "Value": "sha256-na1hVtC8G+NfeVvQgSxoYtNz06UHYHnfkYnZcBhR/Og="
+          "Value": "sha256-JpFCUj3Z04SWa3HCryaYXpTsut3amu83Ocb9kHQVtfY="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.i3nl787qeo.wasm",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.wasm",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "76053"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/wasm"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"0iCesG8tPvG1Jv22M5u4Q6oqLJcCIHfG41GEKOhIYNw=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 02 Apr 2025 17:02:16 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "i3nl787qeo"
+        },
+        {
+          "Name": "label",
+          "Value": "_framework/WBSL.Client.wasm"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-0iCesG8tPvG1Jv22M5u4Q6oqLJcCIHfG41GEKOhIYNw="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.i3nl787qeo.wasm",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-i3nl787qeo.gz",
+      "Selectors": [
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip",
+          "Quality": "0.000033729088"
+        }
+      ],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "29647"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"pSCVFKWPs8bnPaYESkeMpYxinIyDL1vh4IIp6T3s5dI=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 02 Apr 2025 17:02:17 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/wasm"
+        },
+        {
+          "Name": "ETag",
+          "Value": "W/\"0iCesG8tPvG1Jv22M5u4Q6oqLJcCIHfG41GEKOhIYNw=\""
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "i3nl787qeo"
+        },
+        {
+          "Name": "label",
+          "Value": "_framework/WBSL.Client.wasm"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-0iCesG8tPvG1Jv22M5u4Q6oqLJcCIHfG41GEKOhIYNw="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.i3nl787qeo.wasm.gz",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-i3nl787qeo.gz",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "29647"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/wasm"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"pSCVFKWPs8bnPaYESkeMpYxinIyDL1vh4IIp6T3s5dI=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 02 Apr 2025 17:02:17 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "i3nl787qeo"
+        },
+        {
+          "Name": "label",
+          "Value": "_framework/WBSL.Client.wasm.gz"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-pSCVFKWPs8bnPaYESkeMpYxinIyDL1vh4IIp6T3s5dI="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.pdb",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.pdb",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "48612"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/octet-stream"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"DivEJOGYSSuZf8wtGp6CAvz823FoD4RwAGS5pjBgxgQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 02 Apr 2025 17:02:16 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-DivEJOGYSSuZf8wtGp6CAvz823FoD4RwAGS5pjBgxgQ="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.pdb",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-edh8je2n40.gz",
+      "Selectors": [
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip",
+          "Quality": "0.000026053879"
+        }
+      ],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "38381"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"JpFCUj3Z04SWa3HCryaYXpTsut3amu83Ocb9kHQVtfY=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 02 Apr 2025 17:02:17 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/octet-stream"
+        },
+        {
+          "Name": "ETag",
+          "Value": "W/\"DivEJOGYSSuZf8wtGp6CAvz823FoD4RwAGS5pjBgxgQ=\""
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-DivEJOGYSSuZf8wtGp6CAvz823FoD4RwAGS5pjBgxgQ="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.pdb.gz",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-edh8je2n40.gz",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "38381"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/octet-stream"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"JpFCUj3Z04SWa3HCryaYXpTsut3amu83Ocb9kHQVtfY=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Wed, 02 Apr 2025 17:02:17 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-JpFCUj3Z04SWa3HCryaYXpTsut3amu83Ocb9kHQVtfY="
         }
       ]
     },
@@ -72564,7 +72564,7 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "55061"
+          "Value": "76053"
         },
         {
           "Name": "Content-Type",
@@ -72572,11 +72572,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"UReG+HOpJqQHy1MwON5mbEJnekZTvUdITJhKLxv0gn4=\""
+          "Value": "\"0iCesG8tPvG1Jv22M5u4Q6oqLJcCIHfG41GEKOhIYNw=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:09 GMT"
+          "Value": "Wed, 02 Apr 2025 17:02:16 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -72586,18 +72586,18 @@
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-UReG+HOpJqQHy1MwON5mbEJnekZTvUdITJhKLxv0gn4="
+          "Value": "sha256-0iCesG8tPvG1Jv22M5u4Q6oqLJcCIHfG41GEKOhIYNw="
         }
       ]
     },
     {
       "Route": "_framework/WBSL.Client.wasm",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-10t6j7tgnw.gz",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-i3nl787qeo.gz",
       "Selectors": [
         {
           "Name": "Content-Encoding",
           "Value": "gzip",
-          "Quality": "0.000046487843"
+          "Quality": "0.000033729088"
         }
       ],
       "ResponseHeaders": [
@@ -72607,15 +72607,15 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "21510"
+          "Value": "29647"
         },
         {
           "Name": "ETag",
-          "Value": "\"YeMmo7CBhuT4ewv4Kix1MsHPg9fsHhrsTlIALsXIHSo=\""
+          "Value": "\"pSCVFKWPs8bnPaYESkeMpYxinIyDL1vh4IIp6T3s5dI=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:11 GMT"
+          "Value": "Wed, 02 Apr 2025 17:02:17 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -72635,19 +72635,19 @@
         },
         {
           "Name": "ETag",
-          "Value": "W/\"UReG+HOpJqQHy1MwON5mbEJnekZTvUdITJhKLxv0gn4=\""
+          "Value": "W/\"0iCesG8tPvG1Jv22M5u4Q6oqLJcCIHfG41GEKOhIYNw=\""
         }
       ],
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-UReG+HOpJqQHy1MwON5mbEJnekZTvUdITJhKLxv0gn4="
+          "Value": "sha256-0iCesG8tPvG1Jv22M5u4Q6oqLJcCIHfG41GEKOhIYNw="
         }
       ]
     },
     {
       "Route": "_framework/WBSL.Client.wasm.gz",
-      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-10t6j7tgnw.gz",
+      "AssetFile": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-i3nl787qeo.gz",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -72656,7 +72656,7 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "21510"
+          "Value": "29647"
         },
         {
           "Name": "Content-Type",
@@ -72664,11 +72664,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"YeMmo7CBhuT4ewv4Kix1MsHPg9fsHhrsTlIALsXIHSo=\""
+          "Value": "\"pSCVFKWPs8bnPaYESkeMpYxinIyDL1vh4IIp6T3s5dI=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Mon, 31 Mar 2025 15:38:11 GMT"
+          "Value": "Wed, 02 Apr 2025 17:02:17 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -72686,7 +72686,7 @@
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-YeMmo7CBhuT4ewv4Kix1MsHPg9fsHhrsTlIALsXIHSo="
+          "Value": "sha256-pSCVFKWPs8bnPaYESkeMpYxinIyDL1vh4IIp6T3s5dI="
         }
       ]
     },
