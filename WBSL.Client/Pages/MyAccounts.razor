@@ -62,7 +62,7 @@
             await LoadAccounts();
         }
     }
-
+    
     private async Task DeleteAccount(int id)
     {
         var res = await Http.DeleteAsync($"api/accounts/{id}");

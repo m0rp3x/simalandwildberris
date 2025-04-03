@@ -33,7 +33,7 @@ public class AccountTokenService
                     .FirstOrDefaultAsync(a => a.user_id == userId && a.platform == "SimaLand");
             case ExternalAccountType.WildBerris:
                 return await _db.external_accounts
-                    .FirstOrDefaultAsync(a => a.user_id == userId && a.platform == "WildBerris");
+                    .FirstOrDefaultAsync(a => a.user_id == userId && a.platform == "Wildberries");
             default:
                 return null;
         }

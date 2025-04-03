@@ -1,5 +1,4 @@
-﻿using System.Security.Claims;
-using WBSL.Data.Enums;
+﻿using WBSL.Data.Enums;
 using WBSL.Data.Services;
 
 namespace WBSL.Data.Handlers;
@@ -8,18 +7,8 @@ public class RateLimitedAuthHandler : DelegatingHandler
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IHttpContextAccessor _httpContextAccessor;
-    private static int _requestCount = 0;
-    private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(100, 100); // Макс 100 запросов
-    private static Timer _resetTimer;
-
-    static RateLimitedAuthHandler(){
-        // Сбрасываем счётчик каждую минуту
-        _resetTimer = new Timer(_ => {
-            Interlocked.Exchange(ref _requestCount, 0); // Атомарно сбрасываем
-            _semaphore.Release(100 - _requestCount); // Освобождаем семафор
-        }, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
-    }
-
+    private static readonly RollingWindowRateLimiter _limiter = 
+        new(TimeSpan.FromMinutes(1), 100);
     public RateLimitedAuthHandler(IServiceProvider serviceProvider, IHttpContextAccessor httpContextAccessor){
         _serviceProvider = serviceProvider;
         _httpContextAccessor = httpContextAccessor;
@@ -28,11 +17,9 @@ public class RateLimitedAuthHandler : DelegatingHandler
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken){
-        await _semaphore.WaitAsync(cancellationToken);
+        await _limiter.WaitAsync(cancellationToken);
 
         try{
-            Interlocked.Increment(ref _requestCount);
-
             var user = _httpContextAccessor.HttpContext?.User;
             if (user == null)
                 throw new InvalidOperationException("No user context available.");
@@ -48,6 +35,51 @@ public class RateLimitedAuthHandler : DelegatingHandler
             return await base.SendAsync(request, cancellationToken);
         }
         finally{
+        }
+    }
+    
+    public class RollingWindowRateLimiter
+    {
+        private readonly Queue<DateTime> _requestTimes;
+        private readonly TimeSpan _window;
+        private readonly int _maxRequests;
+        private readonly object _lock = new();
+
+        public RollingWindowRateLimiter(TimeSpan window, int maxRequests)
+        {
+            _window = window;
+            _maxRequests = maxRequests;
+            _requestTimes = new Queue<DateTime>(maxRequests);
+        }
+
+        public async Task WaitAsync(CancellationToken ct)
+        {
+            while (true)
+            {
+                lock (_lock)
+                {
+                    var now = DateTime.UtcNow;
+                    while (_requestTimes.Count > 0 && now - _requestTimes.Peek() > _window)
+                        _requestTimes.Dequeue();
+
+                    if (_requestTimes.Count < _maxRequests)
+                    {
+                        _requestTimes.Enqueue(now);
+                        return;
+                    }
+                }
+
+                await Task.Delay(100, ct).ConfigureAwait(false);
+            }
+        }
+
+        public void Release()
+        {
+            lock (_lock)
+            {
+                if (_requestTimes.Count > 0)
+                    _requestTimes.Dequeue();
+            }
         }
     }
 }

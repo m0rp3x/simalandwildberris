@@ -1,4 +1,6 @@
 ﻿using System.Collections.Concurrent;
+using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WBSL.Data;
@@ -6,6 +8,8 @@ using WBSL.Models;
 
 namespace WBSL.Controllers;
 
+[ApiController]
+[Route("api/[controller]")]
 public class WildberriesController : ControllerBase
 {
     private readonly IHttpClientFactory _httpFactory;
@@ -22,23 +26,29 @@ public class WildberriesController : ControllerBase
         return StatusCode(500);
     }
 
-    [HttpPost("sync-categories")]
+    [HttpGet("sync-categories")]
     public async Task<IActionResult> SyncCategories(){
         try{
             var parentCategories = await FetchParentCategories();
             var allCategories = new ConcurrentBag<wildberries_category>();
 
-            var options = new ParallelOptions{ MaxDegreeOfParallelism = 3 };
+            var options = new ParallelOptions { MaxDegreeOfParallelism = 2 };
+            var random = new Random();
 
-            await Parallel.ForEachAsync(parentCategories, options, async (parent, ct) => {
-                try{
-                    // Запросы автоматически ограничиваются хендлером
+            await Parallel.ForEachAsync(parentCategories, options, async (parent, ct) => 
+            {
+                try
+                {
                     var subCategories = await FetchSubCategories(parent.id, parent.name, ct);
                     foreach (var category in subCategories)
                         allCategories.Add(category);
+        
+                    // Случайная задержка 0.5-1.5 сек между группами
+                    await Task.Delay(TimeSpan.FromSeconds(0.5 + random.NextDouble()), ct);
                 }
-                catch (Exception ex){
-                    Console.Error.WriteLine($"Ошибка при обработке категории {parent.name}: {ex.Message}");
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error: " + ex.Message);
                 }
             });
 
@@ -54,15 +64,18 @@ public class WildberriesController : ControllerBase
         }
     }
 
+    public class WbApiResponse
+    {
+        public List<wildberries_parrent_category> data{ get; set; }
+    }
 
     private async Task<List<wildberries_parrent_category>> FetchParentCategories(){
         var response = await WbClient.GetAsync("content/v2/object/parent/all");
         response.EnsureSuccessStatusCode();
 
-        return await response.Content.ReadFromJsonAsync<List<wildberries_parrent_category>>()
-               ?? new List<wildberries_parrent_category>();
+        var result = await response.Content.ReadFromJsonAsync<WbApiResponse>();
+        return result?.data ?? new List<wildberries_parrent_category>();
     }
-
     private async Task<List<wildberries_category>> FetchSubCategories(
         int parentId,
         string parentName,
@@ -73,15 +86,19 @@ public class WildberriesController : ControllerBase
         );
         response.EnsureSuccessStatusCode();
 
-        var subCategories = await response.Content.ReadFromJsonAsync<List<wildberries_category>>(cancellationToken: ct)
-                            ?? new List<wildberries_category>();
-
-        subCategories.ForEach(x => {
-            x.parent_id = parentId;
-            x.parent_name = parentName;
-        });
-
-        return subCategories;
+        using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(), cancellationToken: ct);
+    
+        return doc.RootElement
+            .GetProperty("data")
+            .EnumerateArray()
+            .Select(x => new wildberries_category
+            {
+                id = x.GetProperty("subjectID").GetInt32(),
+                parent_id = x.GetProperty("parentID").GetInt32(),
+                name = x.GetProperty("subjectName").GetString()!,
+                parent_name = x.GetProperty("parentName").GetString()
+            })
+            .ToList();
     }
 
     private async Task SaveCategoriesToDatabase(
