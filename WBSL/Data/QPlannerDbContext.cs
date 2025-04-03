@@ -17,6 +17,8 @@ public partial class QPlannerDbContext : DbContext
     public virtual DbSet<product> products { get; set; }
 
     public virtual DbSet<user> users { get; set; }
+    public virtual DbSet<WildberriesParrentCategories> WildberriesParrentCategories { get; set; }
+    public virtual DbSet<WildberriesCategories> WildberriesCategories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
