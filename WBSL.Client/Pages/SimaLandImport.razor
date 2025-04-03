@@ -28,6 +28,10 @@
         </MudButton>
         <input type="file" id="jsonFileInput" accept=".json" style="display:none" @onchange="OnJsonFileChanged" />
     </MudStack>
+    <MudButton Variant="Variant.Outlined" OnClick="StoreToDatabase">
+        Загрузить в базу
+    </MudButton>
+
 
 
 
@@ -45,9 +49,11 @@
                 <MudTh>Артикул</MudTh>
                 <MudTh>Наименование</MudTh>
                 <MudTh>Габариты (Ш×В×Г)</MudTh>
+                <MudTh>Габариты Упаковки (Д×Ш×Н)</MudTh>
                 <MudTh>Описание</MudTh>
                 <MudTh>Вес (г)</MudTh>
                 <MudTh>Фото</MudTh>
+                <MudTh>Баркоды</MudTh>
                 <MudTh>Категория</MudTh>
                 <MudTh>Остаток</MudTh>
                 <MudTh>Мин. партия</MudTh>
@@ -57,10 +63,19 @@
             <RowTemplate>
                 <MudTd>@context.sid</MudTd>
                 <MudTd>@context.name</MudTd>
-                <MudTd>@($"{context.width}×{context.height}×{context.depth}")</MudTd>
+                <MudTd>@($"{Math.Max(context.width, 1)}×{Math.Max(context.height, 1)}×{Math.Max(context.depth, 1)}")</MudTd>
+                <MudTd>@($"{context.box_depth}×{context.box_width}×{context.box_height}")</MudTd>
                 <MudTd>@context.description</MudTd>
                 <MudTd>@context.weight</MudTd>
-                <MudTd>@context.base_photo_url</MudTd>
+                <MudTd>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        @foreach (var url in context.photo_urls)
+                        {
+                            <a href="@url" target="_blank" style="color: #1976d2; text-decoration: underline;">@url</a>
+                        }
+                    </div>
+                </MudTd>
+                <MudTd>@context.barcodes</MudTd>
                 <MudTd>@context.category_name</MudTd>
                 <MudTd>@context.balance</MudTd>
                 <MudTd>@context.qty_multiplier</MudTd>
@@ -106,6 +121,8 @@
         var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                                    .Select(long.Parse)
                                    .ToList();
+        
+        
 
         var res = await Http.PostAsJsonAsync("api/simaland/fetch", new
         {
@@ -220,6 +237,22 @@
             _resultJson = $"Ошибка при чтении файла: {ex.Message}";
         }
     }
+    
+    private async Task StoreToDatabase()
+    {
+        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        var res = await Http.PostAsJsonAsync("api/simaland/store", _products);
+        if (res.IsSuccessStatusCode)
+        {
+            _resultJson = "Успешно загружено в базу!";
+        }
+        else
+        {
+            _resultJson = $"Ошибка загрузки: {res.StatusCode}";
+        }
+    }
 
 
 
@@ -235,10 +268,13 @@
         public long sid { get; set; }
         public string name { get; set; } = "";
         public string description { get; set; } = "";
-        public int width { get; set; }
-        public int height { get; set; }
-        public int depth { get; set; }
-        public int weight { get; set; }
+        public decimal width { get; set; }
+        public decimal height { get; set; }
+        public decimal depth { get; set; }
+        public decimal weight { get; set; }
+        public decimal box_depth { get; set; }
+        public decimal box_height { get; set; }
+        public decimal box_width { get; set; }
         public string base_photo_url { get; set; } = "";
         public int category_id { get; set; }
         public string balance { get; set; } = "";
@@ -246,5 +282,12 @@
         public decimal wholesale_price { get; set; }
         public decimal price { get; set; }
         public string category_name { get; set; } = ""; 
+        public List<string> photo_urls { get; set; } = new();
+        public string? barcodes { get; set; } // как CSV: "123,456"
+
+
+
+
+        
     }
 }

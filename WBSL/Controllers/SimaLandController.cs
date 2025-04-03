@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using WBSL.Data;
+using WBSL.Models;
 
 namespace WBSL.Controllers;
 
@@ -79,6 +80,29 @@ public class SimaLandController : ControllerBase
                     }
                 }
             }
+            
+            // Получение штрихкодов
+            if (productDict.TryGetValue("barcodes", out var barcodesElement))
+            {
+                var barcodes = barcodesElement.EnumerateArray().Select(b => b.GetString()).Where(s => s != null).ToList();
+                productDict["barcodes"] = JsonSerializer.SerializeToElement(string.Join(",", barcodes));
+            }
+
+
+            // Получение всех URL фотографий
+            var photoUrls = new List<string>();
+            if (productDict.TryGetValue("base_photo_url", out var basePhotoElement) &&
+                productDict.TryGetValue("agg_photos", out var photoArray))
+            {
+                var baseUrl = basePhotoElement.GetString() ?? "";
+                if (!baseUrl.EndsWith("/")) baseUrl += "/";
+
+                photoUrls = photoArray.EnumerateArray()
+                    .Select(p => $"{baseUrl}{p.GetInt32()}/700.jpg")
+                    .ToList();
+
+                productDict["photo_urls"] = JsonSerializer.SerializeToElement(photoUrls);
+            }
 
             var updatedJson = JsonSerializer.SerializeToElement(productDict);
             results.Add(updatedJson);
@@ -122,21 +146,45 @@ public class SimaLandController : ControllerBase
             var json = await res.Content.ReadAsStringAsync();
             var product = JsonSerializer.Deserialize<JsonElement>(json);
 
-            // Удаление HTML-тегов из описания
             var rawDesc = product.GetProperty("description").GetString() ?? "";
             var cleanDesc = Regex.Replace(rawDesc, "<.*?>", string.Empty);
+
+            string categoryName = "";
+            if (product.TryGetProperty("category_id", out var catIdElem))
+            {
+                var catRes = await client.GetAsync($"category/{catIdElem.GetInt32()}");
+                if (catRes.IsSuccessStatusCode)
+                {
+                    var catJson = await catRes.Content.ReadAsStringAsync();
+                    var cat = JsonSerializer.Deserialize<JsonElement>(catJson);
+                    categoryName = cat.GetProperty("name").GetString() ?? "";
+                }
+            }
+
+            string photoUrls = "";
+            if (product.TryGetProperty("base_photo_url", out var baseUrlElem) &&
+                product.TryGetProperty("agg_photos", out var aggElem))
+            {
+                var baseUrl = baseUrlElem.GetString() ?? "";
+                if (!baseUrl.EndsWith("/")) baseUrl += "/";
+
+                var urls = aggElem.EnumerateArray()
+                    .Select(p => $"{baseUrl}{p.GetInt32()}/700.jpg");
+
+                photoUrls = string.Join(", ", urls);
+            }
 
             worksheet.Cell(row, 1).Value = product.GetProperty("sid").GetInt64();
             worksheet.Cell(row, 2).Value = product.GetProperty("name").GetString();
             worksheet.Cell(row, 3).Value = cleanDesc;
-            worksheet.Cell(row, 4).Value = $"{product.GetProperty("width").GetInt32()}×{product.GetProperty("height").GetInt32()}×{product.GetProperty("depth").GetInt32()}";
+            worksheet.Cell(row, 4).Value = $"{product.GetProperty("width")}×{product.GetProperty("height")}×{product.GetProperty("depth")}";
             worksheet.Cell(row, 5).Value = product.GetProperty("weight").GetInt32();
-            worksheet.Cell(row, 6).Value = product.GetProperty("category_id").GetInt32();
+            worksheet.Cell(row, 6).Value = categoryName;    
             worksheet.Cell(row, 7).Value = product.GetProperty("balance").GetString();
             worksheet.Cell(row, 8).Value = product.GetProperty("qty_multiplier").GetInt32();
             worksheet.Cell(row, 9).Value = product.GetProperty("wholesale_price").GetDecimal();
             worksheet.Cell(row, 10).Value = product.GetProperty("price").GetDecimal();
-            worksheet.Cell(row, 11).Value = product.GetProperty("base_photo_url").GetString();
+            worksheet.Cell(row, 11).Value = photoUrls;
 
             row++;
         }
@@ -146,6 +194,21 @@ public class SimaLandController : ControllerBase
         stream.Seek(0, SeekOrigin.Begin);
 
         return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "simaland-products.xlsx");
+    }
+    
+    [HttpPost("store")]
+    public async Task<IActionResult> StoreProducts([FromBody] List<product> products)
+    {
+        foreach (var p in products)
+        {
+            if (p.width == 0) p.width = 1;
+            if (p.height == 0) p.height = 1;
+            if (p.depth == 0) p.depth = 1;
+        }
+
+        await _db.products.AddRangeAsync(products);
+        await _db.SaveChangesAsync();
+        return Ok(new { success = true, count = products.Count });
     }
 
     public class SimaRequest

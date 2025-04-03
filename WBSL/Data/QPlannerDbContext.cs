@@ -14,6 +14,8 @@ public partial class QPlannerDbContext : DbContext
 
     public virtual DbSet<external_account> external_accounts { get; set; }
 
+    public virtual DbSet<product> products { get; set; }
+
     public virtual DbSet<user> users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -31,6 +33,37 @@ public partial class QPlannerDbContext : DbContext
             entity.HasOne(d => d.user).WithMany(p => p.external_accounts)
                 .HasForeignKey(d => d.user_id)
                 .HasConstraintName("fk_user");
+        });
+
+        modelBuilder.Entity<product>(entity =>
+        {
+            entity.HasKey(e => e.sid).HasName("products_pkey");
+
+            entity.Property(e => e.sid).ValueGeneratedNever();
+            entity.Property(e => e.box_depth)
+                .HasPrecision(10, 2)
+                .HasDefaultValueSql("0");
+            entity.Property(e => e.box_height)
+                .HasPrecision(10, 2)
+                .HasDefaultValueSql("0");
+            entity.Property(e => e.box_width)
+                .HasPrecision(10, 2)
+                .HasDefaultValueSql("0");
+            entity.Property(e => e.depth)
+                .HasPrecision(10, 2)
+                .HasDefaultValueSql("0");
+            entity.Property(e => e.height)
+                .HasPrecision(10, 2)
+                .HasDefaultValueSql("0");
+            entity.Property(e => e.price).HasPrecision(10, 2);
+            entity.Property(e => e.qty_multiplier).HasDefaultValue(1);
+            entity.Property(e => e.weight)
+                .HasPrecision(10, 2)
+                .HasDefaultValueSql("0");
+            entity.Property(e => e.wholesale_price).HasPrecision(10, 2);
+            entity.Property(e => e.width)
+                .HasPrecision(10, 2)
+                .HasDefaultValueSql("0");
         });
 
         modelBuilder.Entity<user>(entity =>

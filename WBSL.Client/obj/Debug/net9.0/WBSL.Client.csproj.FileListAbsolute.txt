@@ -1077,10 +1077,10 @@ C:\Users\koval\RiderProjects\WBSL\WBSL.Client\obj\Debug\net9.0\WBSL.Client.sourc
 C:\Users\koval\RiderProjects\WBSL\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\MudBlazor.3w2vmwd22m.wasm
 C:\Users\koval\RiderProjects\WBSL\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\MudBlazor.3w2vmwd22m.wasm.gz
 C:\Users\koval\RiderProjects\WBSL\WBSL.Client\obj\Debug\net9.0\compressed\z4c5y128uo-3w2vmwd22m.gz
-C:\Users\koval\RiderProjects\WBSL\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.3tr2h712z0.pdb
-C:\Users\koval\RiderProjects\WBSL\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.bbuqmbwbdn.wasm
-C:\Users\koval\RiderProjects\WBSL\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.bbuqmbwbdn.wasm.gz
-C:\Users\koval\RiderProjects\WBSL\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.3tr2h712z0.pdb.gz
-C:\Users\koval\RiderProjects\WBSL\WBSL.Client\obj\Debug\net9.0\compressed\p5repknw0r-bbuqmbwbdn.gz
-C:\Users\koval\RiderProjects\WBSL\WBSL.Client\obj\Debug\net9.0\compressed\rp7kio3md3-3tr2h712z0.gz
-C:\Users\koval\RiderProjects\WBSL\WBSL.Client\obj\Debug\net9.0\compressed\ljajdekqyz-yt7ijizrhx.gz
+C:\Users\koval\RiderProjects\WBSL\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.ae5610xyfm.pdb
+C:\Users\koval\RiderProjects\WBSL\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.kinw6t6mzy.wasm
+C:\Users\koval\RiderProjects\WBSL\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.kinw6t6mzy.wasm.gz
+C:\Users\koval\RiderProjects\WBSL\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.ae5610xyfm.pdb.gz
+C:\Users\koval\RiderProjects\WBSL\WBSL.Client\obj\Debug\net9.0\compressed\p5repknw0r-kinw6t6mzy.gz
+C:\Users\koval\RiderProjects\WBSL\WBSL.Client\obj\Debug\net9.0\compressed\rp7kio3md3-ae5610xyfm.gz
+C:\Users\koval\RiderProjects\WBSL\WBSL.Client\obj\Debug\net9.0\compressed\ljajdekqyz-6a7ul4kq1f.gz
