@@ -61,7 +61,7 @@
                 <MudTd>@context.description</MudTd>
                 <MudTd>@context.weight</MudTd>
                 <MudTd>@context.base_photo_url</MudTd>
-                <MudTd>@context.category_id</MudTd>
+                <MudTd>@context.category_name</MudTd>
                 <MudTd>@context.balance</MudTd>
                 <MudTd>@context.qty_multiplier</MudTd>
                 <MudTd>@context.wholesale_price</MudTd>
@@ -245,5 +245,6 @@
         public int qty_multiplier { get; set; }
         public decimal wholesale_price { get; set; }
         public decimal price { get; set; }
+        public string category_name { get; set; } = ""; 
     }
 }
