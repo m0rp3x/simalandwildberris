@@ -1295,8 +1295,6 @@ D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_fr
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Xml.XmlSerializer.0sc0ourwbb.wasm
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Xml.XPath.6zhyzqh2n6.wasm
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Xml.XPath.XDocument.7m1x4rd2b8.wasm
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.ydru8drv55.pdb
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.htpctqqldg.wasm
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WindowsBase.ag32297siy.wasm
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Core.eovbtmx9ej.wasm.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\Microsoft.VisualBasic.Core.790ssxljcz.wasm.gz
@@ -1443,7 +1441,6 @@ D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_fr
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Threading.Tasks.Parallel.pia6qfjdvy.wasm.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\Microsoft.AspNetCore.Metadata.1xd6vo83cv.wasm.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Runtime.Loader.cot9lfqma4.wasm.gz
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.htpctqqldg.wasm.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Threading.Tasks.zmf0gmcpmv.wasm.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Threading.Thread.k53q2qtn4x.wasm.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Diagnostics.FileVersionInfo.4f475qbfex.wasm.gz
@@ -1457,7 +1454,6 @@ D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_fr
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Net.Primitives.rog0rqelo4.wasm.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Diagnostics.Debug.shhvs5h51d.wasm.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Reflection.Emit.ILGeneration.ul9zb0sw6s.wasm.gz
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.ydru8drv55.pdb.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Net.j0rb8fmqum.wasm.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.ServiceProcess.j0wagton1u.wasm.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\System.Xml.XPath.6zhyzqh2n6.wasm.gz
@@ -2153,9 +2149,6 @@ D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\htchkk745u-tjcz0u77k5.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\i7i4t8elik-tptq2av103.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\vumjo3dh43-lfu7j35m59.gz
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\p5repknw0r-htpctqqldg.gz
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\rp7kio3md3-ydru8drv55.gz
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\ljajdekqyz-c6x8z09ftk.gz
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\staticwebassets.build.json
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\staticwebassets.development.json
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\staticwebassets.build.endpoints.json
@@ -2170,3 +2163,10 @@ D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\WBSL.Client
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\refint\WBSL.Client.dll
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\WBSL.Client.pdb
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\ref\WBSL.Client.dll
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.6nv2buxwx4.pdb
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.752pgdlpu5.wasm
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.752pgdlpu5.wasm.gz
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.6nv2buxwx4.pdb.gz
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\p5repknw0r-752pgdlpu5.gz
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\rp7kio3md3-6nv2buxwx4.gz
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\ljajdekqyz-b9qkyc3d4j.gz

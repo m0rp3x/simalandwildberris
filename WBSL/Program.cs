@@ -6,6 +6,9 @@ using Microsoft.IdentityModel.Tokens;
 using WBSL.Data;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using WBSL.Data.Handlers;
+using WBSL.Data.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add MudBlazor services
@@ -42,6 +45,9 @@ builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();
 
+builder.Services.AddTransient<RateLimitedAuthHandler>();
+builder.Services.AddTransient<AccountTokenService>();
+
 builder.Services.AddHttpClient("SimaLand", client =>
 {
     client.BaseAddress = new Uri("https://www.sima-land.ru/api/v5/");
@@ -52,7 +58,7 @@ builder.Services.AddHttpClient("WildBerries", client =>
 {
     client.BaseAddress = new Uri("https://content-api.wildberries.ru");
     // Общие заголовки можно добавить здесь
-});
+}).AddHttpMessageHandler<RateLimitedAuthHandler>();
 
 var app = builder.Build();
 app.MapControllers(); // <-- обязательно!

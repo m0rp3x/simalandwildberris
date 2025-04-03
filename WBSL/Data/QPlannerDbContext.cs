@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using WBSL.Models;
 
 namespace WBSL.Data;
@@ -17,8 +15,8 @@ public partial class QPlannerDbContext : DbContext
     public virtual DbSet<product> products { get; set; }
 
     public virtual DbSet<user> users { get; set; }
-    public virtual DbSet<WildberriesParrentCategories> WildberriesParrentCategories { get; set; }
-    public virtual DbSet<WildberriesCategories> WildberriesCategories { get; set; }
+    public virtual DbSet<WildberriesParrentCategories> wildberries_parrent_categories { get; set; }
+    public virtual DbSet<WildberriesCategories> wildberries_categories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

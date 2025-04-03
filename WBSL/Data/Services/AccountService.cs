@@ -1,0 +1,41 @@
+﻿using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
+using WBSL.Data.Enums;
+using WBSL.Data.Errors;
+using WBSL.Models;
+
+namespace WBSL.Data.Services;
+
+public class AccountTokenService
+{
+    private readonly QPlannerDbContext _db;
+
+    public AccountTokenService(QPlannerDbContext db){
+        _db = db;
+    }
+
+    public async Task<external_account?> GetCurrentUserExternalAccountAsync(ClaimsPrincipal User, ExternalAccountType platform){
+        var account = await GetExternalAccounts(User, platform);
+
+        if (account == null)
+            throw new AccountNotFoundError("Аккаунт не найден или не принадлежит вам.");
+
+        return account;
+    }
+
+
+    private async Task<external_account?> GetExternalAccounts(ClaimsPrincipal User, ExternalAccountType platform){
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        switch (platform){
+            case ExternalAccountType.SimaLand:
+                return await _db.external_accounts
+                    .FirstOrDefaultAsync(a => a.user_id == userId && a.platform == "SimaLand");
+            case ExternalAccountType.WildBerris:
+                return await _db.external_accounts
+                    .FirstOrDefaultAsync(a => a.user_id == userId && a.platform == "WildBerris");
+            default:
+                return null;
+        }
+    }
+}
