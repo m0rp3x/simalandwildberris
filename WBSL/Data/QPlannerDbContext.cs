@@ -18,6 +18,10 @@ public partial class QPlannerDbContext : DbContext
     public virtual DbSet<WildberriesParrentCategories> wildberries_parrent_categories { get; set; }
     public virtual DbSet<WildberriesCategories> wildberries_categories { get; set; }
 
+    public virtual DbSet<wildberries_category> wildberries_categories { get; set; }
+
+    public virtual DbSet<wildberries_parrent_category> wildberries_parrent_categories { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("pgcrypto");
@@ -76,6 +80,20 @@ public partial class QPlannerDbContext : DbContext
             entity.Property(e => e.created_at)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
+        });
+
+        modelBuilder.Entity<wildberries_category>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("wildberries_categories_pkey");
+
+            entity.HasOne(d => d.parent).WithMany(p => p.wildberries_categories)
+                .HasForeignKey(d => d.parent_id)
+                .HasConstraintName("fk_parent_category");
+        });
+
+        modelBuilder.Entity<wildberries_parrent_category>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("wildberries_parrent_categories_pkey");
         });
 
         OnModelCreatingPartial(modelBuilder);
