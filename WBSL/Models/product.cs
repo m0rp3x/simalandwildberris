@@ -40,4 +40,6 @@ public partial class product
     public string? category_name { get; set; }
 
     public List<string>? photo_urls { get; set; }
+
+    public string? barcodes { get; set; }
 }
