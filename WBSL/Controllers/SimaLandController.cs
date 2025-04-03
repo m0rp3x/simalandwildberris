@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -38,8 +37,7 @@ public class SimaLandController : ControllerBase
         if (account == null)
             return BadRequest("Аккаунт не найден или не принадлежит вам.");
 
-        var client = _httpFactory.CreateClient();
-        client.BaseAddress = new Uri("https://www.sima-land.ru/api/v5/");
+        var client = _httpFactory.CreateClient("SimaLand");
         client.DefaultRequestHeaders.Add("X-Api-Key", account.token);
 
         var results = new List<JsonElement>();
@@ -122,8 +120,7 @@ public class SimaLandController : ControllerBase
         if (account == null)
             return BadRequest("Аккаунт не найден");
 
-        var client = _httpFactory.CreateClient();
-        client.BaseAddress = new Uri("https://www.sima-land.ru/api/v5/");
+        var client = _httpFactory.CreateClient("SimaLand");
         client.DefaultRequestHeaders.Add("X-Api-Key", account.token);
 
         var workbook = new ClosedXML.Excel.XLWorkbook();

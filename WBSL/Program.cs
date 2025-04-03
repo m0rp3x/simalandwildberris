@@ -42,6 +42,18 @@ builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();
 
+builder.Services.AddHttpClient("SimaLand", client =>
+{
+    client.BaseAddress = new Uri("https://www.sima-land.ru/api/v5/");
+    // Общие заголовки можно добавить здесь
+});
+
+builder.Services.AddHttpClient("WildBerries", client =>
+{
+    client.BaseAddress = new Uri("https://content-api.wildberries.ru");
+    // Общие заголовки можно добавить здесь
+});
+
 var app = builder.Build();
 app.MapControllers(); // <-- обязательно!
 
