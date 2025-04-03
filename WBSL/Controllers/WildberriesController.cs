@@ -26,19 +26,19 @@ public class WildberriesController : ControllerBase
     public async Task<IActionResult> SyncCategories(){
         try{
             var parentCategories = await FetchParentCategories();
-            var allCategories = new ConcurrentBag<WildberriesCategories>();
+            var allCategories = new ConcurrentBag<wildberries_category>();
 
             var options = new ParallelOptions{ MaxDegreeOfParallelism = 3 };
 
             await Parallel.ForEachAsync(parentCategories, options, async (parent, ct) => {
                 try{
                     // Запросы автоматически ограничиваются хендлером
-                    var subCategories = await FetchSubCategories(parent.Id, parent.Name, ct);
+                    var subCategories = await FetchSubCategories(parent.id, parent.name, ct);
                     foreach (var category in subCategories)
                         allCategories.Add(category);
                 }
                 catch (Exception ex){
-                    Console.Error.WriteLine($"Ошибка при обработке категории {parent.Name}: {ex.Message}");
+                    Console.Error.WriteLine($"Ошибка при обработке категории {parent.name}: {ex.Message}");
                 }
             });
 
@@ -55,15 +55,15 @@ public class WildberriesController : ControllerBase
     }
 
 
-    private async Task<List<WildberriesParrentCategories>> FetchParentCategories(){
+    private async Task<List<wildberries_parrent_category>> FetchParentCategories(){
         var response = await WbClient.GetAsync("content/v2/object/parent/all");
         response.EnsureSuccessStatusCode();
 
-        return await response.Content.ReadFromJsonAsync<List<WildberriesParrentCategories>>()
-               ?? new List<WildberriesParrentCategories>();
+        return await response.Content.ReadFromJsonAsync<List<wildberries_parrent_category>>()
+               ?? new List<wildberries_parrent_category>();
     }
 
-    private async Task<List<WildberriesCategories>> FetchSubCategories(
+    private async Task<List<wildberries_category>> FetchSubCategories(
         int parentId,
         string parentName,
         CancellationToken ct){
@@ -73,43 +73,43 @@ public class WildberriesController : ControllerBase
         );
         response.EnsureSuccessStatusCode();
 
-        var subCategories = await response.Content.ReadFromJsonAsync<List<WildberriesCategories>>(cancellationToken: ct)
-                            ?? new List<WildberriesCategories>();
+        var subCategories = await response.Content.ReadFromJsonAsync<List<wildberries_category>>(cancellationToken: ct)
+                            ?? new List<wildberries_category>();
 
         subCategories.ForEach(x => {
-            x.ParentId = parentId;
-            x.ParentName = parentName;
+            x.parent_id = parentId;
+            x.parent_name = parentName;
         });
 
         return subCategories;
     }
 
     private async Task SaveCategoriesToDatabase(
-        List<WildberriesParrentCategories> parents,
-        List<WildberriesCategories> categories){
+        List<wildberries_parrent_category> parents,
+        List<wildberries_category> categories){
         foreach (var parent in parents){
-            await _db.WildberriesParrentCategories
-                .Where(p => p.Id == parent.Id)
+            await _db.wildberries_parrent_categories
+                .Where(p => p.id == parent.id)
                 .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(p => p.Name, parent.Name)
+                    .SetProperty(p => p.name, parent.name)
                 );
 
-            if (await _db.WildberriesParrentCategories.AllAsync(p => p.Id != parent.Id)){
-                await _db.WildberriesParrentCategories.AddAsync(parent);
+            if (await _db.wildberries_parrent_categories.AllAsync(p => p.id != parent.id)){
+                await _db.wildberries_parrent_categories.AddAsync(parent);
             }
         }
 
         foreach (var category in categories){
-            await _db.WildberriesCategories
-                .Where(c => c.Id == category.Id)
+            await _db.wildberries_categories
+                .Where(c => c.id == category.id)
                 .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(c => c.Name, category.Name)
-                    .SetProperty(c => c.ParentId, category.ParentId)
-                    .SetProperty(c => c.ParentName, category.ParentName)
+                    .SetProperty(c => c.name, category.name)
+                    .SetProperty(c => c.parent_id, category.parent_id)
+                    .SetProperty(c => c.parent_name, category.parent_name)
                 );
 
-            if (await _db.WildberriesCategories.AllAsync(c => c.Id != category.Id)){
-                await _db.WildberriesCategories.AddAsync(category);
+            if (await _db.wildberries_categories.AllAsync(c => c.id != category.id)){
+                await _db.wildberries_categories.AddAsync(category);
             }
         }
 

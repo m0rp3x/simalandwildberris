@@ -15,8 +15,6 @@ public partial class QPlannerDbContext : DbContext
     public virtual DbSet<product> products { get; set; }
 
     public virtual DbSet<user> users { get; set; }
-    public virtual DbSet<WildberriesParrentCategories> wildberries_parrent_categories { get; set; }
-    public virtual DbSet<WildberriesCategories> wildberries_categories { get; set; }
 
     public virtual DbSet<wildberries_category> wildberries_categories { get; set; }
 
