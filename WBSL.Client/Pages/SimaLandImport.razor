@@ -22,7 +22,18 @@
         <MudButton Variant="Variant.Outlined" OnClick="DownloadCsv">Скачать CSV</MudButton>
         <MudButton Variant="Variant.Outlined" OnClick="DownloadExcel">Скачать Excel</MudButton>
     </MudStack>
-   
+    <MudStack Row="true" Spacing="2" Class="mt-2">
+        <MudButton Variant="Variant.Outlined" OnClick="TriggerFileUpload">
+            Загрузить JSON с артикулами
+        </MudButton>
+        <input type="file" id="jsonFileInput" accept=".json" style="display:none" @onchange="OnJsonFileChanged" />
+    </MudStack>
+
+
+
+
+
+
 
 
     <MudDivider Class="my-4" />
@@ -67,7 +78,6 @@
     private bool _initialized = false;
     private string _resultJson = string.Empty;
     private List<Product> _products = new();
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !_initialized)
@@ -179,6 +189,38 @@
 
         await JS.InvokeVoidAsync("downloadFileFromBlazor", filename, contentType, base64);
     }
+    
+    private async Task TriggerFileUpload()
+    {
+        await JS.InvokeVoidAsync("triggerFileInputClick", "jsonFileInput");
+    }
+
+    private async Task OnJsonFileChanged(ChangeEventArgs _)
+    {
+        try
+        {
+            // вызываем JS, чтобы прочитать содержимое файла
+            var jsonText = await JS.InvokeAsync<string>("readUploadedJson", "jsonFileInput");
+
+            if (!string.IsNullOrWhiteSpace(jsonText))
+            {
+                var articles = JsonSerializer.Deserialize<List<long>>(jsonText);
+                if (articles != null && articles.Count > 0)
+                {
+                    _rawArticles = string.Join(", ", articles);
+                }
+                else
+                {
+                    _resultJson = "Файл пуст или формат неверный.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _resultJson = $"Ошибка при чтении файла: {ex.Message}";
+        }
+    }
+
 
 
     public class ExternalAccount

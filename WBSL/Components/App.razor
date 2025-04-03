@@ -26,6 +26,21 @@
             document.body.removeChild(link);
         }
     </script>
+    <script>
+        window.triggerFileInputClick = function (id) {
+            document.getElementById(id).click();
+        };
+
+        window.readUploadedJson = async function (inputId) {
+            const input = document.getElementById(inputId);
+            if (!input || !input.files.length) return null;
+
+            const file = input.files[0];
+            const text = await file.text();
+            return text;
+        };
+    </script>
+
 
 </body>
 
