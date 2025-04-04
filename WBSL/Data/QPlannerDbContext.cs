@@ -47,10 +47,6 @@ public partial class QPlannerDbContext : DbContext
             entity.ToTable("WbCharacteristic");
 
             entity.Property(e => e.Value).HasColumnType("jsonb");
-
-            entity.HasOne(d => d.WbProductCardNm).WithMany(p => p.WbCharacteristics)
-                .HasForeignKey(d => d.WbProductCardNmID)
-                .HasConstraintName("FK_Characteristics_Product");
         });
 
         modelBuilder.Entity<WbCursor>(entity =>
@@ -64,13 +60,7 @@ public partial class QPlannerDbContext : DbContext
 
         modelBuilder.Entity<WbDimension>(entity =>
         {
-            entity.HasKey(e => e.WbProductCardNmID).HasName("WbDimensions_pkey");
-
-            entity.Property(e => e.WbProductCardNmID).ValueGeneratedNever();
-
-            entity.HasOne(d => d.WbProductCardNm).WithOne(p => p.WbDimension)
-                .HasForeignKey<WbDimension>(d => d.WbProductCardNmID)
-                .HasConstraintName("FK_Dimensions_Product");
+            entity.HasKey(e => e.Id).HasName("WbDimensions_pkey");
         });
 
         modelBuilder.Entity<WbPhoto>(entity =>
@@ -93,6 +83,36 @@ public partial class QPlannerDbContext : DbContext
             entity.Property(e => e.NmID).ValueGeneratedNever();
             entity.Property(e => e.CreatedAt).HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnType("timestamp without time zone");
+
+            entity.HasMany(d => d.Characteristics).WithMany(p => p.ProductNms)
+                .UsingEntity<Dictionary<string, object>>(
+                    "WbProductCardCharacteristic",
+                    r => r.HasOne<WbCharacteristic>().WithMany()
+                        .HasForeignKey("CharacteristicId")
+                        .HasConstraintName("FK_PCC_Char"),
+                    l => l.HasOne<WbProductCard>().WithMany()
+                        .HasForeignKey("ProductNmID")
+                        .HasConstraintName("FK_PCC_Product"),
+                    j =>
+                    {
+                        j.HasKey("ProductNmID", "CharacteristicId").HasName("WbProductCardCharacteristics_pkey");
+                        j.ToTable("WbProductCardCharacteristics");
+                    });
+
+            entity.HasMany(d => d.Dimensions).WithMany(p => p.ProductNms)
+                .UsingEntity<Dictionary<string, object>>(
+                    "WbProductCardDimension",
+                    r => r.HasOne<WbDimension>().WithMany()
+                        .HasForeignKey("DimensionsId")
+                        .HasConstraintName("FK_PCD_Dimensions"),
+                    l => l.HasOne<WbProductCard>().WithMany()
+                        .HasForeignKey("ProductNmID")
+                        .HasConstraintName("FK_PCD_Product"),
+                    j =>
+                    {
+                        j.HasKey("ProductNmID", "DimensionsId").HasName("WbProductCardDimensions_pkey");
+                        j.ToTable("WbProductCardDimensions");
+                    });
         });
 
         modelBuilder.Entity<WbSize>(entity =>

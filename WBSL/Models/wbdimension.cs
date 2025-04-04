@@ -5,7 +5,7 @@ namespace WBSL.Models;
 
 public partial class WbDimension
 {
-    public long WbProductCardNmID { get; set; }
+    public int Id { get; set; }
 
     public int? Width { get; set; }
 
@@ -17,5 +17,5 @@ public partial class WbDimension
 
     public bool? IsValid { get; set; }
 
-    public virtual WbProductCard WbProductCardNm { get; set; } = null!;
+    public virtual ICollection<WbProductCard> ProductNms { get; set; } = new List<WbProductCard>();
 }

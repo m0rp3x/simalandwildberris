@@ -29,11 +29,11 @@ public partial class WbProductCard
 
     public DateTime? UpdatedAt { get; set; }
 
-    public virtual ICollection<WbCharacteristic> WbCharacteristics { get; set; } = new List<WbCharacteristic>();
-
-    public virtual WbDimension? WbDimension { get; set; }
-
     public virtual ICollection<WbPhoto> WbPhotos { get; set; } = new List<WbPhoto>();
 
     public virtual ICollection<WbSize> WbSizes { get; set; } = new List<WbSize>();
+
+    public virtual ICollection<WbCharacteristic> Characteristics { get; set; } = new List<WbCharacteristic>();
+
+    public virtual ICollection<WbDimension> Dimensions { get; set; } = new List<WbDimension>();
 }
