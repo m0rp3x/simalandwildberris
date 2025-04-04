@@ -11,5 +11,5 @@ public partial class WbCharacteristic
 
     public string? Value { get; set; }
 
-    public virtual ICollection<product> product_s { get; set; } = new List<product>();
+    public virtual ICollection<WbProductCardCharacteristic> WbProductCardCharacteristics { get; set; } = new List<WbProductCardCharacteristic>();
 }

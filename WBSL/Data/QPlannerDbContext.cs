@@ -22,6 +22,8 @@ public partial class QPlannerDbContext : DbContext
 
     public virtual DbSet<WbProductCard> WbProductCards { get; set; }
 
+    public virtual DbSet<WbProductCardCharacteristic> WbProductCardCharacteristics { get; set; }
+
     public virtual DbSet<WbSize> WbSizes { get; set; }
 
     public virtual DbSet<WbSku> WbSkus { get; set; }
@@ -115,6 +117,21 @@ public partial class QPlannerDbContext : DbContext
                     });
         });
 
+        modelBuilder.Entity<WbProductCardCharacteristic>(entity =>
+        {
+            entity.HasKey(e => new { e.ProductNmID, e.CharacteristicId }).HasName("WbProductCardCharacteristics_pkey");
+
+            entity.Property(e => e.Value).HasColumnType("character varying");
+
+            entity.HasOne(d => d.Characteristic).WithMany(p => p.WbProductCardCharacteristics)
+                .HasForeignKey(d => d.CharacteristicId)
+                .HasConstraintName("WbProductCardCharacteristics_CharacteristicId_fkey");
+
+            entity.HasOne(d => d.ProductNm).WithMany(p => p.WbProductCardCharacteristics)
+                .HasForeignKey(d => d.ProductNmID)
+                .HasConstraintName("WbProductCardCharacteristics_ProductNmID_fkey");
+        });
+
         modelBuilder.Entity<WbSize>(entity =>
         {
             entity.HasKey(e => e.ChrtID).HasName("WbSize_pkey");
@@ -178,21 +195,6 @@ public partial class QPlannerDbContext : DbContext
             entity.Property(e => e.width)
                 .HasPrecision(10, 2)
                 .HasDefaultValueSql("0");
-
-            entity.HasMany(d => d.characteristics).WithMany(p => p.product_s)
-                .UsingEntity<Dictionary<string, object>>(
-                    "product_characteristic",
-                    r => r.HasOne<WbCharacteristic>().WithMany()
-                        .HasForeignKey("characteristic_id")
-                        .HasConstraintName("product_characteristics_characteristic_id_fkey"),
-                    l => l.HasOne<product>().WithMany()
-                        .HasForeignKey("product_sid")
-                        .HasConstraintName("product_characteristics_product_sid_fkey"),
-                    j =>
-                    {
-                        j.HasKey("product_sid", "characteristic_id").HasName("product_characteristics_pkey");
-                        j.ToTable("product_characteristics");
-                    });
         });
 
         modelBuilder.Entity<user>(entity =>

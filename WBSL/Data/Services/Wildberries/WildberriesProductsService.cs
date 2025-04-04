@@ -37,48 +37,7 @@ public class WildberriesProductsService : WildberriesBaseService
                 totalRequests++;
                 totalCards += cardsCount;
 
-                productsToSave.AddRange(response.Cards.Select(card => new WbProductCard{
-                    NmID = card.NmID,
-                    ImtID = card.ImtID,
-                    NmUUID = card.NmUUID,
-                    SubjectID = card.SubjectID,
-                    SubjectName = card.SubjectName,
-                    VendorCode = card.VendorCode,
-                    Brand = card.Brand,
-                    Title = card.Title,
-                    Description = card.Description,
-                    NeedKiz = card.NeedKiz,
-                    CreatedAt = card.CreatedAt,
-                    UpdatedAt = card.UpdatedAt,
-                    WbPhotos = card.Photos.Select(p => new WbPhoto{
-                        Big = p.Big,
-                        C246x328 = p.C246x328,
-                        C516x688 = p.C516x688,
-                        Hq = p.Hq,
-                        Square = p.Square,
-                        Tm = p.Tm
-                    }).ToList(),
-                    SizeChrts = card.Sizes.Select(s => new WbSize{
-                        ChrtID = s.ChrtID,
-                        TechSize = s.TechSize,
-                        WbSize1 = s.WbSize,
-                        WbSkus = null
-                    }).ToList(),
-                    Characteristics = card.Characteristics.Select(ch => new WbCharacteristic{
-                        Id = ch.Id,
-                        Name = ch.Name,
-                        Value = ch.Value.ToString() // Преобразуем object в string
-                    }).ToList(),
-                    Dimensions = new List<WbDimension>{
-                        new WbDimension{
-                            Width = card.Dimensions.Width,
-                            Height = card.Dimensions.Height,
-                            Length = card.Dimensions.Length,
-                            WeightBrutto = card.Dimensions.WeightBrutto,
-                            IsValid = card.Dimensions.IsValid
-                        }
-                    }
-                }));
+                
 
                 updatedAt = response.Cursor.UpdatedAt.ToString("o");
                 nmID = response.Cursor.NmID;
@@ -95,7 +54,7 @@ public class WildberriesProductsService : WildberriesBaseService
         } while (ShouldFetchNextBatch(1));
 
         try{
-            await SaveProductsToDatabaseAsync(productsToSave);
+          //  await SaveProductsToDatabaseAsync(productsToSave);
         }
         catch (Exception ex){
             exceptions.Add(ex);
@@ -105,73 +64,7 @@ public class WildberriesProductsService : WildberriesBaseService
         return new ProductsSyncResult(totalCards, totalRequests);
     }
 
-    private async Task SaveProductsToDatabaseAsync(List<WbProductCard> productsToSave)
-{
-    if (!productsToSave.Any())
-        return;
-
-    await using var transaction = await _db.Database.BeginTransactionAsync();
-
-    try
-    {
-        // 1️⃣ Собираем ВСЕ характеристики и размеры из productsToSave (уникальные)
-        var allCharacteristics = productsToSave
-            .SelectMany(p => p.Characteristics)
-            .GroupBy(c => c.Id)
-            .Select(g => g.First())
-            .ToList();
-
-        var allSizes = productsToSave
-            .SelectMany(p => p.SizeChrts)
-            .GroupBy(s => s.ChrtID)
-            .Select(g => g.First())
-            .ToList();
-
-        // 2️⃣ Проверяем, какие уже есть в БД
-        var existingCharIds = await _db.WbCharacteristics
-            .Where(c => allCharacteristics.Select(x => x.Id).Contains(c.Id))
-            .Select(c => c.Id)
-            .ToListAsync();
-
-        var existingSizeIds = await _db.WbSizes
-            .Where(s => allSizes.Select(x => x.ChrtID).Contains(s.ChrtID))
-            .Select(s => s.ChrtID)
-            .ToListAsync();
-
-        // 3️⃣ Добавляем только новые характеристики
-        var newCharacteristics = allCharacteristics
-            .Where(c => !existingCharIds.Contains(c.Id))
-            .ToList();
-
-        if (newCharacteristics.Any())
-        {
-            await _db.WbCharacteristics.AddRangeAsync(newCharacteristics);
-            await _db.SaveChangesAsync(); // Сохраняем, чтобы получить ID
-        }
-
-        // 4️⃣ Добавляем только новые размеры
-        var newSizes = allSizes
-            .Where(s => !existingSizeIds.Contains(s.ChrtID))
-            .ToList();
-
-        if (newSizes.Any())
-        {
-            await _db.WbSizes.AddRangeAsync(newSizes);
-            await _db.SaveChangesAsync(); // Сохраняем, чтобы получить ID
-        }
-
-        // 5️⃣ Теперь можно безопасно добавлять продукты
-        await _db.WbProductCards.AddRangeAsync(productsToSave);
-        await _db.SaveChangesAsync();
-
-        await transaction.CommitAsync();
-    }
-    catch (Exception ex)
-    {
-        await transaction.RollbackAsync();
-        throw new Exception("Failed to save products to database", ex);
-    }
-}
+   
 
 
     private bool ShouldFetchNextBatch(int totalCardsFetched){

@@ -31,6 +31,8 @@ public partial class WbProductCard
 
     public virtual ICollection<WbPhoto> WbPhotos { get; set; } = new List<WbPhoto>();
 
+    public virtual ICollection<WbProductCardCharacteristic> WbProductCardCharacteristics { get; set; } = new List<WbProductCardCharacteristic>();
+
     public virtual ICollection<WbDimension> Dimensions { get; set; } = new List<WbDimension>();
 
     public virtual ICollection<WbSize> SizeChrts { get; set; } = new List<WbSize>();
