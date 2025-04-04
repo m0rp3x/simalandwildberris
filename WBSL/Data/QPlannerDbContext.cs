@@ -71,7 +71,7 @@ public partial class QPlannerDbContext : DbContext
 
             entity.HasOne(d => d.WbProductCardNm).WithMany(p => p.WbPhotos)
                 .HasForeignKey(d => d.WbProductCardNmID)
-                .HasConstraintName("FK_Photos_Product");
+                .HasConstraintName("WbPhoto_WbProductCardNmID_fkey");
         });
 
         modelBuilder.Entity<WbProductCard>(entity =>
@@ -89,10 +89,10 @@ public partial class QPlannerDbContext : DbContext
                     "WbProductCardCharacteristic",
                     r => r.HasOne<WbCharacteristic>().WithMany()
                         .HasForeignKey("CharacteristicId")
-                        .HasConstraintName("FK_PCC_Char"),
+                        .HasConstraintName("WbProductCardCharacteristics_CharacteristicId_fkey"),
                     l => l.HasOne<WbProductCard>().WithMany()
                         .HasForeignKey("ProductNmID")
-                        .HasConstraintName("FK_PCC_Product"),
+                        .HasConstraintName("WbProductCardCharacteristics_ProductNmID_fkey"),
                     j =>
                     {
                         j.HasKey("ProductNmID", "CharacteristicId").HasName("WbProductCardCharacteristics_pkey");
@@ -104,14 +104,29 @@ public partial class QPlannerDbContext : DbContext
                     "WbProductCardDimension",
                     r => r.HasOne<WbDimension>().WithMany()
                         .HasForeignKey("DimensionsId")
-                        .HasConstraintName("FK_PCD_Dimensions"),
+                        .HasConstraintName("WbProductCardDimensions_DimensionsId_fkey"),
                     l => l.HasOne<WbProductCard>().WithMany()
                         .HasForeignKey("ProductNmID")
-                        .HasConstraintName("FK_PCD_Product"),
+                        .HasConstraintName("WbProductCardDimensions_ProductNmID_fkey"),
                     j =>
                     {
                         j.HasKey("ProductNmID", "DimensionsId").HasName("WbProductCardDimensions_pkey");
                         j.ToTable("WbProductCardDimensions");
+                    });
+
+            entity.HasMany(d => d.SizeChrts).WithMany(p => p.ProductNms)
+                .UsingEntity<Dictionary<string, object>>(
+                    "WbProductCardSize",
+                    r => r.HasOne<WbSize>().WithMany()
+                        .HasForeignKey("SizeChrtID")
+                        .HasConstraintName("WbProductCardSizes_SizeChrtID_fkey"),
+                    l => l.HasOne<WbProductCard>().WithMany()
+                        .HasForeignKey("ProductNmID")
+                        .HasConstraintName("WbProductCardSizes_ProductNmID_fkey"),
+                    j =>
+                    {
+                        j.HasKey("ProductNmID", "SizeChrtID").HasName("WbProductCardSizes_pkey");
+                        j.ToTable("WbProductCardSizes");
                     });
         });
 
@@ -123,10 +138,6 @@ public partial class QPlannerDbContext : DbContext
 
             entity.Property(e => e.ChrtID).ValueGeneratedNever();
             entity.Property(e => e.WbSize1).HasColumnName("WbSize");
-
-            entity.HasOne(d => d.WbProductCardNm).WithMany(p => p.WbSizes)
-                .HasForeignKey(d => d.WbProductCardNmID)
-                .HasConstraintName("FK_Sizes_Product");
         });
 
         modelBuilder.Entity<WbSku>(entity =>
@@ -137,7 +148,7 @@ public partial class QPlannerDbContext : DbContext
 
             entity.HasOne(d => d.WbSizeChrt).WithMany(p => p.WbSkus)
                 .HasForeignKey(d => d.WbSizeChrtID)
-                .HasConstraintName("FK_Skus_Size");
+                .HasConstraintName("WbSku_WbSizeChrtID_fkey");
         });
 
         modelBuilder.Entity<external_account>(entity =>
@@ -150,7 +161,7 @@ public partial class QPlannerDbContext : DbContext
 
             entity.HasOne(d => d.user).WithMany(p => p.external_accounts)
                 .HasForeignKey(d => d.user_id)
-                .HasConstraintName("fk_user");
+                .HasConstraintName("external_accounts_user_id_fkey");
         });
 
         modelBuilder.Entity<product>(entity =>
@@ -202,7 +213,7 @@ public partial class QPlannerDbContext : DbContext
 
             entity.HasOne(d => d.parent).WithMany(p => p.wildberries_categories)
                 .HasForeignKey(d => d.parent_id)
-                .HasConstraintName("fk_parent_category");
+                .HasConstraintName("wildberries_categories_parent_id_fkey");
         });
 
         modelBuilder.Entity<wildberries_parrent_category>(entity =>
