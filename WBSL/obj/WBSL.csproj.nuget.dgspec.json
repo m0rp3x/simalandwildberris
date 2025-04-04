@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL\\WBSL.csproj": {}
+    "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL\\WBSL.csproj": {}
   },
   "projects": {
-    "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\WBSL.Client.csproj": {
+    "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\WBSL.Client.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\WBSL.Client.csproj",
+        "projectUniqueName": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\WBSL.Client.csproj",
         "projectName": "WBSL.Client",
-        "projectPath": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\WBSL.Client.csproj",
-        "packagesPath": "C:\\Users\\Semir\\.nuget\\packages\\",
-        "outputPath": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\",
+        "projectPath": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\WBSL.Client.csproj",
+        "packagesPath": "C:\\Users\\koval\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Semir\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\koval\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -45,7 +45,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "9.0.200"
       },
       "frameworks": {
         "net9.0": {
@@ -58,7 +58,7 @@
             "Microsoft.NET.ILLink.Tasks": {
               "suppressParent": "All",
               "target": "Package",
-              "version": "[9.0.1, )",
+              "version": "[9.0.3, )",
               "autoReferenced": true
             },
             "Microsoft.NET.Sdk.WebAssembly.Pack": {
@@ -89,10 +89,6 @@
           "warn": true,
           "downloadDependencies": [
             {
-              "name": "Microsoft.NETCore.App.Ref",
-              "version": "[9.0.3, 9.0.3]"
-            },
-            {
               "name": "Microsoft.NETCore.App.Runtime.Mono.browser-wasm",
               "version": "[9.0.3, 9.0.3]"
             }
@@ -102,7 +98,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.102/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.201/PortableRuntimeIdentifierGraph.json"
         }
       },
       "runtimes": {
@@ -111,20 +107,20 @@
         }
       }
     },
-    "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL\\WBSL.csproj": {
+    "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL\\WBSL.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL\\WBSL.csproj",
+        "projectUniqueName": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL\\WBSL.csproj",
         "projectName": "WBSL",
-        "projectPath": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL\\WBSL.csproj",
-        "packagesPath": "C:\\Users\\Semir\\.nuget\\packages\\",
-        "outputPath": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL\\obj\\",
+        "projectPath": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL\\WBSL.csproj",
+        "packagesPath": "C:\\Users\\koval\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Semir\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\koval\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -140,8 +136,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\WBSL.Client.csproj": {
-                "projectPath": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\WBSL.Client.csproj"
+              "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\WBSL.Client.csproj": {
+                "projectPath": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\WBSL.Client.csproj"
               }
             }
           }
@@ -156,7 +152,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "9.0.200"
       },
       "frameworks": {
         "net9.0": {
@@ -222,7 +218,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.102/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.201/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

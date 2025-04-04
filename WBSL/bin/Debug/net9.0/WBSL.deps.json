@@ -608,9 +608,22 @@
           "Microsoft.Extensions.Localization.Abstractions": "9.0.1",
           "Microsoft.Extensions.Logging.Abstractions": "9.0.3",
           "Microsoft.Extensions.Options": "9.0.3"
+        },
+        "runtime": {
+          "lib/net9.0/Microsoft.Extensions.Localization.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.124.61009"
+          }
         }
       },
-      "Microsoft.Extensions.Localization.Abstractions/9.0.1": {},
+      "Microsoft.Extensions.Localization.Abstractions/9.0.1": {
+        "runtime": {
+          "lib/net9.0/Microsoft.Extensions.Localization.Abstractions.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.124.61009"
+          }
+        }
+      },
       "Microsoft.Extensions.Logging/9.0.3": {
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection": "9.0.3",
@@ -924,7 +937,7 @@
         },
         "runtime": {
           "WBSL.Client.dll": {
-            "assemblyVersion": "1.0.0",
+            "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
         }

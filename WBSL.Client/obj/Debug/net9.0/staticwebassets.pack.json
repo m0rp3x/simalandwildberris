@@ -1,15 +1,15 @@
 {
   "Files": [
     {
-      "Id": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\blazor.webassembly.js",
+      "Id": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\blazor.webassembly.js",
       "PackagePath": "staticwebassets\\_framework\\blazor.webassembly.js"
     },
     {
-      "Id": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\wwwroot\\appsettings.Development.json",
+      "Id": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\wwwroot\\appsettings.Development.json",
       "PackagePath": "staticwebassets\\appsettings.Development.json"
     },
     {
-      "Id": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\wwwroot\\appsettings.json",
+      "Id": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\wwwroot\\appsettings.json",
       "PackagePath": "staticwebassets\\appsettings.json"
     },
     {
