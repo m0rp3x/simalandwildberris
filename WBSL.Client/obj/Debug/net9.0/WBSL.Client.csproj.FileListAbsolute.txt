@@ -2163,10 +2163,10 @@ D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\WBSL.Client
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\refint\WBSL.Client.dll
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\WBSL.Client.pdb
 D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\ref\WBSL.Client.dll
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.6nv2buxwx4.pdb
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.752pgdlpu5.wasm
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.752pgdlpu5.wasm.gz
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.6nv2buxwx4.pdb.gz
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\p5repknw0r-752pgdlpu5.gz
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\rp7kio3md3-6nv2buxwx4.gz
-D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\ljajdekqyz-b9qkyc3d4j.gz
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.zj7t5udt0h.pdb
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.d1560z6dmk.wasm
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.d1560z6dmk.wasm.gz
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\bin\Debug\net9.0\wwwroot\_framework\WBSL.Client.zj7t5udt0h.pdb.gz
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\p5repknw0r-d1560z6dmk.gz
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\rp7kio3md3-zj7t5udt0h.gz
+D:\C# Projects\Sites\simalandwildberris\WBSL.Client\obj\Debug\net9.0\compressed\ljajdekqyz-ywb6vzataq.gz
