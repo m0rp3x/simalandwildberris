@@ -9,7 +9,7 @@ public class WildberriesService : WildberriesBaseService
     public WildberriesService(IHttpClientFactory httpFactory) : base(httpFactory){
     }
 
-    public async Task<WbProductCard?> GetProduct(string vendorCode)
+    public async Task<WbProductCardDto?> GetProduct(string vendorCode)
     {
         try
         {

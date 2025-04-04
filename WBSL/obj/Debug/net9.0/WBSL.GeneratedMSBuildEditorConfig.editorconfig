@@ -9,25 +9,25 @@ build_property.EnforceExtendedAnalyzerRules =
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = WBSL
 build_property.RootNamespace = WBSL
-build_property.ProjectDir = C:\Users\koval\RiderProjects\WBSL\WBSL\
+build_property.ProjectDir = D:\C# Projects\Sites\simalandwildberris\WBSL\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.RazorLangVersion = 9.0
 build_property.SupportLocalizedComponentNames = 
 build_property.GenerateRazorMetadataSourceChecksumAttributes = 
-build_property.MSBuildProjectDirectory = C:\Users\koval\RiderProjects\WBSL\WBSL
+build_property.MSBuildProjectDirectory = D:\C# Projects\Sites\simalandwildberris\WBSL
 build_property._RazorSourceGeneratorDebug = 
 build_property.EffectiveAnalysisLevelStyle = 9.0
 build_property.EnableCodeStyleSeverity = 
 
-[C:/Users/koval/RiderProjects/WBSL/WBSL/Components/App.razor]
+[D:/C\# Projects/Sites/simalandwildberris/WBSL/Components/App.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBcHAucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/koval/RiderProjects/WBSL/WBSL/Components/Pages/Error.razor]
+[D:/C\# Projects/Sites/simalandwildberris/WBSL/Components/Pages/Error.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFcnJvci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/koval/RiderProjects/WBSL/WBSL/Components/_Imports.razor]
+[D:/C\# Projects/Sites/simalandwildberris/WBSL/Components/_Imports.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xfSW1wb3J0cy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 

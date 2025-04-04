@@ -324,3 +324,5 @@ D:\C# Projects\Sites\simalandwildberris\WBSL\obj\Debug\net9.0\refint\WBSL.dll
 D:\C# Projects\Sites\simalandwildberris\WBSL\obj\Debug\net9.0\WBSL.pdb
 D:\C# Projects\Sites\simalandwildberris\WBSL\obj\Debug\net9.0\WBSL.genruntimeconfig.cache
 D:\C# Projects\Sites\simalandwildberris\WBSL\obj\Debug\net9.0\ref\WBSL.dll
+D:\C# Projects\Sites\simalandwildberris\WBSL\bin\Debug\net9.0\AutoMapper.dll
+D:\C# Projects\Sites\simalandwildberris\WBSL\bin\Debug\net9.0\AutoMapper.Collection.dll
