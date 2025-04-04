@@ -3,15 +3,17 @@ using System.Collections.Generic;
 
 namespace WBSL.Models;
 
-public partial class wbsize
+public partial class WbSize
 {
-    public long chrtid { get; set; }
+    public long ChrtID { get; set; }
 
-    public long? wbproductcardnmid { get; set; }
+    public long WbProductCardNmID { get; set; }
 
-    public string? techsize { get; set; }
+    public string? TechSize { get; set; }
 
-    public string? wbsize1 { get; set; }
+    public string? WbSize1 { get; set; }
 
-    public virtual wbproductcard? wbproductcardnm { get; set; }
+    public virtual WbProductCard WbProductCardNm { get; set; } = null!;
+
+    public virtual ICollection<WbSku> WbSkus { get; set; } = new List<WbSku>();
 }

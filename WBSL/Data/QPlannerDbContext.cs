@@ -12,25 +12,25 @@ public partial class QPlannerDbContext : DbContext
     {
     }
 
+    public virtual DbSet<WbCharacteristic> WbCharacteristics { get; set; }
+
+    public virtual DbSet<WbCursor> WbCursors { get; set; }
+
+    public virtual DbSet<WbDimension> WbDimensions { get; set; }
+
+    public virtual DbSet<WbPhoto> WbPhotos { get; set; }
+
+    public virtual DbSet<WbProductCard> WbProductCards { get; set; }
+
+    public virtual DbSet<WbSize> WbSizes { get; set; }
+
+    public virtual DbSet<WbSku> WbSkus { get; set; }
+
     public virtual DbSet<external_account> external_accounts { get; set; }
 
     public virtual DbSet<product> products { get; set; }
 
     public virtual DbSet<user> users { get; set; }
-
-    public virtual DbSet<wbcharacteristic> wbcharacteristics { get; set; }
-
-    public virtual DbSet<wbcursor> wbcursors { get; set; }
-
-    public virtual DbSet<wbdimension> wbdimensions { get; set; }
-
-    public virtual DbSet<wbphoto> wbphotos { get; set; }
-
-    public virtual DbSet<wbproductcard> wbproductcards { get; set; }
-
-    public virtual DbSet<wbsize> wbsizes { get; set; }
-
-    public virtual DbSet<wbsku> wbskus { get; set; }
 
     public virtual DbSet<wildberries_category> wildberries_categories { get; set; }
 
@@ -39,6 +39,86 @@ public partial class QPlannerDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("pgcrypto");
+
+        modelBuilder.Entity<WbCharacteristic>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("WbCharacteristic_pkey");
+
+            entity.ToTable("WbCharacteristic");
+
+            entity.Property(e => e.Value).HasColumnType("jsonb");
+
+            entity.HasOne(d => d.WbProductCardNm).WithMany(p => p.WbCharacteristics)
+                .HasForeignKey(d => d.WbProductCardNmID)
+                .HasConstraintName("FK_Characteristics_Product");
+        });
+
+        modelBuilder.Entity<WbCursor>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("WbCursor_pkey");
+
+            entity.ToTable("WbCursor");
+
+            entity.Property(e => e.UpdatedAt).HasColumnType("timestamp without time zone");
+        });
+
+        modelBuilder.Entity<WbDimension>(entity =>
+        {
+            entity.HasKey(e => e.WbProductCardNmID).HasName("WbDimensions_pkey");
+
+            entity.Property(e => e.WbProductCardNmID).ValueGeneratedNever();
+
+            entity.HasOne(d => d.WbProductCardNm).WithOne(p => p.WbDimension)
+                .HasForeignKey<WbDimension>(d => d.WbProductCardNmID)
+                .HasConstraintName("FK_Dimensions_Product");
+        });
+
+        modelBuilder.Entity<WbPhoto>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("WbPhoto_pkey");
+
+            entity.ToTable("WbPhoto");
+
+            entity.HasOne(d => d.WbProductCardNm).WithMany(p => p.WbPhotos)
+                .HasForeignKey(d => d.WbProductCardNmID)
+                .HasConstraintName("FK_Photos_Product");
+        });
+
+        modelBuilder.Entity<WbProductCard>(entity =>
+        {
+            entity.HasKey(e => e.NmID).HasName("WbProductCard_pkey");
+
+            entity.ToTable("WbProductCard");
+
+            entity.Property(e => e.NmID).ValueGeneratedNever();
+            entity.Property(e => e.CreatedAt).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnType("timestamp without time zone");
+        });
+
+        modelBuilder.Entity<WbSize>(entity =>
+        {
+            entity.HasKey(e => e.ChrtID).HasName("WbSize_pkey");
+
+            entity.ToTable("WbSize");
+
+            entity.Property(e => e.ChrtID).ValueGeneratedNever();
+            entity.Property(e => e.WbSize1).HasColumnName("WbSize");
+
+            entity.HasOne(d => d.WbProductCardNm).WithMany(p => p.WbSizes)
+                .HasForeignKey(d => d.WbProductCardNmID)
+                .HasConstraintName("FK_Sizes_Product");
+        });
+
+        modelBuilder.Entity<WbSku>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("WbSku_pkey");
+
+            entity.ToTable("WbSku");
+
+            entity.HasOne(d => d.WbSizeChrt).WithMany(p => p.WbSkus)
+                .HasForeignKey(d => d.WbSizeChrtID)
+                .HasConstraintName("FK_Skus_Size");
+        });
 
         modelBuilder.Entity<external_account>(entity =>
         {
@@ -94,88 +174,6 @@ public partial class QPlannerDbContext : DbContext
             entity.Property(e => e.created_at)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
-        });
-
-        modelBuilder.Entity<wbcharacteristic>(entity =>
-        {
-            entity.HasKey(e => e.id).HasName("wbcharacteristic_pkey");
-
-            entity.ToTable("wbcharacteristic");
-
-            entity.Property(e => e.id).ValueGeneratedNever();
-            entity.Property(e => e.value).HasColumnType("jsonb");
-
-            entity.HasOne(d => d.wbproductcardnm).WithMany(p => p.wbcharacteristics)
-                .HasForeignKey(d => d.wbproductcardnmid)
-                .HasConstraintName("wbcharacteristic_wbproductcardnmid_fkey");
-        });
-
-        modelBuilder.Entity<wbcursor>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToTable("wbcursor");
-
-            entity.Property(e => e.updatedat).HasColumnType("timestamp without time zone");
-        });
-
-        modelBuilder.Entity<wbdimension>(entity =>
-        {
-            entity.HasKey(e => e.wbproductcardnmid).HasName("wbdimensions_pkey");
-
-            entity.Property(e => e.wbproductcardnmid).ValueGeneratedNever();
-
-            entity.HasOne(d => d.wbproductcardnm).WithOne(p => p.wbdimension)
-                .HasForeignKey<wbdimension>(d => d.wbproductcardnmid)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("wbdimensions_wbproductcardnmid_fkey");
-        });
-
-        modelBuilder.Entity<wbphoto>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToTable("wbphoto");
-
-            entity.HasOne(d => d.wbproductcardnm).WithMany()
-                .HasForeignKey(d => d.wbproductcardnmid)
-                .HasConstraintName("wbphoto_wbproductcardnmid_fkey");
-        });
-
-        modelBuilder.Entity<wbproductcard>(entity =>
-        {
-            entity.HasKey(e => e.nmid).HasName("wbproductcard_pkey");
-
-            entity.ToTable("wbproductcard");
-
-            entity.Property(e => e.nmid).ValueGeneratedNever();
-            entity.Property(e => e.createdat).HasColumnType("timestamp without time zone");
-            entity.Property(e => e.updatedat).HasColumnType("timestamp without time zone");
-        });
-
-        modelBuilder.Entity<wbsize>(entity =>
-        {
-            entity.HasKey(e => e.chrtid).HasName("wbsize_pkey");
-
-            entity.ToTable("wbsize");
-
-            entity.Property(e => e.chrtid).ValueGeneratedNever();
-            entity.Property(e => e.wbsize1).HasColumnName("wbsize");
-
-            entity.HasOne(d => d.wbproductcardnm).WithMany(p => p.wbsizes)
-                .HasForeignKey(d => d.wbproductcardnmid)
-                .HasConstraintName("wbsize_wbproductcardnmid_fkey");
-        });
-
-        modelBuilder.Entity<wbsku>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToTable("wbsku");
-
-            entity.HasOne(d => d.wbsizechrt).WithMany()
-                .HasForeignKey(d => d.wbsizechrtid)
-                .HasConstraintName("wbsku_wbsizechrtid_fkey");
         });
 
         modelBuilder.Entity<wildberries_category>(entity =>

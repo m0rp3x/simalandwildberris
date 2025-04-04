@@ -3,15 +3,15 @@ using System.Collections.Generic;
 
 namespace WBSL.Models;
 
-public partial class wbcharacteristic
+public partial class WbCharacteristic
 {
-    public int id { get; set; }
+    public int Id { get; set; }
 
-    public long? wbproductcardnmid { get; set; }
+    public long WbProductCardNmID { get; set; }
 
-    public string? name { get; set; }
+    public string? Name { get; set; }
 
-    public string? value { get; set; }
+    public string? Value { get; set; }
 
-    public virtual wbproductcard? wbproductcardnm { get; set; }
+    public virtual WbProductCard WbProductCardNm { get; set; } = null!;
 }

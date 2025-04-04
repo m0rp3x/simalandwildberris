@@ -3,35 +3,37 @@ using System.Collections.Generic;
 
 namespace WBSL.Models;
 
-public partial class wbproductcard
+public partial class WbProductCard
 {
-    public long nmid { get; set; }
+    public long NmID { get; set; }
 
-    public long? imtid { get; set; }
+    public long? ImtID { get; set; }
 
-    public string? nmuuid { get; set; }
+    public string? NmUUID { get; set; }
 
-    public int? subjectid { get; set; }
+    public int? SubjectID { get; set; }
 
-    public string? subjectname { get; set; }
+    public string? SubjectName { get; set; }
 
-    public string? vendorcode { get; set; }
+    public string? VendorCode { get; set; }
 
-    public string? brand { get; set; }
+    public string? Brand { get; set; }
 
-    public string? title { get; set; }
+    public string? Title { get; set; }
 
-    public string? description { get; set; }
+    public string? Description { get; set; }
 
-    public bool? needkiz { get; set; }
+    public bool? NeedKiz { get; set; }
 
-    public DateTime? createdat { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
-    public DateTime? updatedat { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 
-    public virtual ICollection<wbcharacteristic> wbcharacteristics { get; set; } = new List<wbcharacteristic>();
+    public virtual ICollection<WbCharacteristic> WbCharacteristics { get; set; } = new List<WbCharacteristic>();
 
-    public virtual wbdimension? wbdimension { get; set; }
+    public virtual WbDimension? WbDimension { get; set; }
 
-    public virtual ICollection<wbsize> wbsizes { get; set; } = new List<wbsize>();
+    public virtual ICollection<WbPhoto> WbPhotos { get; set; } = new List<WbPhoto>();
+
+    public virtual ICollection<WbSize> WbSizes { get; set; } = new List<WbSize>();
 }

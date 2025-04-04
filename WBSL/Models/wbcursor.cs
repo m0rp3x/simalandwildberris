@@ -3,11 +3,13 @@ using System.Collections.Generic;
 
 namespace WBSL.Models;
 
-public partial class wbcursor
+public partial class WbCursor
 {
-    public DateTime? updatedat { get; set; }
+    public int Id { get; set; }
 
-    public long? nmid { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 
-    public int? total { get; set; }
+    public long? NmID { get; set; }
+
+    public int? Total { get; set; }
 }

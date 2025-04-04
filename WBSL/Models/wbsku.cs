@@ -3,11 +3,13 @@ using System.Collections.Generic;
 
 namespace WBSL.Models;
 
-public partial class wbsku
+public partial class WbSku
 {
-    public long? wbsizechrtid { get; set; }
+    public int Id { get; set; }
 
-    public string? sku { get; set; }
+    public long WbSizeChrtID { get; set; }
 
-    public virtual wbsize? wbsizechrt { get; set; }
+    public string? Sku { get; set; }
+
+    public virtual WbSize WbSizeChrt { get; set; } = null!;
 }
