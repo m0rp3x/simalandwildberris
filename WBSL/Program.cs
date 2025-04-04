@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
-using WBSL.Client.Pages;
 using WBSL.Components;
 using Microsoft.IdentityModel.Tokens;
 using WBSL.Data;
@@ -47,6 +46,7 @@ builder.Services.AddControllers();
 
 builder.Services.AddTransient<RateLimitedAuthHandler>();
 builder.Services.AddTransient<AccountTokenService>();
+builder.Services.AddScoped<WildberriesService>();
 
 builder.Services.AddHttpClient("SimaLand", client =>
 {
@@ -54,11 +54,13 @@ builder.Services.AddHttpClient("SimaLand", client =>
     // Общие заголовки можно добавить здесь
 });
 
+
 builder.Services.AddHttpClient("WildBerries", client =>
-{
-    client.BaseAddress = new Uri("https://content-api.wildberries.ru");
-    // Общие заголовки можно добавить здесь
-}).AddHttpMessageHandler<RateLimitedAuthHandler>();
+    {
+        client.BaseAddress = new Uri("https://content-api.wildberries.ru");
+    })
+    .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerries")) // Устанавливаем имя
+    .AddHttpMessageHandler<RateLimitedAuthHandler>();
 
 var app = builder.Build();
 app.MapControllers(); // <-- обязательно!

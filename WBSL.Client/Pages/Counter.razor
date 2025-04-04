@@ -1,19 +1,19 @@
 ﻿@page "/counter"
 
+@inject HttpClient Client
 
-<PageTitle>Counter</PageTitle>
-
-<MudText Typo="Typo.h3" GutterBottom="true">Counter</MudText>
-
-<MudText Class="mb-4">Current count: @currentCount</MudText>
-
-<MudButton Color="Color.Primary" Variant="Variant.Filled" @onclick="IncrementCount">Click me</MudButton>
-
+<MudPaper Class="pa-6 mx-auto mt-8" Style="max-width: 800px;" Elevation="4">
+    <MudText Typo="Typo.h5">Тест </MudText>
+    
+    <MudTextField @bind-Value="vendorCode"></MudTextField>
+    
+    <MudButton OnClick="AddAccount" Variant="Variant.Filled" Color="Color.Primary" Class="mt-2">Тест</MudButton>
+</MudPaper>
 @code {
-    private int currentCount = 0;
+    private string vendorCode = string.Empty;
 
-    private void IncrementCount()
-    {
-        currentCount++;
+    private async Task AddAccount(){
+        var res = await Client.GetAsync($"api/Wildberries/wbItem/{vendorCode}");
     }
+
 }

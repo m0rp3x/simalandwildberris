@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "TEK4n8r7S1XVfdQe3nvyNd3VvRuVIGosqSMnI8k4Tcc=",
+  "Hash": "lmiNdHbxJL+V/jYDnzMfNjUa0mmOIea8AFt9SCzhazY=",
   "Source": "WBSL.Client",
   "BasePath": "/",
   "Mode": "Default",
@@ -73,8 +73,8 @@
       "RelatedAsset": "",
       "AssetTraitName": "WasmResource",
       "AssetTraitValue": "manifest",
-      "Fingerprint": "ywb6vzataq",
-      "Integrity": "LrMGpJSELBGMBRxmQCtPgKP9TH01o8UlqU8ciVT+FQo=",
+      "Fingerprint": "dil2cdupd1",
+      "Integrity": "myYHhjFQ88zRQ16p9GTwYAS7efxmXL60Y786oL/vhzI=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "obj\\Debug\\net9.0\\blazor.boot.json"
@@ -4504,8 +4504,8 @@
       "RelatedAsset": "",
       "AssetTraitName": "WasmResource",
       "AssetTraitValue": "symbol",
-      "Fingerprint": "zj7t5udt0h",
-      "Integrity": "fzgpqYmV4MRqPNeWw/j3mGg/iHTKnTI98K9qxcsDL5k=",
+      "Fingerprint": "35rrkkiy90",
+      "Integrity": "J8ZVIs4ckG80/ii5ZhtRF7MjzBivYUgTRUNnatU/j5c=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "obj\\Debug\\net9.0\\WBSL.Client.pdb"
@@ -4525,8 +4525,8 @@
       "RelatedAsset": "",
       "AssetTraitName": "WasmResource",
       "AssetTraitValue": "runtime",
-      "Fingerprint": "d1560z6dmk",
-      "Integrity": "/5S9LdwOA9mvbsJaIzNaYfLyRrDrXq9TJVCCNG3uiRA=",
+      "Fingerprint": "xrac7oq8fh",
+      "Integrity": "jSgYzlswh4soRDZIWPKzTeNf6Qf5BDBe/f7AT3y3y14=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\webcil\\WBSL.Client.wasm"
@@ -7136,7 +7136,7 @@
       "OriginalItemSpec": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\System.Text.Encoding.Extensions.wasm"
     },
     {
-      "Identity": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\ljajdekqyz-ywb6vzataq.gz",
+      "Identity": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\ljajdekqyz-dil2cdupd1.gz",
       "SourceId": "WBSL.Client",
       "SourceType": "Computed",
       "ContentRoot": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\",
@@ -7150,8 +7150,8 @@
       "RelatedAsset": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\blazor.boot.json",
       "AssetTraitName": "Content-Encoding",
       "AssetTraitValue": "gzip",
-      "Fingerprint": "wvvfzpd2bk",
-      "Integrity": "1Fl+oJFowTrBMdVAS+Y3nR4gfVROJLgV7BxY4nk+KCc=",
+      "Fingerprint": "6d420qh07d",
+      "Integrity": "mjoBnX/mdPIKkKt3uZcFd0rFwP36XtDA16/1mKH08+g=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\blazor.boot.json"
@@ -7640,12 +7640,12 @@
       "OriginalItemSpec": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\System.Runtime.Loader.wasm"
     },
     {
-      "Identity": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-d1560z6dmk.gz",
+      "Identity": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-xrac7oq8fh.gz",
       "SourceId": "WBSL.Client",
       "SourceType": "Computed",
       "ContentRoot": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\",
       "BasePath": "/",
-      "RelativePath": "_framework/WBSL.Client#[.{fingerprint=d1560z6dmk}]!.wasm.gz",
+      "RelativePath": "_framework/WBSL.Client#[.{fingerprint=xrac7oq8fh}]!.wasm.gz",
       "AssetKind": "Build",
       "AssetMode": "All",
       "AssetRole": "Alternative",
@@ -7654,8 +7654,8 @@
       "RelatedAsset": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.wasm",
       "AssetTraitName": "Content-Encoding",
       "AssetTraitValue": "gzip",
-      "Fingerprint": "yr7pzr9398",
-      "Integrity": "Ym3ys2ZhPEz5kD48IbqVWO8ZYt7gvJtAJF/XUrBnsM8=",
+      "Fingerprint": "pmw03iwfx9",
+      "Integrity": "zy9GMnetZWW5yfaBY2cHLEgh6ixiJu4AIBxPRQTZ1OM=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.wasm"
@@ -7934,12 +7934,12 @@
       "OriginalItemSpec": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\System.Reflection.Emit.ILGeneration.wasm"
     },
     {
-      "Identity": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-zj7t5udt0h.gz",
+      "Identity": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-35rrkkiy90.gz",
       "SourceId": "WBSL.Client",
       "SourceType": "Computed",
       "ContentRoot": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\",
       "BasePath": "/",
-      "RelativePath": "_framework/WBSL.Client#[.{fingerprint=zj7t5udt0h}]!.pdb.gz",
+      "RelativePath": "_framework/WBSL.Client#[.{fingerprint=35rrkkiy90}]!.pdb.gz",
       "AssetKind": "Build",
       "AssetMode": "All",
       "AssetRole": "Alternative",
@@ -7948,8 +7948,8 @@
       "RelatedAsset": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.pdb",
       "AssetTraitName": "Content-Encoding",
       "AssetTraitValue": "gzip",
-      "Fingerprint": "6whiim5kvn",
-      "Integrity": "FuXXYkr6kbsuMdNtn70/k+TJpQJXVhYxRPnxgWGnq4M=",
+      "Fingerprint": "3opvnl0hr9",
+      "Integrity": "TUFLHIc5glmbNhQOI8/8CHPwRKWq5fqvxTJy04jLCmI=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "Never",
       "OriginalItemSpec": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.pdb"
@@ -9557,11 +9557,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"LrMGpJSELBGMBRxmQCtPgKP9TH01o8UlqU8ciVT+FQo=\""
+          "Value": "\"myYHhjFQ88zRQ16p9GTwYAS7efxmXL60Y786oL/vhzI=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -9571,13 +9571,13 @@
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-LrMGpJSELBGMBRxmQCtPgKP9TH01o8UlqU8ciVT+FQo="
+          "Value": "sha256-myYHhjFQ88zRQ16p9GTwYAS7efxmXL60Y786oL/vhzI="
         }
       ]
     },
     {
       "Route": "_framework/blazor.boot.json",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\ljajdekqyz-ywb6vzataq.gz",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\ljajdekqyz-dil2cdupd1.gz",
       "Selectors": [
         {
           "Name": "Content-Encoding",
@@ -9596,11 +9596,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"1Fl+oJFowTrBMdVAS+Y3nR4gfVROJLgV7BxY4nk+KCc=\""
+          "Value": "\"mjoBnX/mdPIKkKt3uZcFd0rFwP36XtDA16/1mKH08+g=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:06:09 GMT"
+          "Value": "Fri, 04 Apr 2025 07:36:21 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -9620,19 +9620,19 @@
         },
         {
           "Name": "ETag",
-          "Value": "W/\"LrMGpJSELBGMBRxmQCtPgKP9TH01o8UlqU8ciVT+FQo=\""
+          "Value": "W/\"myYHhjFQ88zRQ16p9GTwYAS7efxmXL60Y786oL/vhzI=\""
         }
       ],
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-LrMGpJSELBGMBRxmQCtPgKP9TH01o8UlqU8ciVT+FQo="
+          "Value": "sha256-myYHhjFQ88zRQ16p9GTwYAS7efxmXL60Y786oL/vhzI="
         }
       ]
     },
     {
       "Route": "_framework/blazor.boot.json.gz",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\ljajdekqyz-ywb6vzataq.gz",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\ljajdekqyz-dil2cdupd1.gz",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -9649,11 +9649,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"1Fl+oJFowTrBMdVAS+Y3nR4gfVROJLgV7BxY4nk+KCc=\""
+          "Value": "\"mjoBnX/mdPIKkKt3uZcFd0rFwP36XtDA16/1mKH08+g=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:06:09 GMT"
+          "Value": "Fri, 04 Apr 2025 07:36:21 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -9671,7 +9671,7 @@
       "EndpointProperties": [
         {
           "Name": "integrity",
-          "Value": "sha256-1Fl+oJFowTrBMdVAS+Y3nR4gfVROJLgV7BxY4nk+KCc="
+          "Value": "sha256-mjoBnX/mdPIKkKt3uZcFd0rFwP36XtDA16/1mKH08+g="
         }
       ]
     },
@@ -72095,168 +72095,7 @@
       ]
     },
     {
-      "Route": "_framework/WBSL.Client.d1560z6dmk.wasm",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.wasm",
-      "Selectors": [],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "84245"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/wasm"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"/5S9LdwOA9mvbsJaIzNaYfLyRrDrXq9TJVCCNG3uiRA=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "max-age=31536000, immutable"
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "fingerprint",
-          "Value": "d1560z6dmk"
-        },
-        {
-          "Name": "label",
-          "Value": "_framework/WBSL.Client.wasm"
-        },
-        {
-          "Name": "integrity",
-          "Value": "sha256-/5S9LdwOA9mvbsJaIzNaYfLyRrDrXq9TJVCCNG3uiRA="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.d1560z6dmk.wasm",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-d1560z6dmk.gz",
-      "Selectors": [
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip",
-          "Quality": "0.000030793866"
-        }
-      ],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "32473"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"Ym3ys2ZhPEz5kD48IbqVWO8ZYt7gvJtAJF/XUrBnsM8=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "max-age=31536000, immutable"
-        },
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip"
-        },
-        {
-          "Name": "Vary",
-          "Value": "Content-Encoding"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/wasm"
-        },
-        {
-          "Name": "ETag",
-          "Value": "W/\"/5S9LdwOA9mvbsJaIzNaYfLyRrDrXq9TJVCCNG3uiRA=\""
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "fingerprint",
-          "Value": "d1560z6dmk"
-        },
-        {
-          "Name": "label",
-          "Value": "_framework/WBSL.Client.wasm"
-        },
-        {
-          "Name": "integrity",
-          "Value": "sha256-/5S9LdwOA9mvbsJaIzNaYfLyRrDrXq9TJVCCNG3uiRA="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.d1560z6dmk.wasm.gz",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-d1560z6dmk.gz",
-      "Selectors": [],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "32473"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/wasm"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"Ym3ys2ZhPEz5kD48IbqVWO8ZYt7gvJtAJF/XUrBnsM8=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "max-age=31536000, immutable"
-        },
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip"
-        },
-        {
-          "Name": "Vary",
-          "Value": "Content-Encoding"
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "fingerprint",
-          "Value": "d1560z6dmk"
-        },
-        {
-          "Name": "label",
-          "Value": "_framework/WBSL.Client.wasm.gz"
-        },
-        {
-          "Name": "integrity",
-          "Value": "sha256-Ym3ys2ZhPEz5kD48IbqVWO8ZYt7gvJtAJF/XUrBnsM8="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.pdb",
+      "Route": "_framework/WBSL.Client.35rrkkiy90.pdb",
       "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.pdb",
       "Selectors": [],
       "ResponseHeaders": [
@@ -72266,7 +72105,7 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "51620"
+          "Value": "52300"
         },
         {
           "Name": "Content-Type",
@@ -72274,285 +72113,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"fzgpqYmV4MRqPNeWw/j3mGg/iHTKnTI98K9qxcsDL5k=\""
+          "Value": "\"J8ZVIs4ckG80/ii5ZhtRF7MjzBivYUgTRUNnatU/j5c=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "no-cache"
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "integrity",
-          "Value": "sha256-fzgpqYmV4MRqPNeWw/j3mGg/iHTKnTI98K9qxcsDL5k="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.pdb",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-zj7t5udt0h.gz",
-      "Selectors": [
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip",
-          "Quality": "0.000024629935"
-        }
-      ],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "40600"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"FuXXYkr6kbsuMdNtn70/k+TJpQJXVhYxRPnxgWGnq4M=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "no-cache"
-        },
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip"
-        },
-        {
-          "Name": "Vary",
-          "Value": "Content-Encoding"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/octet-stream"
-        },
-        {
-          "Name": "ETag",
-          "Value": "W/\"fzgpqYmV4MRqPNeWw/j3mGg/iHTKnTI98K9qxcsDL5k=\""
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "integrity",
-          "Value": "sha256-fzgpqYmV4MRqPNeWw/j3mGg/iHTKnTI98K9qxcsDL5k="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.pdb.gz",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-zj7t5udt0h.gz",
-      "Selectors": [],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "40600"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/octet-stream"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"FuXXYkr6kbsuMdNtn70/k+TJpQJXVhYxRPnxgWGnq4M=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "no-cache"
-        },
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip"
-        },
-        {
-          "Name": "Vary",
-          "Value": "Content-Encoding"
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "integrity",
-          "Value": "sha256-FuXXYkr6kbsuMdNtn70/k+TJpQJXVhYxRPnxgWGnq4M="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.wasm",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.wasm",
-      "Selectors": [],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "84245"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/wasm"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"/5S9LdwOA9mvbsJaIzNaYfLyRrDrXq9TJVCCNG3uiRA=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "no-cache"
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "integrity",
-          "Value": "sha256-/5S9LdwOA9mvbsJaIzNaYfLyRrDrXq9TJVCCNG3uiRA="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.wasm",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-d1560z6dmk.gz",
-      "Selectors": [
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip",
-          "Quality": "0.000030793866"
-        }
-      ],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "32473"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"Ym3ys2ZhPEz5kD48IbqVWO8ZYt7gvJtAJF/XUrBnsM8=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "no-cache"
-        },
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip"
-        },
-        {
-          "Name": "Vary",
-          "Value": "Content-Encoding"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/wasm"
-        },
-        {
-          "Name": "ETag",
-          "Value": "W/\"/5S9LdwOA9mvbsJaIzNaYfLyRrDrXq9TJVCCNG3uiRA=\""
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "integrity",
-          "Value": "sha256-/5S9LdwOA9mvbsJaIzNaYfLyRrDrXq9TJVCCNG3uiRA="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.wasm.gz",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-d1560z6dmk.gz",
-      "Selectors": [],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "32473"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/wasm"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"Ym3ys2ZhPEz5kD48IbqVWO8ZYt7gvJtAJF/XUrBnsM8=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
-        },
-        {
-          "Name": "Cache-Control",
-          "Value": "no-cache"
-        },
-        {
-          "Name": "Content-Encoding",
-          "Value": "gzip"
-        },
-        {
-          "Name": "Vary",
-          "Value": "Content-Encoding"
-        }
-      ],
-      "EndpointProperties": [
-        {
-          "Name": "integrity",
-          "Value": "sha256-Ym3ys2ZhPEz5kD48IbqVWO8ZYt7gvJtAJF/XUrBnsM8="
-        }
-      ]
-    },
-    {
-      "Route": "_framework/WBSL.Client.zj7t5udt0h.pdb",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.pdb",
-      "Selectors": [],
-      "ResponseHeaders": [
-        {
-          "Name": "Accept-Ranges",
-          "Value": "bytes"
-        },
-        {
-          "Name": "Content-Length",
-          "Value": "51620"
-        },
-        {
-          "Name": "Content-Type",
-          "Value": "application/octet-stream"
-        },
-        {
-          "Name": "ETag",
-          "Value": "\"fzgpqYmV4MRqPNeWw/j3mGg/iHTKnTI98K9qxcsDL5k=\""
-        },
-        {
-          "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -72562,7 +72127,7 @@
       "EndpointProperties": [
         {
           "Name": "fingerprint",
-          "Value": "zj7t5udt0h"
+          "Value": "35rrkkiy90"
         },
         {
           "Name": "label",
@@ -72570,18 +72135,18 @@
         },
         {
           "Name": "integrity",
-          "Value": "sha256-fzgpqYmV4MRqPNeWw/j3mGg/iHTKnTI98K9qxcsDL5k="
+          "Value": "sha256-J8ZVIs4ckG80/ii5ZhtRF7MjzBivYUgTRUNnatU/j5c="
         }
       ]
     },
     {
-      "Route": "_framework/WBSL.Client.zj7t5udt0h.pdb",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-zj7t5udt0h.gz",
+      "Route": "_framework/WBSL.Client.35rrkkiy90.pdb",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-35rrkkiy90.gz",
       "Selectors": [
         {
           "Name": "Content-Encoding",
           "Value": "gzip",
-          "Quality": "0.000024629935"
+          "Quality": "0.000024334453"
         }
       ],
       "ResponseHeaders": [
@@ -72591,15 +72156,15 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "40600"
+          "Value": "41093"
         },
         {
           "Name": "ETag",
-          "Value": "\"FuXXYkr6kbsuMdNtn70/k+TJpQJXVhYxRPnxgWGnq4M=\""
+          "Value": "\"TUFLHIc5glmbNhQOI8/8CHPwRKWq5fqvxTJy04jLCmI=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -72619,13 +72184,13 @@
         },
         {
           "Name": "ETag",
-          "Value": "W/\"fzgpqYmV4MRqPNeWw/j3mGg/iHTKnTI98K9qxcsDL5k=\""
+          "Value": "W/\"J8ZVIs4ckG80/ii5ZhtRF7MjzBivYUgTRUNnatU/j5c=\""
         }
       ],
       "EndpointProperties": [
         {
           "Name": "fingerprint",
-          "Value": "zj7t5udt0h"
+          "Value": "35rrkkiy90"
         },
         {
           "Name": "label",
@@ -72633,13 +72198,13 @@
         },
         {
           "Name": "integrity",
-          "Value": "sha256-fzgpqYmV4MRqPNeWw/j3mGg/iHTKnTI98K9qxcsDL5k="
+          "Value": "sha256-J8ZVIs4ckG80/ii5ZhtRF7MjzBivYUgTRUNnatU/j5c="
         }
       ]
     },
     {
-      "Route": "_framework/WBSL.Client.zj7t5udt0h.pdb.gz",
-      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-zj7t5udt0h.gz",
+      "Route": "_framework/WBSL.Client.35rrkkiy90.pdb.gz",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-35rrkkiy90.gz",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -72648,7 +72213,7 @@
         },
         {
           "Name": "Content-Length",
-          "Value": "40600"
+          "Value": "41093"
         },
         {
           "Name": "Content-Type",
@@ -72656,11 +72221,11 @@
         },
         {
           "Name": "ETag",
-          "Value": "\"FuXXYkr6kbsuMdNtn70/k+TJpQJXVhYxRPnxgWGnq4M=\""
+          "Value": "\"TUFLHIc5glmbNhQOI8/8CHPwRKWq5fqvxTJy04jLCmI=\""
         },
         {
           "Name": "Last-Modified",
-          "Value": "Thu, 03 Apr 2025 20:35:47 GMT"
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -72678,7 +72243,7 @@
       "EndpointProperties": [
         {
           "Name": "fingerprint",
-          "Value": "zj7t5udt0h"
+          "Value": "35rrkkiy90"
         },
         {
           "Name": "label",
@@ -72686,7 +72251,442 @@
         },
         {
           "Name": "integrity",
-          "Value": "sha256-FuXXYkr6kbsuMdNtn70/k+TJpQJXVhYxRPnxgWGnq4M="
+          "Value": "sha256-TUFLHIc5glmbNhQOI8/8CHPwRKWq5fqvxTJy04jLCmI="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.pdb",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.pdb",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "52300"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/octet-stream"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"J8ZVIs4ckG80/ii5ZhtRF7MjzBivYUgTRUNnatU/j5c=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-J8ZVIs4ckG80/ii5ZhtRF7MjzBivYUgTRUNnatU/j5c="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.pdb",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-35rrkkiy90.gz",
+      "Selectors": [
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip",
+          "Quality": "0.000024334453"
+        }
+      ],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "41093"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"TUFLHIc5glmbNhQOI8/8CHPwRKWq5fqvxTJy04jLCmI=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/octet-stream"
+        },
+        {
+          "Name": "ETag",
+          "Value": "W/\"J8ZVIs4ckG80/ii5ZhtRF7MjzBivYUgTRUNnatU/j5c=\""
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-J8ZVIs4ckG80/ii5ZhtRF7MjzBivYUgTRUNnatU/j5c="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.pdb.gz",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\rp7kio3md3-35rrkkiy90.gz",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "41093"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/octet-stream"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"TUFLHIc5glmbNhQOI8/8CHPwRKWq5fqvxTJy04jLCmI=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-TUFLHIc5glmbNhQOI8/8CHPwRKWq5fqvxTJy04jLCmI="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.wasm",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.wasm",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "85269"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/wasm"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jSgYzlswh4soRDZIWPKzTeNf6Qf5BDBe/f7AT3y3y14=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-jSgYzlswh4soRDZIWPKzTeNf6Qf5BDBe/f7AT3y3y14="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.wasm",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-xrac7oq8fh.gz",
+      "Selectors": [
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip",
+          "Quality": "0.000030122297"
+        }
+      ],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "33197"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"zy9GMnetZWW5yfaBY2cHLEgh6ixiJu4AIBxPRQTZ1OM=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/wasm"
+        },
+        {
+          "Name": "ETag",
+          "Value": "W/\"jSgYzlswh4soRDZIWPKzTeNf6Qf5BDBe/f7AT3y3y14=\""
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-jSgYzlswh4soRDZIWPKzTeNf6Qf5BDBe/f7AT3y3y14="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.wasm.gz",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-xrac7oq8fh.gz",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "33197"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/wasm"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"zy9GMnetZWW5yfaBY2cHLEgh6ixiJu4AIBxPRQTZ1OM=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-zy9GMnetZWW5yfaBY2cHLEgh6ixiJu4AIBxPRQTZ1OM="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.xrac7oq8fh.wasm",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\bin\\Debug\\net9.0\\wwwroot\\_framework\\WBSL.Client.wasm",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "85269"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/wasm"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"jSgYzlswh4soRDZIWPKzTeNf6Qf5BDBe/f7AT3y3y14=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "xrac7oq8fh"
+        },
+        {
+          "Name": "label",
+          "Value": "_framework/WBSL.Client.wasm"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-jSgYzlswh4soRDZIWPKzTeNf6Qf5BDBe/f7AT3y3y14="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.xrac7oq8fh.wasm",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-xrac7oq8fh.gz",
+      "Selectors": [
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip",
+          "Quality": "0.000030122297"
+        }
+      ],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "33197"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"zy9GMnetZWW5yfaBY2cHLEgh6ixiJu4AIBxPRQTZ1OM=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/wasm"
+        },
+        {
+          "Name": "ETag",
+          "Value": "W/\"jSgYzlswh4soRDZIWPKzTeNf6Qf5BDBe/f7AT3y3y14=\""
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "xrac7oq8fh"
+        },
+        {
+          "Name": "label",
+          "Value": "_framework/WBSL.Client.wasm"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-jSgYzlswh4soRDZIWPKzTeNf6Qf5BDBe/f7AT3y3y14="
+        }
+      ]
+    },
+    {
+      "Route": "_framework/WBSL.Client.xrac7oq8fh.wasm.gz",
+      "AssetFile": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\obj\\Debug\\net9.0\\compressed\\p5repknw0r-xrac7oq8fh.gz",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "33197"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/wasm"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"zy9GMnetZWW5yfaBY2cHLEgh6ixiJu4AIBxPRQTZ1OM=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Fri, 04 Apr 2025 07:37:05 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        },
+        {
+          "Name": "Content-Encoding",
+          "Value": "gzip"
+        },
+        {
+          "Name": "Vary",
+          "Value": "Content-Encoding"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "xrac7oq8fh"
+        },
+        {
+          "Name": "label",
+          "Value": "_framework/WBSL.Client.wasm.gz"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-zy9GMnetZWW5yfaBY2cHLEgh6ixiJu4AIBxPRQTZ1OM="
         }
       ]
     },

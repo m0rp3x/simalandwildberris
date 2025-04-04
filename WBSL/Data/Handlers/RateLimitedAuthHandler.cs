@@ -1,4 +1,5 @@
-﻿using WBSL.Data.Enums;
+﻿using System.Collections.Concurrent;
+using WBSL.Data.Enums;
 using WBSL.Data.Services;
 
 namespace WBSL.Data.Handlers;
@@ -6,79 +7,77 @@ namespace WBSL.Data.Handlers;
 public class RateLimitedAuthHandler : DelegatingHandler
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-    private static readonly RollingWindowRateLimiter _limiter = 
-        new(TimeSpan.FromMinutes(1), 100);
-    public RateLimitedAuthHandler(IServiceProvider serviceProvider, IHttpContextAccessor httpContextAccessor){
+    private static readonly ConcurrentDictionary<string, RollingWindowRateLimiter> _limiters = new();
+
+    public RateLimitedAuthHandler(IServiceProvider serviceProvider){
         _serviceProvider = serviceProvider;
-        _httpContextAccessor = httpContextAccessor;
     }
 
-    protected override async Task<HttpResponseMessage> SendAsync(
-        HttpRequestMessage request,
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
         CancellationToken cancellationToken){
-        await _limiter.WaitAsync(cancellationToken);
+        if (!request.Options.TryGetValue(new HttpRequestOptionsKey<string>("HttpClientName"), out var clientName)){
+            clientName = "default";
+        }
+
+        // Получаем или создаем лимитер для этого клиента
+        var limiter = _limiters.GetOrAdd(clientName, _ => new RollingWindowRateLimiter(TimeSpan.FromMinutes(1), 80));
+
+        // Ждем разрешения на запрос
+        await limiter.WaitAsync(cancellationToken);
 
         try{
-            var user = _httpContextAccessor.HttpContext?.User;
+            using var scope = _serviceProvider.CreateScope();
+            var httpContextAccessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+
+            var user = httpContextAccessor.HttpContext?.User;
             if (user == null)
                 throw new InvalidOperationException("No user context available.");
 
-            using (var scope = _serviceProvider.CreateScope()){
-                var accountRepo = scope.ServiceProvider.GetRequiredService<AccountTokenService>();
-                var account =
-                    await accountRepo.GetCurrentUserExternalAccountAsync(user, ExternalAccountType.WildBerris);
+            var accountRepo = scope.ServiceProvider.GetRequiredService<AccountTokenService>();
+            var account = await accountRepo.GetCurrentUserExternalAccountAsync(user, ExternalAccountType.WildBerris);
 
-                request.Headers.TryAddWithoutValidation("Authorization", account!.token);
-            }
+            request.Headers.Remove("Authorization");
+            request.Headers.Add("Authorization", account!.token);
 
             return await base.SendAsync(request, cancellationToken);
         }
         finally{
+            // Освобождение не требуется, так как скользящее окно само по себе регулирует лимит
         }
     }
-    
+
     public class RollingWindowRateLimiter
     {
-        private readonly Queue<DateTime> _requestTimes;
+        private readonly Queue<DateTime> _requestTimes = new();
         private readonly TimeSpan _window;
         private readonly int _maxRequests;
-        private readonly object _lock = new();
+        private readonly SemaphoreSlim _semaphore = new(1, 1); // Блокировка для потокобезопасности
 
-        public RollingWindowRateLimiter(TimeSpan window, int maxRequests)
-        {
+        public RollingWindowRateLimiter(TimeSpan window, int maxRequests){
             _window = window;
             _maxRequests = maxRequests;
-            _requestTimes = new Queue<DateTime>(maxRequests);
         }
 
-        public async Task WaitAsync(CancellationToken ct)
-        {
-            while (true)
-            {
-                lock (_lock)
-                {
+        public async Task WaitAsync(CancellationToken ct){
+            while (true){
+                await _semaphore.WaitAsync(ct);
+                try{
                     var now = DateTime.UtcNow;
+
+                    // Удаляем старые запросы
                     while (_requestTimes.Count > 0 && now - _requestTimes.Peek() > _window)
                         _requestTimes.Dequeue();
 
-                    if (_requestTimes.Count < _maxRequests)
-                    {
+                    if (_requestTimes.Count < _maxRequests){
                         _requestTimes.Enqueue(now);
                         return;
                     }
                 }
+                finally{
+                    _semaphore.Release();
+                }
 
-                await Task.Delay(100, ct).ConfigureAwait(false);
-            }
-        }
-
-        public void Release()
-        {
-            lock (_lock)
-            {
-                if (_requestTimes.Count > 0)
-                    _requestTimes.Dequeue();
+                await Task.Delay(500, ct); // Ждём перед повторной попыткой
             }
         }
     }

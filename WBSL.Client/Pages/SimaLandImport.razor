@@ -105,9 +105,6 @@
 
     private async Task LoadAccounts()
     {
-        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
-        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
         _accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
     }
 

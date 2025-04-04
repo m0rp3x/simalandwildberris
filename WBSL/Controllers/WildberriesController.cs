@@ -1,29 +1,35 @@
 ﻿using System.Collections.Concurrent;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WBSL.Data;
+using WBSL.Data.Services;
 using WBSL.Models;
 
 namespace WBSL.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class WildberriesController : ControllerBase
 {
     private readonly IHttpClientFactory _httpFactory;
     private readonly QPlannerDbContext _db;
+    private readonly WildberriesService _wildberriesService;
     private HttpClient WbClient => _httpFactory.CreateClient("WildBerries");
 
-    public WildberriesController(QPlannerDbContext db, IHttpClientFactory clientFactory){
+    public WildberriesController(QPlannerDbContext db, IHttpClientFactory clientFactory, WildberriesService wildberriesService){
         _httpFactory = clientFactory;
         _db = db;
+        _wildberriesService = wildberriesService;
     }
 
-    [HttpPost("fetch")]
-    public async Task<IActionResult> FetchProducts([FromBody] WildberriesRequest request){
-        return StatusCode(500);
+    [HttpGet("wbItem/{vendorCode}")]
+    public async Task<IActionResult> GetProduct(string vendorCode){
+        var product = await _wildberriesService.GetProduct(vendorCode);
+        return Ok(product);
     }
 
     [HttpGet("sync-categories")]
@@ -32,22 +38,19 @@ public class WildberriesController : ControllerBase
             var parentCategories = await FetchParentCategories();
             var allCategories = new ConcurrentBag<wildberries_category>();
 
-            var options = new ParallelOptions { MaxDegreeOfParallelism = 2 };
+            var options = new ParallelOptions{ MaxDegreeOfParallelism = 2 };
             var random = new Random();
 
-            await Parallel.ForEachAsync(parentCategories, options, async (parent, ct) => 
-            {
-                try
-                {
-                    var subCategories = await FetchSubCategories(parent.id, parent.name, ct);
+            await Parallel.ForEachAsync(parentCategories, options, async (parent, ct) => {
+                try{
+                    var subCategories = await FetchSubCategories(parent.id, ct);
                     foreach (var category in subCategories)
                         allCategories.Add(category);
-        
+
                     // Случайная задержка 0.5-1.5 сек между группами
                     await Task.Delay(TimeSpan.FromSeconds(0.5 + random.NextDouble()), ct);
                 }
-                catch (Exception ex)
-                {
+                catch (Exception ex){
                     Console.WriteLine("Error: " + ex.Message);
                 }
             });
@@ -76,9 +79,9 @@ public class WildberriesController : ControllerBase
         var result = await response.Content.ReadFromJsonAsync<WbApiResponse>();
         return result?.data ?? new List<wildberries_parrent_category>();
     }
+
     private async Task<List<wildberries_category>> FetchSubCategories(
         int parentId,
-        string parentName,
         CancellationToken ct){
         var response = await WbClient.GetAsync(
             $"content/v2/object/all?parentID={parentId}",
@@ -86,13 +89,13 @@ public class WildberriesController : ControllerBase
         );
         response.EnsureSuccessStatusCode();
 
-        using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(), cancellationToken: ct);
-    
+        using var doc =
+            await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(), cancellationToken: ct);
+
         return doc.RootElement
             .GetProperty("data")
             .EnumerateArray()
-            .Select(x => new wildberries_category
-            {
+            .Select(x => new wildberries_category{
                 id = x.GetProperty("subjectID").GetInt32(),
                 parent_id = x.GetProperty("parentID").GetInt32(),
                 name = x.GetProperty("subjectName").GetString()!,
@@ -104,32 +107,51 @@ public class WildberriesController : ControllerBase
     private async Task SaveCategoriesToDatabase(
         List<wildberries_parrent_category> parents,
         List<wildberries_category> categories){
-        foreach (var parent in parents){
-            await _db.wildberries_parrent_categories
-                .Where(p => p.id == parent.id)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(p => p.name, parent.name)
-                );
+        // 1. Пакетное обновление родительских категорий
+        await _db.wildberries_parrent_categories
+            .Where(p => parents.Select(x => x.id).Contains(p.id))
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(p => p.name,
+                    p => parents.First(x => x.id == p.id).name));
 
-            if (await _db.wildberries_parrent_categories.AllAsync(p => p.id != parent.id)){
-                await _db.wildberries_parrent_categories.AddAsync(parent);
-            }
+        // 2. Пакетное добавление новых родителей
+        var existingParentIds = await _db.wildberries_parrent_categories
+            .Select(p => p.id)
+            .ToListAsync();
+
+        var newParents = parents
+            .Where(p => !existingParentIds.Contains(p.id))
+            .ToList();
+
+        if (newParents.Any()){
+            await _db.wildberries_parrent_categories.AddRangeAsync(newParents);
         }
 
-        foreach (var category in categories){
-            await _db.wildberries_categories
-                .Where(c => c.id == category.id)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(c => c.name, category.name)
-                    .SetProperty(c => c.parent_id, category.parent_id)
-                    .SetProperty(c => c.parent_name, category.parent_name)
-                );
+        // 3. Пакетное обновление дочерних категорий
+        await _db.wildberries_categories
+            .Where(c => categories.Select(x => x.id).Contains(c.id))
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(c => c.name,
+                    c => categories.First(x => x.id == c.id).name)
+                .SetProperty(c => c.parent_id,
+                    c => categories.First(x => x.id == c.id).parent_id)
+                .SetProperty(c => c.parent_name,
+                    c => categories.First(x => x.id == c.id).parent_name));
 
-            if (await _db.wildberries_categories.AllAsync(c => c.id != category.id)){
-                await _db.wildberries_categories.AddAsync(category);
-            }
+        // 4. Пакетное добавление новых категорий
+        var existingCategoryIds = await _db.wildberries_categories
+            .Select(c => c.id)
+            .ToListAsync();
+
+        var newCategories = categories
+            .Where(c => !existingCategoryIds.Contains(c.id))
+            .ToList();
+
+        if (newCategories.Any()){
+            await _db.wildberries_categories.AddRangeAsync(newCategories);
         }
 
+        // 5. Один вызов SaveChanges для всех операций
         await _db.SaveChangesAsync();
     }
 }
