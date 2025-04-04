@@ -4,6 +4,7 @@
 @inject HttpClient Http
 @inject IJSRuntime JS
 
+
 <MudPaper Class="pa-6 mx-auto mt-8" Style="max-width: 1920px;" Elevation="4">
     <MudText Typo="Typo.h5">Импорт товаров из Сима-Ленд</MudText>
 
@@ -112,9 +113,6 @@
     {
         if (_selectedAccount == null) return;
 
-        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
-        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
         var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                                    .Select(long.Parse)
                                    .ToList();
@@ -139,7 +137,6 @@
     
     private async Task DownloadExcel()
     {
-        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
 
         var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(long.Parse)
@@ -153,7 +150,6 @@
                 Articles = articles
             })
         };
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
         var response = await Http.SendAsync(request);
         if (!response.IsSuccessStatusCode)
@@ -237,8 +233,6 @@
     
     private async Task StoreToDatabase()
     {
-        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
-        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
         var res = await Http.PostAsJsonAsync("api/simaland/store", _products);
         if (res.IsSuccessStatusCode)

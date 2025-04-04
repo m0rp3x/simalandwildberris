@@ -11,11 +11,8 @@ public static class PasswordHasher
     // Метод для хеширования пароля
     public static string HashPassword(string password)
     {
-        // Генерируем случайную соль
         byte[] salt = RandomNumberGenerator.GetBytes(SaltSize);
-        // Вычисляем хеш пароля с использованием соли и количества итераций
         byte[] key = Rfc2898DeriveBytes.Pbkdf2(password, salt, Iterations, HashAlgorithm, KeySize);
-        // Возвращаем строку в формате: {iterations}.{salt}.{hash}, где соль и хеш в Base64
         return $"{Iterations}.{Convert.ToBase64String(salt)}.{Convert.ToBase64String(key)}";
     }
 

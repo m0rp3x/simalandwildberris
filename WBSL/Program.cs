@@ -7,6 +7,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using WBSL.Data.Handlers;
 using WBSL.Data.Services;
+using WBSL.Data.Services.Wildberries;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,6 +48,8 @@ builder.Services.AddControllers();
 builder.Services.AddTransient<RateLimitedAuthHandler>();
 builder.Services.AddTransient<AccountTokenService>();
 builder.Services.AddScoped<WildberriesService>();
+builder.Services.AddScoped<WildberriesCategoryService>();
+builder.Services.AddScoped<WildberriesProductsService>();
 
 builder.Services.AddHttpClient("SimaLand", client =>
 {

@@ -1,0 +1,104 @@
+﻿@page "/wb-product"
+@using System.Text.Json
+@using WBSL.Client.Data.DTO
+@inject HttpClient Client
+@inject ISnackbar Snackbar
+
+<MudPaper Class="pa-6 mx-auto mt-8" Style="max-width: 800px;" Elevation="4">
+    <MudText Typo="Typo.h5" Class="mb-4">Поиск товара Wildberries</MudText>
+
+    <MudTextField @bind-Value="VendorCode" Label="Артикул товара"
+                  Variant="Variant.Outlined" FullWidth Class="mb-4"/>
+
+    <MudButton OnClick="SearchProduct" Variant="Variant.Filled"
+               Color="Color.Primary" FullWidth Disabled="@IsLoading">
+        @(IsLoading ? "Поиск..." : "Найти товар")
+    </MudButton>
+    <MudButton OnClick="TEST" Variant="Variant.Filled"
+               Color="Color.Primary" FullWidth Disabled="@IsLoading">
+        TEST
+    </MudButton>
+
+    @if (Product != null){
+        <MudPaper Class="mt-6 pa-4" Elevation="2">
+            <MudText Typo="Typo.h6">@Product.Title</MudText>
+            <MudText Typo="Typo.subtitle1" Color="Color.Secondary">@Product.Brand</MudText>
+
+            <MudGrid Class="mt-4">
+                <MudItem xs="12" sm="6">
+                    <MudCarousel TData="object" Style="height: 200px; width: 100%;" AutoCycle="false">
+                        @foreach (var photo in Product.Photos)
+                        {
+                        <MudCarouselItem>
+                            <div class="d-flex justify-center align-center" style="height: 100%;">
+                                <MudImage Src="@photo.Big" Style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                            </div>
+                        </MudCarouselItem>
+                        }
+                    </MudCarousel>
+                </MudItem>
+                <MudItem xs="12" sm="6" Class="pl-4">
+                    <MudText Typo="Typo.body1">Артикул: @Product.VendorCode</MudText>
+                    <MudText Typo="Typo.body1">Категория: @Product.SubjectName</MudText>
+
+                    <MudList T="WbCharacteristicDto" Class="mt-2">
+                        @foreach (var charact in Product.Characteristics.Take(5)){
+                            <MudListItem>
+                                <MudText>@charact.Name: @GetCharacteristicValue(charact)</MudText>
+                            </MudListItem>
+                        }
+                    </MudList>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
+</MudPaper>
+
+@code {
+    private string VendorCode = string.Empty;
+    private WbProductDto? Product;
+    private bool IsLoading = false;
+    
+    private async Task TEST(){
+        await Client.GetAsync("api/Wildberries/sync/productCards");
+    }
+    
+    private async Task SearchProduct(){
+        if (string.IsNullOrWhiteSpace(VendorCode)){
+            Snackbar.Add("Введите артикул товара", Severity.Warning);
+            return;
+        }
+
+        IsLoading = true;
+        Product = null;
+        Snackbar.Add("Ищем товар...", Severity.Info);
+
+        try{
+            var response = await Client.GetFromJsonAsync<WbProductDto>($"api/Wildberries/wbItem/{VendorCode}");
+            Product = response;
+            Snackbar.Add("Товар найден!", Severity.Success);
+        }
+        catch (Exception ex){
+            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
+            Product = null;
+        }
+        finally{
+            IsLoading = false;
+        }
+    }
+
+    private string GetCharacteristicValue(WbCharacteristicDto charact){
+        if (charact.Value is JsonElement element){
+            return element.ValueKind switch{
+                JsonValueKind.String => element.GetString(),
+                JsonValueKind.Number => element.GetDouble().ToString(),
+                JsonValueKind.Array => string.Join(", ", element.EnumerateArray().Select(x => x.ToString())),
+                _ => charact.Value?.ToString() ?? "N/A"
+            };
+        }
+
+        return charact.Value?.ToString() ?? "N/A";
+    }
+
+}
+
