@@ -2,11 +2,11 @@
 
 public class WbApiResponse
 {
-    public List<WbProductCard> Cards{ get; set; }
-    public WbCursor Cursor{ get; set; }
+    public List<WbProductCardDto> Cards{ get; set; }
+    public WbCursorDto Cursor{ get; set; }
 }
 
-public class WbProductCard
+public class WbProductCardDto
 {
     public long NmID{ get; set; }
     public long ImtID{ get; set; }
@@ -18,15 +18,15 @@ public class WbProductCard
     public string Title{ get; set; }
     public string Description{ get; set; }
     public bool NeedKiz{ get; set; }
-    public List<WbPhoto> Photos{ get; set; }
-    public WbDimensions Dimensions{ get; set; }
-    public List<WbCharacteristic> Characteristics{ get; set; }
-    public List<Wbsize> Sizes{ get; set; }
+    public List<WbPhotoDto> Photos{ get; set; }
+    public WbDimensionsDto Dimensions{ get; set; }
+    public List<WbCharacteristicDto> Characteristics{ get; set; }
+    public List<WbsizeDto> Sizes{ get; set; }
     public DateTime CreatedAt{ get; set; }
     public DateTime UpdatedAt{ get; set; }
 }
 
-public class WbPhoto
+public class WbPhotoDto
 {
     public string Big{ get; set; }
     public string C246x328{ get; set; }
@@ -36,7 +36,7 @@ public class WbPhoto
     public string Tm{ get; set; }
 }
 
-public class WbDimensions
+public class WbDimensionsDto
 {
     public int Width{ get; set; }
     public int Height{ get; set; }
@@ -45,14 +45,14 @@ public class WbDimensions
     public bool IsValid{ get; set; }
 }
 
-public class WbCharacteristic
+public class WbCharacteristicDto
 {
     public int Id{ get; set; }
     public string Name{ get; set; }
     public object Value{ get; set; } // Может быть string, double или List<string>
 }
 
-public class Wbsize
+public class WbsizeDto
 {
     public long ChrtID{ get; set; }
     public string TechSize{ get; set; }
@@ -60,7 +60,7 @@ public class Wbsize
     public List<string> Skus{ get; set; }
 }
 
-public class WbCursor
+public class WbCursorDto
 {
     public DateTime UpdatedAt{ get; set; }
     public long NmID{ get; set; }

@@ -2,6 +2,34 @@
   "version": 3,
   "targets": {
     "net9.0": {
+      "AutoMapper/14.0.0": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.Options": "8.0.0"
+        },
+        "compile": {
+          "lib/net8.0/AutoMapper.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/AutoMapper.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "AutoMapper.Collection/11.0.0": {
+        "type": "package",
+        "dependencies": {
+          "AutoMapper": "[14.0.0, 15.0.0)"
+        },
+        "compile": {
+          "lib/net8.0/AutoMapper.Collection.dll": {}
+        },
+        "runtime": {
+          "lib/net8.0/AutoMapper.Collection.dll": {}
+        }
+      },
       "ClosedXML/0.104.2": {
         "type": "package",
         "dependencies": {
@@ -1502,6 +1530,34 @@
     }
   },
   "libraries": {
+    "AutoMapper/14.0.0": {
+      "sha512": "OC+1neAPM4oCCqQj3g2GJ2shziNNhOkxmNB9cVS8jtx4JbgmRzLcUOxB9Tsz6cVPHugdkHgCaCrTjjSI0Z5sCQ==",
+      "type": "package",
+      "path": "automapper/14.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "automapper.14.0.0.nupkg.sha512",
+        "automapper.nuspec",
+        "icon.png",
+        "lib/net8.0/AutoMapper.dll",
+        "lib/net8.0/AutoMapper.xml"
+      ]
+    },
+    "AutoMapper.Collection/11.0.0": {
+      "sha512": "26CXTuPsIbfk121na1sWt/QcJ4EkXtlWy6R+LJFvsxiF80d2srbUgL0WgZn9mDyrJo4Hvvyqr/WFwNrVOKMiHQ==",
+      "type": "package",
+      "path": "automapper.collection/11.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "automapper.collection.11.0.0.nupkg.sha512",
+        "automapper.collection.nuspec",
+        "icon.png",
+        "lib/net8.0/AutoMapper.Collection.dll"
+      ]
+    },
     "ClosedXML/0.104.2": {
       "sha512": "gOkSjQ152MhpKmw70cBkJV+FnaZAWzDwM36luRf/7FlWYnNeH++9XYdGTd0Y4KQlVPkKVxy948M5MMsnsGC4GQ==",
       "type": "package",
@@ -3704,6 +3760,8 @@
   },
   "projectFileDependencyGroups": {
     "net9.0": [
+      "AutoMapper >= 14.0.0",
+      "AutoMapper.Collection >= 11.0.0",
       "ClosedXML >= 0.104.2",
       "Microsoft.AspNetCore.Authentication.JwtBearer >= 9.0.0",
       "Microsoft.AspNetCore.Components.WebAssembly.Server >= 9.*",
@@ -3717,23 +3775,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\koval\\.nuget\\packages\\": {},
+    "C:\\Users\\Semir\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL\\WBSL.csproj",
+      "projectUniqueName": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL\\WBSL.csproj",
       "projectName": "WBSL",
-      "projectPath": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL\\WBSL.csproj",
-      "packagesPath": "C:\\Users\\koval\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL\\obj\\",
+      "projectPath": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL\\WBSL.csproj",
+      "packagesPath": "C:\\Users\\Semir\\.nuget\\packages\\",
+      "outputPath": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\koval\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\Semir\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -3749,8 +3807,8 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\WBSL.Client.csproj": {
-              "projectPath": "C:\\Users\\koval\\RiderProjects\\WBSL\\WBSL.Client\\WBSL.Client.csproj"
+            "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\WBSL.Client.csproj": {
+              "projectPath": "D:\\C# Projects\\Sites\\simalandwildberris\\WBSL.Client\\WBSL.Client.csproj"
             }
           }
         }
@@ -3765,12 +3823,20 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "9.0.200"
+      "SdkAnalysisLevel": "9.0.100"
     },
     "frameworks": {
       "net9.0": {
         "targetAlias": "net9.0",
         "dependencies": {
+          "AutoMapper": {
+            "target": "Package",
+            "version": "[14.0.0, )"
+          },
+          "AutoMapper.Collection": {
+            "target": "Package",
+            "version": "[11.0.0, )"
+          },
           "ClosedXML": {
             "target": "Package",
             "version": "[0.104.2, )"
@@ -3831,7 +3897,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.201/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.102/PortableRuntimeIdentifierGraph.json"
       }
     }
   }
