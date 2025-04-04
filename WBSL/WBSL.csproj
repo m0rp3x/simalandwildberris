@@ -28,4 +28,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.*" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <Folder Include="Data\AutoMapperProfiles\" />
+  </ItemGroup>
+
 </Project>
