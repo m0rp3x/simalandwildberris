@@ -42,4 +42,6 @@ public partial class product
     public List<string>? photo_urls { get; set; }
 
     public string? barcodes { get; set; }
+
+    public virtual ICollection<WbCharacteristic> characteristics { get; set; } = new List<WbCharacteristic>();
 }
