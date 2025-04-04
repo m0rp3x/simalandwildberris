@@ -4,9 +4,10 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using WBSL.Data;        // Поменяй на свой namespace
-using WBSL.Models;      // User модель
+using WBSL.Data;        
+using WBSL.Models;      
 using Microsoft.AspNetCore.Authorization;
+using WBSL.Data.Secure;    
 
 namespace WBSL.Controllers;
 
@@ -32,12 +33,14 @@ public class AuthController : ControllerBase
         if (await _db.users.AnyAsync(u => u.user_name == dto.UserName))
             return BadRequest("Пользователь с таким именем уже существует");
 
+        var hashedPassword = PasswordHasher.HashPassword(dto.Password);
+
         var user = new user
         {
             id = Guid.NewGuid(),
             user_name = dto.UserName,
             email = dto.Email,
-            password_hash = dto.Password // В боевом варианте — хэшируй!
+            password_hash = hashedPassword
         };
 
         _db.users.Add(user);
@@ -50,10 +53,9 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        var user = await _db.users
-            .FirstOrDefaultAsync(u => u.user_name == dto.UserName && u.password_hash == dto.Password);
+        var user = await _db.users.FirstOrDefaultAsync(u => u.user_name == dto.UserName);
 
-        if (user == null)
+        if (user == null || !PasswordHasher.VerifyPassword(dto.Password, user.password_hash))
             return Unauthorized("Неверный логин или пароль");
 
         var token = GenerateJwtToken(user);
