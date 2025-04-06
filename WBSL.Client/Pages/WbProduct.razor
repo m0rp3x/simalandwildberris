@@ -29,11 +29,11 @@
                     <MudCarousel TData="object" Style="height: 200px; width: 100%;" AutoCycle="false">
                         @foreach (var photo in Product.Photos)
                         {
-                        <MudCarouselItem>
-                            <div class="d-flex justify-center align-center" style="height: 100%;">
-                                <MudImage Src="@photo.Big" Style="max-height: 100%; max-width: 100%; object-fit: contain;" />
-                            </div>
-                        </MudCarouselItem>
+                            <MudCarouselItem>
+                                <div class="d-flex justify-center align-center" style="height: 100%;">
+                                    <MudImage Src="@photo.Big" Style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                                </div>
+                            </MudCarouselItem>
                         }
                     </MudCarousel>
                 </MudItem>
@@ -51,12 +51,33 @@
                 </MudItem>
             </MudGrid>
         </MudPaper>
+        
+        <MudPaper Class="mt-6 pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">Характеристики товара</MudText>
+        
+            <MudTable Items="@characteristicDto" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Наименование Характеристик WB</MudTh>
+                    <MudTh>Наименование Характеристик Сима-ленд</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="WB">
+                        <MudText Typo="Typo.body2">@context.Name</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Сима-ленд">
+                        <!-- Пустая колонка для Сима-ленд -->
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Не указано</MudText>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
     }
 </MudPaper>
 
 @code {
     private string VendorCode = string.Empty;
     private WbProductDto? Product;
+    private List<WbAdditionalCharacteristicDto>? characteristicDto;
     private bool IsLoading = false;
     
     private async Task TEST(){
@@ -74,8 +95,13 @@
         Snackbar.Add("Ищем товар...", Severity.Info);
 
         try{
-            var response = await Client.GetFromJsonAsync<WbProductDto>($"api/Wildberries/wbItem/{VendorCode}");
-            Product = response;
+            var response = await Client.GetFromJsonAsync<WbProductFullInfoDto>($"api/Wildberries/wbItem/{VendorCode}");
+
+            if (response is null){
+                throw new Exception("Товар не найден");
+            }
+            Product = response.Product;
+            characteristicDto = response.AdditionalCharacteristics;
             Snackbar.Add("Товар найден!", Severity.Success);
         }
         catch (Exception ex){

@@ -1,36 +1,80 @@
 ﻿using System.Text;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using WBSL.Client.Data.DTO;
+using WBSL.Data.Mappers;
 using WBSL.Data.Services.Wildberries.Models;
+using WbProductFullInfoDto = WBSL.Data.Services.Wildberries.Models.WbProductFullInfoDto;
+
 
 namespace WBSL.Data.Services.Wildberries;
 
 public class WildberriesService : WildberriesBaseService
 {
-    public WildberriesService(IHttpClientFactory httpFactory) : base(httpFactory){
+    private readonly QPlannerDbContext _db;
+
+    public WildberriesService(IHttpClientFactory httpFactory, QPlannerDbContext db) : base(httpFactory){
+        _db = db;
     }
 
-    public async Task<WbProductCardDto?> GetProduct(string vendorCode)
-    {
-        try
-        {
+    public async Task<WbProductFullInfoDto?> GetProduct(string vendorCode){
+        var productFromDb = await _db.WbProductCards
+            .Include(p => p.WbPhotos)
+            .Include(p => p.WbProductCardCharacteristics)
+            .ThenInclude(x => x.Characteristic)
+            .Include(p => p.SizeChrts)
+            .FirstOrDefaultAsync(p => p.VendorCode == vendorCode);
+
+        if (productFromDb != null){
+            var productDto = WbProductCardMapper.MapToDto(productFromDb);
+
+            if (productFromDb.SubjectID.HasValue){
+                var additionalCharacteristics = await GetProductChars(productFromDb.SubjectID);
+                return new WbProductFullInfoDto(productDto, additionalCharacteristics);
+            }
+
+            return new WbProductFullInfoDto(productDto);
+        }
+
+        try{
             var response = await GetProductByVendorCode(vendorCode);
             response.EnsureSuccessStatusCode();
-        
+
             var apiResponse = await response.Content.ReadFromJsonAsync<WbApiResponse>();
-            return apiResponse?.Cards?.FirstOrDefault();
+            var apiProduct = apiResponse?.Cards?.FirstOrDefault();
+
+            if (apiProduct == null) return null;
+
+            var productToSave = WbProductCardMapper.MapFromDto(apiProduct);
+            await _db.WbProductCards.AddAsync(productToSave);
+            await _db.SaveChangesAsync();
+
+            if (apiProduct.SubjectID == 0) return new WbProductFullInfoDto(apiProduct);
+            var additionalCharacteristics = await GetProductChars(apiProduct.SubjectID);
+            return new WbProductFullInfoDto(apiProduct, additionalCharacteristics);
+
         }
-        catch (HttpRequestException ex)
-        {
+        catch (HttpRequestException ex){
             Console.WriteLine($"Ошибка при запросе продукта: {ex.Message}");
             return null;
         }
-        catch (JsonException ex)
-        {
+        catch (JsonException ex){
             Console.WriteLine($"Ошибка парсинга ответа: {ex.Message}");
             return null;
         }
     }
-    
+
+    private async Task<List<WbAdditionalCharacteristicDto>?> GetProductChars(int? subjectId){
+        var response = await WbClient.GetAsync($"/content/v2/object/charcs/{subjectId}");
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+        var options = new JsonSerializerOptions{ PropertyNameCaseInsensitive = true };
+        var jsonDocument = JsonDocument.Parse(json);
+        return JsonSerializer.Deserialize<List<WbAdditionalCharacteristicDto>>(
+            jsonDocument.RootElement.GetProperty("data").GetRawText(), options);
+    }
+
     private async Task<HttpResponseMessage> GetProductByVendorCode(string vendorCode){
         var requestData = new{
             settings = new{

@@ -1,5 +1,24 @@
 ﻿namespace WBSL.Client.Data.DTO;
 
+public class WbAdditionalCharacteristicDto
+{
+    public int CharcID { get; set; }
+    public string SubjectName { get; set; }
+    public int SubjectID { get; set; }
+    public string Name { get; set; }
+    public bool Required { get; set; }
+    public string UnitName { get; set; }
+    public int MaxCount { get; set; }
+    public bool Popular { get; set; }
+    public int CharcType { get; set; }
+}
+
+public class WbProductFullInfoDto
+{
+    public WbProductDto Product { get; set; }
+    public List<WbAdditionalCharacteristicDto>? AdditionalCharacteristics { get; set; }
+}
+
 public class WbProductDto
 {
     public long NmID { get; set; }
@@ -15,6 +34,7 @@ public class WbProductDto
     public List<WbPhotoDto> Photos { get; set; }
     public WbDimensionsDto Dimensions { get; set; }
     public List<WbCharacteristicDto> Characteristics { get; set; }
+    public List<WbAdditionalCharacteristicDto> AdditionalCharacteristics { get; set; } = new();
     public List<WbSizeDto> Sizes { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
