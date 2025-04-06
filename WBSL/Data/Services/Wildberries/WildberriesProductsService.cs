@@ -57,7 +57,10 @@ public class WildberriesProductsService : WildberriesBaseService
                         Square = p.Square,
                         Tm = p.Tm
                     }).ToList(),
-                    SizeChrts = null, // TODO: Доделать 
+                    SizeChrts = card.Sizes.Select(x => new WbSize{
+                        ChrtID = x.ChrtID, TechSize = x.TechSize, WbSize1 = x.WbSize,
+                        WbSkus = x.Skus.Select(x => new WbSku{ Sku = x }).ToList()
+                    }).ToList(),
                     WbProductCardCharacteristics = card.Characteristics.Select(ch => new WbProductCardCharacteristic{
                         ProductNmID = card.NmID,
                         CharacteristicId = ch.Id,
@@ -77,9 +80,9 @@ public class WildberriesProductsService : WildberriesBaseService
                         }
                     }
                 });
-                
+
                 await SaveProductsToDatabaseAsync(batch.ToList());
-                
+
                 updatedAt = response.Cursor.UpdatedAt.ToString("o");
                 nmID = response.Cursor.NmID;
             }
@@ -117,13 +120,14 @@ public class WildberriesProductsService : WildberriesBaseService
                 .Where(p => productsToSave.Select(x => x.NmID).Contains(p.NmID))
                 .Select(p => p.NmID)
                 .ToListAsync();
-            
+
             var existingEntities = await _db.WbProductCards
                 .Include(p => p.WbPhotos)
                 .Include(p => p.WbProductCardCharacteristics)
+                .Include(x => x.SizeChrts)
                 .Where(p => existingProductIds.Contains(p.NmID))
                 .ToListAsync();
-            
+
             var newProducts = productsToSave
                 .Where(p => !existingProductIds.Contains(p.NmID))
                 .ToList();
@@ -133,19 +137,18 @@ public class WildberriesProductsService : WildberriesBaseService
                 .ToList();
 
             await ProcessCharacteristicsAsync(productsToSave);
+            await ProcessSizesAndSkusAsync(productsToSave);
 
             if (newProducts.Any()){
                 await _db.WbProductCards.AddRangeAsync(newProducts);
             }
-            
-            foreach (var product in existingProducts)
-            {
+
+            foreach (var product in existingProducts){
                 var existing = existingEntities.FirstOrDefault(p => p.NmID == product.NmID);
 
-                if (existing != null)
-                {
+                if (existing != null){
                     _db.Entry(existing).CurrentValues.SetValues(product);
-                    
+
                     _db.WbPhotos.RemoveRange(existing.WbPhotos);
                     existing.WbPhotos = product.WbPhotos;
 
@@ -153,7 +156,7 @@ public class WildberriesProductsService : WildberriesBaseService
                     existing.WbProductCardCharacteristics = product.WbProductCardCharacteristics;
                 }
             }
-            
+
             await _db.SaveChangesAsync();
 
             await transaction.CommitAsync();
@@ -162,6 +165,35 @@ public class WildberriesProductsService : WildberriesBaseService
             await transaction.RollbackAsync();
             throw new Exception("Failed to save products to database", ex);
         }
+    }
+
+    private async Task ProcessSizesAndSkusAsync(List<WbProductCard> products){
+        var allChrtIds = products
+            .SelectMany(p => p.SizeChrts)
+            .Select(s => s.ChrtID)
+            .Distinct()
+            .ToList();
+
+        var existingSizes = await _db.WbSizes
+            .Include(s => s.WbSkus)
+            .Where(s => allChrtIds.Contains(s.ChrtID))
+            .ToListAsync();
+
+        foreach (var size in products.SelectMany(p => p.SizeChrts))
+        {
+            var existingSize = existingSizes.FirstOrDefault(s => s.ChrtID == size.ChrtID);
+            if (existingSize == null) continue;
+            
+            _db.WbSkus.RemoveRange(existingSize.WbSkus);
+            
+            existingSize.WbSkus = size.WbSkus
+                .Select(sku => new WbSku { Sku = sku.Sku })
+                .ToList();
+            
+            size.ChrtID = 0;
+        }
+
+        await _db.SaveChangesAsync();
     }
 
     private async Task ProcessCharacteristicsAsync(List<WbProductCard> products){
@@ -186,7 +218,7 @@ public class WildberriesProductsService : WildberriesBaseService
             await _db.WbCharacteristics.AddRangeAsync(newCharacteristics);
             await _db.SaveChangesAsync();
         }
-        
+
         foreach (var product in products){
             foreach (var pc in product.WbProductCardCharacteristics){
                 pc.Characteristic = null;
