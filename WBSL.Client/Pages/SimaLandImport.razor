@@ -15,7 +15,7 @@
         }
     </MudSelect>
 
-    <MudTextField T="string" @bind-Value="_rawArticles" Label="Артикулы (через запятую)" Variant="Variant.Outlined" Lines="3" FullWidth />
+    <MudTextField T="string" @bind-Value="_rawArticles" Label="Артикулы (через запятую)" Variant="Variant.Outlined" Lines="3" FullWidth/>
 
     <MudButton OnClick="Fetch" Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Disabled="_selectedAccount == null">Загрузить товары</MudButton>
     <MudStack Row="true" Class="mt-4" Spacing="2">
@@ -27,21 +27,14 @@
         <MudButton Variant="Variant.Outlined" OnClick="TriggerFileUpload">
             Загрузить JSON с артикулами
         </MudButton>
-        <input type="file" id="jsonFileInput" accept=".json" style="display:none" @onchange="OnJsonFileChanged" />
+        <input type="file" id="jsonFileInput" accept=".json" style="display:none" @onchange="OnJsonFileChanged"/>
     </MudStack>
     <MudButton Variant="Variant.Outlined" OnClick="StoreToDatabase">
         Загрузить в базу
     </MudButton>
 
 
-
-
-
-
-
-
-
-    <MudDivider Class="my-4" />
+    <MudDivider Class="my-4"/>
 
     @if (_products.Any())
     {
@@ -60,6 +53,7 @@
                 <MudTh>Мин. партия</MudTh>
                 <MudTh>Опт. цена</MudTh>
                 <MudTh>Розн. цена</MudTh>
+                <MudTh>НДС</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd>@context.sid</MudTd>
@@ -82,6 +76,7 @@
                 <MudTd>@context.qty_multiplier</MudTd>
                 <MudTd>@context.wholesale_price</MudTd>
                 <MudTd>@context.price</MudTd>
+                <MudTd>@context.vat</MudTd>
             </RowTemplate>
         </MudTable>
     }
@@ -94,6 +89,7 @@
     private bool _initialized = false;
     private string _resultJson = string.Empty;
     private List<Product> _products = new();
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !_initialized)
@@ -114,10 +110,9 @@
         if (_selectedAccount == null) return;
 
         var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                                   .Select(long.Parse)
-                                   .ToList();
-        
-        
+            .Select(long.Parse)
+            .ToList();
+
 
         var res = await Http.PostAsJsonAsync("api/simaland/fetch", new
         {
@@ -134,10 +129,9 @@
             }) ?? new List<Product>();
         }
     }
-    
+
     private async Task DownloadExcel()
     {
-
         var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(long.Parse)
             .ToList();
@@ -164,7 +158,7 @@
         await JS.InvokeVoidAsync("downloadFileFromBlazor", "simaland-products.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
     }
 
-    
+
     private async Task DownloadJson()
     {
         var json = JsonSerializer.Serialize(
@@ -199,7 +193,7 @@
 
         await JS.InvokeVoidAsync("downloadFileFromBlazor", filename, contentType, base64);
     }
-    
+
     private async Task TriggerFileUpload()
     {
         await JS.InvokeVoidAsync("triggerFileInputClick", "jsonFileInput");
@@ -209,7 +203,7 @@
     {
         try
         {
-            // вызываем JS, чтобы прочитать содержимое файла
+// вызываем JS, чтобы прочитать содержимое файла
             var jsonText = await JS.InvokeAsync<string>("readUploadedJson", "jsonFileInput");
 
             if (!string.IsNullOrWhiteSpace(jsonText))
@@ -230,10 +224,9 @@
             _resultJson = $"Ошибка при чтении файла: {ex.Message}";
         }
     }
-    
+
     private async Task StoreToDatabase()
     {
-
         var res = await Http.PostAsJsonAsync("api/simaland/store", _products);
         if (res.IsSuccessStatusCode)
         {
@@ -244,7 +237,6 @@
             _resultJson = $"Ошибка загрузки: {res.StatusCode}";
         }
     }
-
 
 
     public class ExternalAccount
@@ -272,13 +264,10 @@
         public int qty_multiplier { get; set; }
         public decimal wholesale_price { get; set; }
         public decimal price { get; set; }
-        public string category_name { get; set; } = ""; 
+        public string category_name { get; set; } = "";
         public List<string> photo_urls { get; set; } = new();
-        public string? barcodes { get; set; } 
-
-
-    
-
-        
+        public string? barcodes { get; set; }
+        public int? vat { get; set; }
     }
+
 }

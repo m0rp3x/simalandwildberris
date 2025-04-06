@@ -26,8 +26,6 @@ public partial class QPlannerDbContext : DbContext
 
     public virtual DbSet<WbSize> WbSizes { get; set; }
 
-    public virtual DbSet<WbSku> WbSkus { get; set; }
-
     public virtual DbSet<external_account> external_accounts { get; set; }
 
     public virtual DbSet<product> products { get; set; }
@@ -139,18 +137,8 @@ public partial class QPlannerDbContext : DbContext
             entity.ToTable("WbSize");
 
             entity.Property(e => e.ChrtID).ValueGeneratedNever();
+            entity.Property(e => e.Value).HasColumnType("character varying");
             entity.Property(e => e.WbSize1).HasColumnName("WbSize");
-        });
-
-        modelBuilder.Entity<WbSku>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("WbSku_pkey");
-
-            entity.ToTable("WbSku");
-
-            entity.HasOne(d => d.WbSizeChrt).WithMany(p => p.WbSkus)
-                .HasForeignKey(d => d.WbSizeChrtID)
-                .HasConstraintName("WbSku_WbSizeChrtID_fkey");
         });
 
         modelBuilder.Entity<external_account>(entity =>

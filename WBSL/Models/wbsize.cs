@@ -11,7 +11,7 @@ public partial class WbSize
 
     public string? WbSize1 { get; set; }
 
-    public virtual ICollection<WbSku> WbSkus { get; set; } = new List<WbSku>();
+    public string? Value { get; set; }
 
     public virtual ICollection<WbProductCard> ProductNms { get; set; } = new List<WbProductCard>();
 }
