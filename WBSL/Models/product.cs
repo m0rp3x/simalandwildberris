@@ -29,7 +29,7 @@ public partial class product
 
     public int? category_id { get; set; }
 
-    public string? balance { get; set; }
+    public int? balance { get; set; }
 
     public int? qty_multiplier { get; set; }
 
@@ -44,4 +44,6 @@ public partial class product
     public string? barcodes { get; set; }
 
     public int? vat { get; set; }
+
+    public virtual ICollection<product_attribute> product_attributes { get; set; } = new List<product_attribute>();
 }

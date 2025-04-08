@@ -4,83 +4,114 @@
 @inject HttpClient Http
 @inject IJSRuntime JS
 
+<MudPaper Class="p-6 mx-auto mt-8" Style="max-width: 1600px;" Elevation="4">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h5">📦 Импорт товаров из Сима-Ленд</MudText>
 
-<MudPaper Class="pa-6 mx-auto mt-8" Style="max-width: 1920px;" Elevation="4">
-    <MudText Typo="Typo.h5">Импорт товаров из Сима-Ленд</MudText>
+        <MudSelect T="ExternalAccount" @bind-Value="_selectedAccount" Label="Выберите аккаунт" Variant="Variant.Outlined" FullWidth>
+            @foreach (var account in _accounts)
+            {
+                <MudSelectItem Value="@account">@account.Name</MudSelectItem>
+            }
+        </MudSelect>
 
-    <MudSelect T="ExternalAccount" @bind-Value="_selectedAccount" Label="Выберите аккаунт" Variant="Variant.Outlined" FullWidth>
-        @foreach (var account in _accounts)
+        <MudTextField T="string" @bind-Value="_rawArticles" Label="Артикулы (через запятую)" Variant="Variant.Outlined" Lines="3" FullWidth />
+
+        <MudStack Row="true" Spacing="2">
+            <MudButton OnClick="Fetch" Variant="Variant.Filled" Color="Color.Primary" Disabled="_selectedAccount == null">
+                Загрузить товары
+            </MudButton>
+            <MudButton OnClick="StoreToDatabase" Variant="Variant.Filled" Color="Color.Secondary">
+                Сохранить в базу
+            </MudButton>
+        </MudStack>
+
+        <MudDivider />
+
+        <MudText Typo="Typo.h6">💾 Экспорт</MudText>
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Outlined" OnClick="DownloadJson">Скачать JSON</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="DownloadCsv">Скачать CSV</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="DownloadExcel">Скачать Excel</MudButton>
+        </MudStack>
+
+        <MudText Typo="Typo.h6">📂 Загрузка из файла</MudText>
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Outlined" OnClick="TriggerFileUpload">Загрузить JSON с артикулами</MudButton>
+            <input type="file" id="jsonFileInput" accept=".json" style="display:none" @onchange="OnJsonFileChanged" />
+        </MudStack>
+
+        <MudDivider Class="my-4" />
+
+        @if (_products.Any())
         {
-            <MudSelectItem Value="@account">@account.Name</MudSelectItem>
+            <MudText Typo="Typo.h6">📋 Найдено товаров: @_products.Count</MudText>
+
+            <MudTable Items="_products" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Артикул</MudTh>
+                    <MudTh>Наименование</MudTh>
+                    <MudTh>Габариты (Ш×В×Г)</MudTh>
+                    <MudTh>Упаковка (Д×Ш×В)</MudTh>
+                    <MudTh>Описание</MudTh>
+                    <MudTh>Фото</MudTh>
+                    <MudTh>Баркоды</MudTh>
+                    <MudTh>Категория</MudTh>
+                    <MudTh>Остаток</MudTh>
+                    <MudTh>Мин. партия</MudTh>
+                    <MudTh>Опт. цена</MudTh>
+                    <MudTh>Розн. цена</MudTh>
+                    <MudTh>НДС</MudTh>
+                    <MudTh>Торговая Марка</MudTh>
+                    <MudTh>Страна</MudTh>
+                    @foreach (var attrName in _dynamicAttrNames.OrderBy(n => n))
+                    {
+                    <MudTh>@attrName</MudTh>
+                    }
+
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.sid</MudTd>
+                    <MudTd>@context.name</MudTd>
+                    <MudTd>@($"{Math.Max(context.width, 1)}×{Math.Max(context.height, 1)}×{Math.Max(context.depth, 1)}")</MudTd>
+                    <MudTd>@($"{context.box_depth}×{context.box_width}×{context.box_height}")</MudTd>
+                    <MudTd>
+                        <MudTooltip Text="@context.description" Placement="Placement.Bottom">
+                            <MudText Class="line-clamp-2">@context.description</MudText>
+                        </MudTooltip>
+                    </MudTd>
+                    <MudTd>
+                        <MudStack Spacing="1">
+                            @foreach (var url in context.photo_urls)
+                            {
+                                <MudLink Href="@url" Target="_blank">@url</MudLink>
+                            }
+                        </MudStack>
+                    </MudTd>
+                    <MudTd>@context.barcodes</MudTd>
+                    <MudTd>@context.category_name</MudTd>
+                    <MudTd>@context.balance</MudTd>
+                    <MudTd>@context.qty_multiplier@context.unit_name</MudTd>
+                    <MudTd>@context.wholesale_price</MudTd>
+                    <MudTd>@context.price</MudTd>
+                    <MudTd>@context.vat</MudTd>
+                    <MudTd>@context.trademark_name</MudTd>
+                    <MudTd>@context.country_name</MudTd>
+                    @foreach (var attrName in _dynamicAttrNames.OrderBy(n => n))
+                    {
+                    var attr = context.Attributes.FirstOrDefault(a => a.attr_name == attrName);
+                    <MudTd>@(attr?.value_text ?? "")</MudTd>
+                    }
+
+
+
+
+                </RowTemplate>
+            </MudTable>
         }
-    </MudSelect>
-
-    <MudTextField T="string" @bind-Value="_rawArticles" Label="Артикулы (через запятую)" Variant="Variant.Outlined" Lines="3" FullWidth/>
-
-    <MudButton OnClick="Fetch" Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Disabled="_selectedAccount == null">Загрузить товары</MudButton>
-    <MudStack Row="true" Class="mt-4" Spacing="2">
-        <MudButton Variant="Variant.Outlined" OnClick="DownloadJson">Скачать JSON</MudButton>
-        <MudButton Variant="Variant.Outlined" OnClick="DownloadCsv">Скачать CSV</MudButton>
-        <MudButton Variant="Variant.Outlined" OnClick="DownloadExcel">Скачать Excel</MudButton>
     </MudStack>
-    <MudStack Row="true" Spacing="2" Class="mt-2">
-        <MudButton Variant="Variant.Outlined" OnClick="TriggerFileUpload">
-            Загрузить JSON с артикулами
-        </MudButton>
-        <input type="file" id="jsonFileInput" accept=".json" style="display:none" @onchange="OnJsonFileChanged"/>
-    </MudStack>
-    <MudButton Variant="Variant.Outlined" OnClick="StoreToDatabase">
-        Загрузить в базу
-    </MudButton>
-
-
-    <MudDivider Class="my-4"/>
-
-    @if (_products.Any())
-    {
-        <MudTable Items="_products" Hover="true">
-            <HeaderContent>
-                <MudTh>Артикул</MudTh>
-                <MudTh>Наименование</MudTh>
-                <MudTh>Габариты (Ш×В×Г)</MudTh>
-                <MudTh>Габариты Упаковки (Д×Ш×Н)</MudTh>
-                <MudTh>Описание</MudTh>
-                <MudTh>Вес (г)</MudTh>
-                <MudTh>Фото</MudTh>
-                <MudTh>Баркоды</MudTh>
-                <MudTh>Категория</MudTh>
-                <MudTh>Остаток</MudTh>
-                <MudTh>Мин. партия</MudTh>
-                <MudTh>Опт. цена</MudTh>
-                <MudTh>Розн. цена</MudTh>
-                <MudTh>НДС</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@context.sid</MudTd>
-                <MudTd>@context.name</MudTd>
-                <MudTd>@($"{Math.Max(context.width, 1)}×{Math.Max(context.height, 1)}×{Math.Max(context.depth, 1)}")</MudTd>
-                <MudTd>@($"{context.box_depth}×{context.box_width}×{context.box_height}")</MudTd>
-                <MudTd>@context.description</MudTd>
-                <MudTd>@context.weight</MudTd>
-                <MudTd>
-                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                        @foreach (var url in context.photo_urls)
-                        {
-                            <a href="@url" target="_blank" style="color: #1976d2; text-decoration: underline;">@url</a>
-                        }
-                    </div>
-                </MudTd>
-                <MudTd>@context.barcodes</MudTd>
-                <MudTd>@context.category_name</MudTd>
-                <MudTd>@context.balance</MudTd>
-                <MudTd>@context.qty_multiplier</MudTd>
-                <MudTd>@context.wholesale_price</MudTd>
-                <MudTd>@context.price</MudTd>
-                <MudTd>@context.vat</MudTd>
-            </RowTemplate>
-        </MudTable>
-    }
 </MudPaper>
+
 
 @code {
     private List<ExternalAccount> _accounts = new();
@@ -89,7 +120,13 @@
     private bool _initialized = false;
     private string _resultJson = string.Empty;
     private List<Product> _products = new();
+    public List<ProductAttribute> Attributes { get; set; } = new();
+    private HashSet<string> _dynamicAttrNames = new();
 
+    
+
+
+    
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !_initialized)
@@ -105,30 +142,84 @@
         _accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
     }
 
-    private async Task Fetch()
+private async Task Fetch()
+{
+    if (_selectedAccount == null) return;
+
+    var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(long.Parse)
+        .ToList();
+
+    var res = await Http.PostAsJsonAsync("api/simaland/fetch", new
     {
-        if (_selectedAccount == null) return;
+        AccountId = _selectedAccount.Id,
+        Articles = articles
+    });
 
-        var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(long.Parse)
-            .ToList();
+    if (!res.IsSuccessStatusCode)
+    {
+        _resultJson = $"Ошибка: {res.StatusCode}";
+        return;
+    }
 
+    var json = await res.Content.ReadAsStringAsync();
+    using var doc = JsonDocument.Parse(json);
+    var root = doc.RootElement;
 
-        var res = await Http.PostAsJsonAsync("api/simaland/fetch", new
+    if (!root.TryGetProperty("products", out var productArray))
+    {
+        _resultJson = "Ответ не содержит секции products";
+        return;
+    }
+
+    _products.Clear();
+    _dynamicAttrNames.Clear();
+
+    foreach (var prodElem in productArray.EnumerateArray())
+    {
+        var product = JsonSerializer.Deserialize<Product>(prodElem.GetRawText(), new JsonSerializerOptions
         {
-            AccountId = _selectedAccount.Id,
-            Articles = articles
+            PropertyNameCaseInsensitive = true
         });
 
-        if (res.IsSuccessStatusCode)
+        if (product == null)
+            continue;
+
+        // Убедимся, что список Attributes инициализирован
+        product.Attributes = product.Attributes ?? new List<ProductAttribute>();
+
+        if (prodElem.TryGetProperty("attrs", out var attrsArray) && attrsArray.ValueKind == JsonValueKind.Array)
         {
-            var json = await res.Content.ReadAsStringAsync();
-            _products = JsonSerializer.Deserialize<List<Product>>(json, new JsonSerializerOptions
+            foreach (var attr in attrsArray.EnumerateArray())
             {
-                PropertyNameCaseInsensitive = true
-            }) ?? new List<Product>();
+                var attrId = attr.TryGetProperty("attr_id", out var idProp) ? idProp.GetInt32() : 0;
+                var attrName = attr.TryGetProperty("attr_name", out var an) ? an.GetString() ?? "" : "";
+                var value = attr.TryGetProperty("value", out var v) ? v.ToString() ?? "" : "";
+
+                if (!string.IsNullOrWhiteSpace(attrName))
+                {
+                    product.Attributes.Add(new ProductAttribute
+                    {
+                        product_sid = product.sid,
+                        attr_name = attrName,
+                        value_type = "text",
+                        value_text = value
+                    });
+
+                    _dynamicAttrNames.Add(attrName);
+                }
+            }
         }
+
+        _products.Add(product);
     }
+
+    _resultJson = $"Загружено товаров: {_products.Count}, атрибутов: {_dynamicAttrNames.Count}";
+    StateHasChanged();
+}
+
+
+
 
     private async Task DownloadExcel()
     {
@@ -227,7 +318,20 @@
 
     private async Task StoreToDatabase()
     {
-        var res = await Http.PostAsJsonAsync("api/simaland/store", _products);
+        var attributes = _products.SelectMany(p => p.Attributes.Select(attr => new ProductAttribute
+        {
+            product_sid = p.sid,
+            attr_name = attr.attr_name,
+            value_type = attr.value_type,
+            value_text = attr.value_text
+        })).ToList();
+
+        var res = await Http.PostAsJsonAsync("api/simaland/store", new
+        {
+            products = _products,
+            attributes
+        });
+
         if (res.IsSuccessStatusCode)
         {
             _resultJson = "Успешно загружено в базу!";
@@ -236,6 +340,13 @@
         {
             _resultJson = $"Ошибка загрузки: {res.StatusCode}";
         }
+    }
+
+    
+    public class FetchResponse
+    {
+        public List<Product> Products { get; set; } = new();
+        public List<ProductAttribute> Attributes { get; set; } = new();
     }
 
 
@@ -250,6 +361,7 @@
     {
         public long sid { get; set; }
         public string name { get; set; } = "";
+        public string color { get; set; } = "";
         public string description { get; set; } = "";
         public decimal width { get; set; }
         public decimal height { get; set; }
@@ -260,7 +372,7 @@
         public decimal box_width { get; set; }
         public string base_photo_url { get; set; } = "";
         public int category_id { get; set; }
-        public string balance { get; set; } = "";
+        public int? balance { get; set; }
         public int qty_multiplier { get; set; }
         public decimal wholesale_price { get; set; }
         public decimal price { get; set; }
@@ -268,6 +380,21 @@
         public List<string> photo_urls { get; set; } = new();
         public string? barcodes { get; set; }
         public int? vat { get; set; }
+        public string? trademark_name { get; set; }
+        public string? country_name { get; set; }
+        public string? unit_name { get; set; }
+        public List<ProductAttribute> Attributes { get; set; } = new();
+
     }
+    public class ProductAttribute
+    {
+        public long product_sid { get; set; }    // 👈 обязателен
+        public string attr_name { get; set; } = "";
+        public string value_type { get; set; } = "text";
+        public string? value_text { get; set; }
+    }
+    
+    
+ 
 
 }

@@ -30,6 +30,8 @@ public partial class QPlannerDbContext : DbContext
 
     public virtual DbSet<product> products { get; set; }
 
+    public virtual DbSet<product_attribute> product_attributes { get; set; }
+
     public virtual DbSet<user> users { get; set; }
 
     public virtual DbSet<wildberries_category> wildberries_categories { get; set; }
@@ -183,6 +185,19 @@ public partial class QPlannerDbContext : DbContext
             entity.Property(e => e.width)
                 .HasPrecision(10, 2)
                 .HasDefaultValueSql("0");
+        });
+
+        modelBuilder.Entity<product_attribute>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("product_attributes_pkey");
+
+            entity.Property(e => e.created_at)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.product_s).WithMany(p => p.product_attributes)
+                .HasForeignKey(d => d.product_sid)
+                .HasConstraintName("product_attributes_product_sid_fkey");
         });
 
         modelBuilder.Entity<user>(entity =>

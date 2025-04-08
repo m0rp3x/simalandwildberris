@@ -23,91 +23,162 @@ public class SimaLandController : ControllerBase
         _db = db;
     }
 
-    private Guid GetUserId() =>
+   private Guid GetUserId() =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    [HttpPost("fetch")]
-    public async Task<IActionResult> FetchProducts([FromBody] SimaRequest request)
+[HttpPost("store")]
+public async Task<IActionResult> StoreProductsAndAttributes([FromBody] StoreRequest request)
+{
+    foreach (var p in request.Products)
     {
-        var userId = GetUserId();
+        if (p.width == 0) p.width = 1;
+        if (p.height == 0) p.height = 1;
+        if (p.depth == 0) p.depth = 1;
+    }
 
-        var account = await _db.external_accounts
-            .FirstOrDefaultAsync(a => a.id == request.AccountId && a.user_id == userId && a.platform == "SimaLand");
+    await _db.products.AddRangeAsync(request.Products);
+    await _db.product_attributes.AddRangeAsync(request.Attributes);
+    await _db.SaveChangesAsync();
 
-        if (account == null)
-            return BadRequest("Аккаунт не найден или не принадлежит вам.");
+    return Ok(new { success = true, products = request.Products.Count, attributes = request.Attributes.Count });
+}
 
-        var client = _httpFactory.CreateClient("SimaLand");
-        client.DefaultRequestHeaders.Add("X-Api-Key", account.token);
 
-        var results = new List<JsonElement>();
+[HttpPost("fetch")]
+public async Task<IActionResult> FetchProducts([FromBody] SimaRequest request)
+{
+    var userId = GetUserId();
 
-        foreach (var article in request.Articles)
+    var account = await _db.external_accounts
+        .FirstOrDefaultAsync(a => a.id == request.AccountId && a.user_id == userId && a.platform == "SimaLand");
+
+    if (account == null)
+        return BadRequest("Аккаунт не найден или не принадлежит вам.");
+
+    var client = _httpFactory.CreateClient("SimaLand");
+    client.DefaultRequestHeaders.Add("X-Api-Key", account.token);
+
+    var results = new List<JsonElement>();
+    var allAttributes = new List<product_attribute>();
+
+    foreach (var sid in request.Articles)
+    {
+        var response = await client.GetAsync($"item/?sid={sid}&expand=description,stocks,barcodes,attrs,category,trademark,country,unit,category_id");
+
+        if (!response.IsSuccessStatusCode)
+            continue;
+
+        var json = await response.Content.ReadAsStringAsync();
+        var root = JsonSerializer.Deserialize<JsonElement>(json);
+        var items = root.GetProperty("items");
+
+        if (items.GetArrayLength() == 0) continue;
+        var product = items[0];
+        var productDict = product.EnumerateObject().ToDictionary(p => p.Name, p => p.Value);
+
+        if (productDict.TryGetValue("description", out var descElement))
         {
-            var response = await client.GetAsync($"item/{article}?by_sid=true");
-
-            if (!response.IsSuccessStatusCode)
-                return StatusCode((int)response.StatusCode, $"Ошибка артикула {article}: {response.ReasonPhrase}");
-
-            var json = await response.Content.ReadAsStringAsync();
-            var product = JsonSerializer.Deserialize<JsonElement>(json);
-
-            var productDict = product.EnumerateObject().ToDictionary(p => p.Name, p => p.Value);
-
-            // Очистка HTML-тегов из описания
-            if (productDict.TryGetValue("description", out var descElement))
-            {
-                var rawDesc = descElement.GetString() ?? "";
-                var cleanDesc = Regex.Replace(rawDesc, "<.*?>", string.Empty);
-                productDict["description"] = JsonSerializer.SerializeToElement(cleanDesc);
-            }
-
-            // Получение названия категории
-            if (product.TryGetProperty("category_id", out var categoryIdElement))
-            {
-                var categoryId = categoryIdElement.GetInt32();
-                var catResponse = await client.GetAsync($"category/{categoryId}");
-
-                if (catResponse.IsSuccessStatusCode)
-                {
-                    var catJson = await catResponse.Content.ReadAsStringAsync();
-                    var category = JsonSerializer.Deserialize<JsonElement>(catJson);
-                    if (category.TryGetProperty("name", out var nameElement))
-                    {
-                        productDict["category_name"] = nameElement;
-                    }
-                }
-            }
-            
-            // Получение штрихкодов
-            if (productDict.TryGetValue("barcodes", out var barcodesElement))
-            {
-                var barcodes = barcodesElement.EnumerateArray().Select(b => b.GetString()).Where(s => s != null).ToList();
-                productDict["barcodes"] = JsonSerializer.SerializeToElement(string.Join(",", barcodes));
-            }
-
-
-            // Получение всех URL фотографий
-            var photoUrls = new List<string>();
-            if (productDict.TryGetValue("base_photo_url", out var basePhotoElement) &&
-                productDict.TryGetValue("agg_photos", out var photoArray))
-            {
-                var baseUrl = basePhotoElement.GetString() ?? "";
-                if (!baseUrl.EndsWith("/")) baseUrl += "/";
-
-                photoUrls = photoArray.EnumerateArray()
-                    .Select(p => $"{baseUrl}{p.GetInt32()}/700.jpg")
-                    .ToList();
-
-                productDict["photo_urls"] = JsonSerializer.SerializeToElement(photoUrls);
-            }
-
-            var updatedJson = JsonSerializer.SerializeToElement(productDict);
-            results.Add(updatedJson);
+            var rawDesc = descElement.GetString() ?? "";
+            var cleanDesc = Regex.Replace(rawDesc, "<.*?>", string.Empty);
+            productDict["description"] = JsonSerializer.SerializeToElement(cleanDesc);
         }
 
-        return Ok(results);
+        if (product.TryGetProperty("category_id", out var categoryIdElem))
+        {
+            var categoryId = categoryIdElem.GetInt32();
+            var categoryResponse = await client.GetAsync($"category/{categoryId}/?expand=sub_categories");
+            if (categoryResponse.IsSuccessStatusCode)
+            {
+                var categoryJson = await categoryResponse.Content.ReadAsStringAsync();
+                var categoryObj = JsonSerializer.Deserialize<JsonElement>(categoryJson);
+                if (categoryObj.TryGetProperty("name", out var nameElem))
+                    productDict["category_name"] = nameElem;
+
+                if (categoryObj.TryGetProperty("sub_categories", out var subCatsElem))
+                {
+                    var subNames = subCatsElem.EnumerateArray()
+                        .Where(c => c.TryGetProperty("name", out _))
+                        .Select(c => c.GetProperty("name").GetString())
+                        .ToList();
+                    productDict["sub_category_names"] = JsonSerializer.SerializeToElement(subNames);
+                }
+            }
+        }
+
+        if (product.TryGetProperty("trademark", out var trademarkProp) && trademarkProp.ValueKind == JsonValueKind.Object && trademarkProp.TryGetProperty("name", out var trademarkName))
+            productDict["trademark_name"] = trademarkName;
+
+        if (product.TryGetProperty("country", out var countryProp) && countryProp.ValueKind == JsonValueKind.Object && countryProp.TryGetProperty("name", out var countryName))
+            productDict["country_name"] = countryName;
+
+        if (product.TryGetProperty("unit", out var unitProp) && unitProp.ValueKind == JsonValueKind.Object && unitProp.TryGetProperty("name", out var unitName))
+            productDict["unit_name"] = unitName;
+
+        if (productDict.TryGetValue("barcodes", out var barcodesElement))
+        {
+            var barcodes = barcodesElement.EnumerateArray().Select(b => b.GetString()).Where(s => s != null).ToList();
+            productDict["barcodes"] = JsonSerializer.SerializeToElement(string.Join(",", barcodes));
+        }
+
+        if (product.TryGetProperty("id", out var itemIdElem) &&
+            product.TryGetProperty("photoIndexes", out var indexesElem) &&
+            product.TryGetProperty("photoVersions", out var versionsElem))
+        {
+            var itemId = itemIdElem.GetInt32();
+            var versions = new Dictionary<string, int>();
+            foreach (var versionElem in versionsElem.EnumerateArray())
+            {
+                var number = versionElem.GetProperty("number").GetString() ?? "0";
+                var versionStr = versionElem.GetProperty("version").GetRawText();
+                if (int.TryParse(versionStr, out var version))
+                    versions[number] = version;
+                else if (versionElem.TryGetProperty("version", out var verJson) && verJson.ValueKind == JsonValueKind.Number)
+                    versions[number] = verJson.GetInt32();
+            }
+
+            var photoUrls = indexesElem.EnumerateArray()
+                .Select(indexElem =>
+                {
+                    var index = indexElem.GetString() ?? "0";
+                    var version = versions.TryGetValue(index, out var ver) ? ver : 0;
+                    return $"https://goods-photos.static1-sima-land.com/items/{itemId}/{index}/700.jpg?v={version}";
+                })
+                .ToList();
+
+            productDict["photo_urls"] = JsonSerializer.SerializeToElement(photoUrls);
+        }
+
+        if (product.TryGetProperty("attrs", out var attrsElem) && attrsElem.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var attr in attrsElem.EnumerateArray())
+            {
+                var attrId = attr.GetProperty("attr_id").GetInt32();
+                var attrName = attr.TryGetProperty("attr_name", out var an) ? an.GetString() ?? "" : "";
+                var attrValue = attr.TryGetProperty("value", out var v) ? v.ToString() ?? "" : "";
+
+
+                allAttributes.Add(new product_attribute
+                {
+                    product_sid = sid,
+                    attr_name = attrName,
+                    value_text = attrValue
+                });
+            }
+        }
+
+        var updatedJson = JsonSerializer.SerializeToElement(productDict);
+        results.Add(updatedJson);
     }
+
+    return Ok(new
+    {
+        products = results,
+        attributes = allAttributes
+    });
+}
+
+
+
 
     [HttpPost("export-excel")]
     public async Task<IActionResult> ExportExcel([FromBody] SimaRequest request)
@@ -193,24 +264,17 @@ public class SimaLandController : ControllerBase
         return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "simaland-products.xlsx");
     }
     
-    [HttpPost("store")]
-    public async Task<IActionResult> StoreProducts([FromBody] List<product> products)
-    {
-        foreach (var p in products)
-        {
-            if (p.width == 0) p.width = 1;
-            if (p.height == 0) p.height = 1;
-            if (p.depth == 0) p.depth = 1;
-        }
 
-        await _db.products.AddRangeAsync(products);
-        await _db.SaveChangesAsync();
-        return Ok(new { success = true, count = products.Count });
-    }
 
     public class SimaRequest
     {
         public int AccountId { get; set; }
         public List<long> Articles { get; set; } = new();
+    }
+    
+    public class StoreRequest
+    {
+        public List<product> Products { get; set; } = new();
+        public List<product_attribute> Attributes { get; set; } = new();
     }
 }

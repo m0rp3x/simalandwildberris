@@ -53,7 +53,7 @@ builder.Services.AddScoped<WildberriesProductsService>();
 
 builder.Services.AddHttpClient("SimaLand", client =>
 {
-    client.BaseAddress = new Uri("https://www.sima-land.ru/api/v5/");
+    client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/");
     // Общие заголовки можно добавить здесь
 });
 
