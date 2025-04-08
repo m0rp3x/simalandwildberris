@@ -23,24 +23,24 @@ public class WbProductFullInfoDto
     }
 }
 public class WbProductCardDto
-{
-    public long NmID{ get; set; }
-    public long ImtID{ get; set; }
-    public string NmUUID{ get; set; }
-    public int SubjectID{ get; set; }
-    public string SubjectName{ get; set; }
-    public string VendorCode{ get; set; }
-    public string Brand{ get; set; }
-    public string Title{ get; set; }
-    public string Description{ get; set; }
-    public bool NeedKiz{ get; set; }
-    public List<WbPhotoDto>? Photos{ get; set; }
-    public WbDimensionsDto? Dimensions{ get; set; }
-    public List<WbCharacteristicDto>? Characteristics{ get; set; }
-    public List<WbsizeDto>? Sizes{ get; set; }
-    public DateTime CreatedAt{ get; set; }
-    public DateTime UpdatedAt{ get; set; }
-}
+ {
+     public long NmID{ get; set; }
+     public long ImtID{ get; set; }
+     public string NmUUID{ get; set; }
+     public int SubjectID{ get; set; }
+     public string SubjectName{ get; set; }
+     public string VendorCode{ get; set; }
+     public string Brand{ get; set; }
+     public string Title{ get; set; }
+     public string Description{ get; set; }
+     public bool NeedKiz{ get; set; }
+     public List<WbPhotoDto>? Photos{ get; set; }
+     public WbDimensionsDto? Dimensions{ get; set; }
+     public List<WbCharacteristicDto>? Characteristics{ get; set; }
+     public List<WbsizeDto>? Sizes{ get; set; }
+     public DateTime CreatedAt{ get; set; }
+     public DateTime UpdatedAt{ get; set; }
+ }
 
 public class WbPhotoDto
 {

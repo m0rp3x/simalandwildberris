@@ -1,5 +1,6 @@
 ﻿@page "/wb-product"
 @using System.Text.Json
+@using Shared
 @using WBSL.Client.Data.DTO
 @inject HttpClient Client
 @inject ISnackbar Snackbar
@@ -27,11 +28,10 @@
             <MudGrid Class="mt-4">
                 <MudItem xs="12" sm="6">
                     <MudCarousel TData="object" Style="height: 200px; width: 100%;" AutoCycle="false">
-                        @foreach (var photo in Product.Photos)
-                        {
+                        @foreach (var photo in Product.Photos){
                             <MudCarouselItem>
                                 <div class="d-flex justify-center align-center" style="height: 100%;">
-                                    <MudImage Src="@photo.Big" Style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                                    <MudImage Src="@photo.Big" Style="max-height: 100%; max-width: 100%; object-fit: contain;"/>
                                 </div>
                             </MudCarouselItem>
                         }
@@ -51,22 +51,35 @@
                 </MudItem>
             </MudGrid>
         </MudPaper>
-        
+
         <MudPaper Class="mt-6 pa-4" Elevation="2">
-            <MudText Typo="Typo.h6" Class="mb-4">Характеристики товара</MudText>
-        
-            <MudTable Items="@characteristicDto" Hover="true" Dense="true">
+            <MudText Typo="Typo.h6" Class="mb-4">Сопоставление характеристик товара</MudText>
+
+            <MudTable Items="@mappings" Hover="true" Dense="true">
                 <HeaderContent>
-                    <MudTh>Наименование Характеристик WB</MudTh>
-                    <MudTh>Наименование Характеристик Сима-ленд</MudTh>
+                    <MudTh>Параметр</MudTh>
+                    <MudTh>Значение с WB</MudTh>
+                    <MudTh>Сопоставление с Сима-ленд</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="WB">
-                        <MudText Typo="Typo.body2">@context.Name</MudText>
+                    <MudTd DataLabel="Параметр">
+                        <MudText Typo="Typo.body2">@context.PropertyName</MudText>
                     </MudTd>
-                    <MudTd DataLabel="Сима-ленд">
-                        <!-- Пустая колонка для Сима-ленд -->
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">Не указано</MudText>
+                    <MudTd DataLabel="Значение с WB">
+                        <MudText Typo="Typo.body2">@context.WbValue</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Сопоставление с Сима-ленд">
+                        @if (context.IsSelectable){
+                            <MudSelect T="string" Value="@context.SimaLandFieldName" ValueChanged="@(v => OnSimaLandValueChanged(v, context))" Variant="Variant.Outlined" Dense="true">
+                                <MudSelectItem Value="@string.Empty">Не выбрано</MudSelectItem>
+                                @foreach (var option in GetSimaLandOptions()){
+                                    <MudSelectItem Value="@option">@option</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                        else{
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">@context.SimaLandFieldName</MudText>
+                        }
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -78,12 +91,13 @@
     private string VendorCode = string.Empty;
     private WbProductDto? Product;
     private List<WbAdditionalCharacteristicDto>? characteristicDto;
+    private List<PropertyMapping> mappings;
     private bool IsLoading = false;
-    
+
     private async Task TEST(){
         await Client.GetAsync("api/Wildberries/sync/productCards");
     }
-    
+
     private async Task SearchProduct(){
         if (string.IsNullOrWhiteSpace(VendorCode)){
             Snackbar.Add("Введите артикул товара", Severity.Warning);
@@ -100,9 +114,11 @@
             if (response is null){
                 throw new Exception("Товар не найден");
             }
+
             Product = response.Product;
             characteristicDto = response.AdditionalCharacteristics;
             Snackbar.Add("Товар найден!", Severity.Success);
+            GetCombinedProperties();
         }
         catch (Exception ex){
             Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
@@ -125,6 +141,113 @@
 
         return charact.Value?.ToString() ?? "N/A";
     }
+    
+    private void OnSimaLandValueChanged(string value, PropertyMapping context)
+    {
+        context.SimaLandFieldName = value;
+        StateHasChanged();
+    }
+    
+    private List<PropertyMapping> GetCombinedProperties(){
+        mappings = new List<PropertyMapping>();
+
+        if (characteristicDto == null) return mappings;
+
+        // Основные свойства из WbProductCardDto
+        mappings.Add(new PropertyMapping{
+            PropertyName = "Артикул продавца",
+            WbValue = Product.VendorCode,
+            WbFieldName = nameof(WbProductDto.VendorCode),
+            SimaLandFieldName = nameof(SimalandProduct.sid),
+            IsSelectable = false
+        });
+
+        mappings.Add(new PropertyMapping{
+            PropertyName = "Бренд",
+            WbValue = Product.Brand,
+            WbFieldName = nameof(WbProductDto.Brand),
+            SimaLandFieldName = nameof(SimalandProduct.trademark),
+            IsSelectable = true
+        });
+
+        mappings.Add(new PropertyMapping{
+            PropertyName = "Название",
+            WbValue = Product.Title,
+            WbFieldName = nameof(WbProductDto.Title),
+            SimaLandFieldName = nameof(SimalandProduct.name),
+            IsSelectable = true
+        });
+
+        mappings.Add(new PropertyMapping{
+            PropertyName = "Описание",
+            WbValue = Product.Description,
+            WbFieldName = nameof(WbProductDto.Description),
+            SimaLandFieldName = nameof(SimalandProduct.description),
+            IsSelectable = true
+        });
+
+        // Габариты
+        if (Product.Dimensions != null){
+            mappings.Add(new PropertyMapping{
+                PropertyName = "Ширина",
+                WbValue = Product.Dimensions.Width.ToString(),
+                WbFieldName = nameof(WbProductDto.Dimensions.Width),
+                SimaLandFieldName = nameof(SimalandProduct.width),
+                IsSelectable = true
+            });
+
+            mappings.Add(new PropertyMapping{
+                PropertyName = "Высота",
+                WbValue = Product.Dimensions.Height.ToString(),
+                WbFieldName = nameof(WbProductDto.Dimensions.Height),
+                SimaLandFieldName = nameof(SimalandProduct.height),
+                IsSelectable = true
+            });
+
+            mappings.Add(new PropertyMapping{
+                PropertyName = "Длина",
+                WbValue = Product.Dimensions.Length.ToString(),
+                WbFieldName = nameof(WbProductDto.Dimensions.Length),
+                SimaLandFieldName = nameof(SimalandProduct.depth),
+                IsSelectable = true
+            });
+
+            mappings.Add(new PropertyMapping{
+                PropertyName = "Вес",
+                WbValue = Product.Dimensions.WeightBrutto.ToString(),
+                WbFieldName = nameof(WbProductDto.Dimensions.WeightBrutto),
+                SimaLandFieldName = nameof(SimalandProduct.weight),
+                IsSelectable = true
+            });
+        }
+
+        // Характеристики
+        if (Product.Characteristics != null){
+            foreach (var charact in Product.Characteristics){
+                string value = charact.Value switch{
+                    string s => s,
+                    double d => d.ToString(),
+                    List<string> list => string.Join(", ", list),
+                    _ => charact.Value?.ToString() ?? ""
+                };
+
+                mappings.Add(new PropertyMapping{
+                    PropertyName = charact.Name,
+                    WbValue = value,
+                    IsSelectable = true
+                });
+            }
+        }
+
+        return mappings;
+    }
+
+    private List<string> GetSimaLandOptions(){
+        var a = mappings.FirstOrDefault();
+        return typeof(SimalandProduct)
+            .GetProperties()
+            .Select(p => p.Name)
+            .ToList();
+    }
 
 }
-
