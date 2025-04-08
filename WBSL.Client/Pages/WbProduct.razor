@@ -19,6 +19,10 @@
                Color="Color.Primary" FullWidth Disabled="@IsLoading">
         TEST
     </MudButton>
+    <MudButton OnClick="TEST2" Variant="Variant.Filled"
+               Color="Color.Primary" FullWidth Disabled="@IsLoading">
+        TEST2
+    </MudButton>
 
     @if (Product != null){
         <MudPaper Class="mt-6 pa-4" Elevation="2">
@@ -96,6 +100,9 @@
 
     private async Task TEST(){
         await Client.GetAsync("api/Wildberries/sync/productCards");
+    }
+    private async Task TEST2(){
+        await Client.GetAsync("api/Wildberries/sync/categories");
     }
 
     private async Task SearchProduct(){

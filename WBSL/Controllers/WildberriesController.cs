@@ -20,14 +20,18 @@ public class WildberriesController : ControllerBase
     private readonly WildberriesService _wildberriesService;
     private readonly WildberriesCategoryService _categoryService;
     private readonly WildberriesProductsService _productsService;
+    private readonly WildberriesCharacteristicsService _characteristicsService;
     private HttpClient WbClient => _httpFactory.CreateClient("WildBerries");
 
     public WildberriesController(QPlannerDbContext db, IHttpClientFactory clientFactory,
-        WildberriesService wildberriesService, WildberriesProductsService productsService){
+        WildberriesService wildberriesService, WildberriesProductsService productsService, WildberriesCategoryService categoryService,
+        WildberriesCharacteristicsService characteristicsService){
         _httpFactory = clientFactory;
         _db = db;
         _wildberriesService = wildberriesService;
         _productsService = productsService;
+        _categoryService = categoryService;
+        _characteristicsService = characteristicsService;
     }
 
     [HttpGet("wbItem/{vendorCode}")]
@@ -61,12 +65,12 @@ public class WildberriesController : ControllerBase
     public async Task<IActionResult> SyncProductCards(){
         lock (_productsLock)
         {
-            // var timeSinceLastSync = DateTime.UtcNow - _lastProductsSyncTime;
-            // if (timeSinceLastSync < TimeSpan.FromHours(1)){
-            //     return StatusCode(429, "Синхронизация продуктов возможна только раз в час.");
-            // }
-            //
-            // _lastProductsSyncTime = DateTime.UtcNow; 
+            var timeSinceLastSync = DateTime.UtcNow - _lastProductsSyncTime;
+            if (timeSinceLastSync < TimeSpan.FromHours(1)){
+                return StatusCode(429, "Синхронизация продуктов возможна только раз в час.");
+            }
+            
+            _lastProductsSyncTime = DateTime.UtcNow; 
         }
 
         try{
