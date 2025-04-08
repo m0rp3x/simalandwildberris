@@ -1,30 +1,46 @@
-﻿namespace WBSL.Data.Services.Wildberries.Models;
+﻿using WBSL.Client.Data.DTO;
+using WBSL.Models;
+
+namespace WBSL.Data.Services.Wildberries.Models;
 
 public class WbApiResponse
 {
     public List<WbProductCardDto> Cards{ get; set; }
     public WbCursorDto Cursor{ get; set; }
 }
-
-public class WbProductCardDto
+public class WbProductFullInfoDto
 {
-    public long NmID{ get; set; }
-    public long ImtID{ get; set; }
-    public string NmUUID{ get; set; }
-    public int SubjectID{ get; set; }
-    public string SubjectName{ get; set; }
-    public string VendorCode{ get; set; }
-    public string Brand{ get; set; }
-    public string Title{ get; set; }
-    public string Description{ get; set; }
-    public bool NeedKiz{ get; set; }
-    public List<WbPhotoDto> Photos{ get; set; }
-    public WbDimensionsDto Dimensions{ get; set; }
-    public List<WbCharacteristicDto> Characteristics{ get; set; }
-    public List<WbsizeDto> Sizes{ get; set; }
-    public DateTime CreatedAt{ get; set; }
-    public DateTime UpdatedAt{ get; set; }
+    public WbProductCardDto Product { get; set; }
+    public List<WbAdditionalCharacteristicDto>? AdditionalCharacteristics { get; set; }
+
+    public WbProductFullInfoDto(WbProductCardDto product, List<WbAdditionalCharacteristicDto>? characteristics){
+        Product = product;
+        AdditionalCharacteristics = characteristics;
+    }
+    public WbProductFullInfoDto(WbProductCardDto product){
+        Product = product;
+        AdditionalCharacteristics = null;
+    }
 }
+public class WbProductCardDto
+ {
+     public long NmID{ get; set; }
+     public long ImtID{ get; set; }
+     public string NmUUID{ get; set; }
+     public int SubjectID{ get; set; }
+     public string SubjectName{ get; set; }
+     public string VendorCode{ get; set; }
+     public string Brand{ get; set; }
+     public string Title{ get; set; }
+     public string Description{ get; set; }
+     public bool NeedKiz{ get; set; }
+     public List<WbPhotoDto>? Photos{ get; set; }
+     public WbDimensionsDto? Dimensions{ get; set; }
+     public List<WbCharacteristicDto>? Characteristics{ get; set; }
+     public List<WbsizeDto>? Sizes{ get; set; }
+     public DateTime CreatedAt{ get; set; }
+     public DateTime UpdatedAt{ get; set; }
+ }
 
 public class WbPhotoDto
 {

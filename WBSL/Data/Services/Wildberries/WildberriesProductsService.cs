@@ -58,8 +58,7 @@ public class WildberriesProductsService : WildberriesBaseService
                         Tm = p.Tm
                     }).ToList(),
                     SizeChrts = card.Sizes.Select(x => new WbSize{
-                        ChrtID = x.ChrtID, TechSize = x.TechSize, WbSize1 = x.WbSize,
-                        WbSkus = x.Skus.Select(x => new WbSku{ Sku = x }).ToList()
+                        ChrtID = x.ChrtID, TechSize = x.TechSize, WbSize1 = x.WbSize, Value = string.Join(", ", x.Skus),
                     }).ToList(),
                     WbProductCardCharacteristics = card.Characteristics.Select(ch => new WbProductCardCharacteristic{
                         ProductNmID = card.NmID,
@@ -175,7 +174,6 @@ public class WildberriesProductsService : WildberriesBaseService
             .ToList();
 
         var existingSizes = await _db.WbSizes
-            .Include(s => s.WbSkus)
             .Where(s => allChrtIds.Contains(s.ChrtID))
             .ToListAsync();
 
@@ -183,12 +181,8 @@ public class WildberriesProductsService : WildberriesBaseService
         {
             var existingSize = existingSizes.FirstOrDefault(s => s.ChrtID == size.ChrtID);
             if (existingSize == null) continue;
-            
-            _db.WbSkus.RemoveRange(existingSize.WbSkus);
-            
-            existingSize.WbSkus = size.WbSkus
-                .Select(sku => new WbSku { Sku = sku.Sku })
-                .ToList();
+
+            existingSize.Value = size.Value;
             
             size.ChrtID = 0;
         }
