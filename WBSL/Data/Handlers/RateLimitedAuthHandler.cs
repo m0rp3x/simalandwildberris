@@ -10,11 +10,11 @@ public class RateLimitedAuthHandler : DelegatingHandler
     private readonly int _timeRequestLimit;
     private static readonly ConcurrentDictionary<string, RollingWindowRateLimiter> _limiters = new();
     private static readonly ConcurrentDictionary<string, CircuitBreakerState> _circuitBreakers = new();
-    
-    public RateLimitedAuthHandler(IOptions<RateLimitConfig> options)
-    {
-        _requestLimit = options.Value.RequestLimit;
-        _timeRequestLimit = options.Value.TimeRequestLimit;
+    private readonly string _clientName;
+
+    public RateLimitedAuthHandler(RateLimitConfig config, string clientName){
+        _requestLimit = config.RequestLimit;
+        _timeRequestLimit = config.TimeRequestLimit;
     }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
@@ -23,34 +23,34 @@ public class RateLimitedAuthHandler : DelegatingHandler
             clientName = "default";
         }
 
-        var limiter = _limiters.GetOrAdd(clientName, _ => new RollingWindowRateLimiter(TimeSpan.FromSeconds(_timeRequestLimit), _requestLimit));
+        var limiter = _limiters.GetOrAdd(clientName,
+            _ => new RollingWindowRateLimiter(TimeSpan.FromSeconds(_timeRequestLimit), _requestLimit));
         var circuitBreaker = GetCircuitBreaker(clientName);
         if (circuitBreaker.IsOpen)
             throw new CircuitBrokenException($"API {clientName} is temporarily unavailable");
-        
+
         try{
             await limiter.WaitAsync(cancellationToken);
 
             var response = await base.SendAsync(request, cancellationToken);
-            
+
             circuitBreaker.Reset();
             return response;
         }
-        catch (HttpRequestException ex)
-        {
+        catch (HttpRequestException ex){
             circuitBreaker.RecordFailure();
             throw;
         }
         finally{
             // Освобождение не требуется, так как скользящее окно само по себе регулирует лимит
         }
-        
-        
     }
+
     private CircuitBreakerState GetCircuitBreaker(string clientName)
         => _circuitBreakers.GetOrAdd(clientName, _ => new CircuitBreakerState(
-            maxFailures: 3, 
+            maxFailures: 3,
             breakDuration: TimeSpan.FromMinutes(5)));
+
     public class CircuitBreakerState
     {
         private int _failures;
@@ -60,25 +60,23 @@ public class RateLimitedAuthHandler : DelegatingHandler
 
         public bool IsOpen => _blockedUntil != null && DateTime.UtcNow < _blockedUntil;
 
-        public CircuitBreakerState(int maxFailures, TimeSpan breakDuration)
-        {
+        public CircuitBreakerState(int maxFailures, TimeSpan breakDuration){
             _maxFailures = maxFailures;
             _breakDuration = breakDuration;
         }
 
-        public void RecordFailure()
-        {
+        public void RecordFailure(){
             _failures++;
             if (_failures >= _maxFailures)
                 _blockedUntil = DateTime.UtcNow.Add(_breakDuration);
         }
 
-        public void Reset()
-        {
+        public void Reset(){
             _failures = 0;
             _blockedUntil = null;
         }
     }
+
     public class RollingWindowRateLimiter
     {
         private readonly Queue<DateTime> _requestTimes = new();
@@ -118,6 +116,6 @@ public class RateLimitedAuthHandler : DelegatingHandler
 
 public class CircuitBrokenException : Exception
 {
-    public CircuitBrokenException(string message): base(message){
+    public CircuitBrokenException(string message) : base(message){
     }
 }

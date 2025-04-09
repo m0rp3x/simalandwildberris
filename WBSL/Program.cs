@@ -66,7 +66,6 @@ builder.Services.AddScoped<PlatformHttpClientFactory>(sp =>
         sp.GetRequiredService<IHttpContextAccessor>()));
 
 
-builder.Services.AddTransient<RateLimitedAuthHandler>();
 builder.Services.AddTransient<AccountTokenService>();
 builder.Services.AddScoped<WildberriesService>();
 builder.Services.AddScoped<WildberriesCategoryService>();
@@ -76,7 +75,10 @@ builder.Services.AddHttpClient("SimaLand", client => {
         client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/");
     })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("SimaLand"))
-    .AddHttpMessageHandler(sp => new RateLimitedAuthHandler(sp.GetRequiredService<IOptions<RateLimitConfig>>()));
+    .AddHttpMessageHandler(sp => {
+        var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("SimaLand");
+        return new RateLimitedAuthHandler(a, "SimaLand");
+    });
 
 
 builder.Services.AddHttpClient("WildBerries", client =>
@@ -84,8 +86,11 @@ builder.Services.AddHttpClient("WildBerries", client =>
         client.BaseAddress = new Uri("https://content-api.wildberries.ru");
     })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerries"))
-    .AddHttpMessageHandler(sp => new RateLimitedAuthHandler(sp.GetRequiredService<IOptions<RateLimitConfig>>()));
-
+    .AddHttpMessageHandler(sp => {
+        var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerries");
+        return new RateLimitedAuthHandler(a, "WildBerries");
+    });
+        
 var app = builder.Build();
 app.MapControllers(); // <-- обязательно!
 
