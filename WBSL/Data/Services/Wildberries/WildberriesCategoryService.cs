@@ -2,6 +2,7 @@
 using System.Text.Json;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
+using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Models;
 
 namespace WBSL.Data.Services.Wildberries;
@@ -17,7 +18,7 @@ public class WildberriesCategoryService : WildberriesBaseService
     private readonly QPlannerDbContext _db;
 
     public WildberriesCategoryService(
-        IHttpClientFactory httpFactory,
+        PlatformHttpClientFactory httpFactory,
         QPlannerDbContext db) : base(httpFactory){
         _db = db;
     }
@@ -60,6 +61,7 @@ public class WildberriesCategoryService : WildberriesBaseService
     }
 
     private async Task<List<wildberries_parrent_category>> FetchParentCategoriesAsync(){
+        var WbClient = await GetWbClientAsync();
         var response = await WbClient.GetAsync("content/v2/object/parent/all");
         response.EnsureSuccessStatusCode();
 
@@ -70,6 +72,7 @@ public class WildberriesCategoryService : WildberriesBaseService
     private async Task<List<wildberries_category>> FetchSubCategoriesAsync(
         int parentId,
         CancellationToken ct){
+        var WbClient = await GetWbClientAsync();
         var response = await WbClient.GetAsync(
             $"content/v2/object/all?parentID={parentId}",
             ct

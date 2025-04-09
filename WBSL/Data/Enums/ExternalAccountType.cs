@@ -3,5 +3,5 @@
 public enum ExternalAccountType
 {
     SimaLand = 0,
-    WildBerris = 1
+    WildBerries = 1
 }

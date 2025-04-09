@@ -4,8 +4,11 @@ using WBSL.Components;
 using Microsoft.IdentityModel.Tokens;
 using WBSL.Data;
 using System.Text;
+using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using WBSL.Data.Handlers;
+using WBSL.Data.Hangfire;
 using WBSL.Data.Services;
 using WBSL.Data.Services.Wildberries;
 
@@ -15,6 +18,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMudServices();
 builder.Services.AddDbContext<QPlannerDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Hangfire
+builder.Services.AddHangfireWithJobs(builder.Configuration);
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents();
@@ -51,19 +57,19 @@ builder.Services.AddScoped<WildberriesService>();
 builder.Services.AddScoped<WildberriesCategoryService>();
 builder.Services.AddScoped<WildberriesProductsService>();
 
-builder.Services.AddHttpClient("SimaLand", client =>
-{
-    client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/");
-    // Общие заголовки можно добавить здесь
-});
+builder.Services.AddHttpClient("SimaLand", client => {
+        client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/");
+    })
+    .AddHttpMessageHandler(sp => new HttpClientNameHandler("SimaLand"))
+    .AddHttpMessageHandler(sp => new RateLimitedAuthHandler(sp, 200, timeRequestLimit: 10));
 
 
 builder.Services.AddHttpClient("WildBerries", client =>
     {
         client.BaseAddress = new Uri("https://content-api.wildberries.ru");
     })
-    .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerries")) // Устанавливаем имя
-    .AddHttpMessageHandler<RateLimitedAuthHandler>();
+    .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerries"))
+    .AddHttpMessageHandler(sp => new RateLimitedAuthHandler(sp, 80, timeRequestLimit: 60));
 
 var app = builder.Build();
 app.MapControllers(); // <-- обязательно!
@@ -71,6 +77,7 @@ app.MapControllers(); // <-- обязательно!
 if (app.Environment.IsDevelopment())
 {   
     app.UseWebAssemblyDebugging();
+    app.UseHangfireDashboard();
 }
 else
 {
@@ -81,6 +88,7 @@ else
 
 app.UseHttpsRedirection();
 
+HangfireConfig.RegisterJobs();
 
 app.UseAntiforgery();
 

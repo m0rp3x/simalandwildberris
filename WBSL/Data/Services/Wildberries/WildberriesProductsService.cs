@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Data.Services.Wildberries.Models;
 using WBSL.Models;
 
@@ -18,7 +19,7 @@ public class WildberriesProductsService : WildberriesBaseService
     private readonly int maxRetries = 3;
 
     public WildberriesProductsService(
-        IHttpClientFactory httpFactory,
+        PlatformHttpClientFactory httpFactory,
         QPlannerDbContext db) : base(httpFactory){
         _db = db;
     }
@@ -232,6 +233,7 @@ public class WildberriesProductsService : WildberriesBaseService
             attempt++;
             try{
                 var content = await CreateRequestContent(updatedAt, nmID);
+                var WbClient = await GetWbClientAsync();
                 var response = await WbClient.PostAsync("/content/v2/get/cards/list", content);
                 response.EnsureSuccessStatusCode();
 
