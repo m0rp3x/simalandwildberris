@@ -7,14 +7,12 @@
 <MudPaper Class="p-6 mx-auto mt-8" Style="max-width: 1600px;" Elevation="4">
     <MudStack Spacing="3">
         <MudText Typo="Typo.h5">📦 Импорт товаров из Сима-Ленд</MudText>
-
         <MudSelect T="ExternalAccount" @bind-Value="_selectedAccount" Label="Выберите аккаунт" Variant="Variant.Outlined" FullWidth>
             @foreach (var account in _accounts)
             {
                 <MudSelectItem Value="@account">@account.Name</MudSelectItem>
             }
         </MudSelect>
-
         <MudTextField T="string" @bind-Value="_rawArticles" Label="Артикулы (через запятую)" Variant="Variant.Outlined" Lines="3" FullWidth />
 
         <MudStack Row="true" Spacing="2">
@@ -24,37 +22,35 @@
             <MudButton OnClick="StoreToDatabase" Variant="Variant.Filled" Color="Color.Secondary">
                 Сохранить в базу
             </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="DownloadPhotosForAll">
+                📦 Скачать все фото
+            </MudButton>
         </MudStack>
-
         <MudDivider />
-
         <MudText Typo="Typo.h6">💾 Экспорт</MudText>
         <MudStack Row="true" Spacing="2">
             <MudButton Variant="Variant.Outlined" OnClick="DownloadJson">Скачать JSON</MudButton>
             <MudButton Variant="Variant.Outlined" OnClick="DownloadCsv">Скачать CSV</MudButton>
             <MudButton Variant="Variant.Outlined" OnClick="DownloadExcel">Скачать Excel</MudButton>
         </MudStack>
-
         <MudText Typo="Typo.h6">📂 Загрузка из файла</MudText>
         <MudStack Row="true" Spacing="2">
             <MudButton Variant="Variant.Outlined" OnClick="TriggerFileUpload">Загрузить JSON с артикулами</MudButton>
             <input type="file" id="jsonFileInput" accept=".json" style="display:none" @onchange="OnJsonFileChanged" />
         </MudStack>
-
         <MudDivider Class="my-4" />
-
         @if (_products.Any())
         {
             <MudText Typo="Typo.h6">📋 Найдено товаров: @_products.Count</MudText>
 
             <MudTable Items="_products" Hover="true" Dense="true">
                 <HeaderContent>
-                    <MudTh>Артикул</MudTh>
+                    <MudTh Style="min-width: 100px;">Артикул</MudTh>
                     <MudTh>Наименование</MudTh>
                     <MudTh>Габариты (Ш×В×Г)</MudTh>
                     <MudTh>Упаковка (Д×Ш×В)</MudTh>
-                    <MudTh>Описание</MudTh>
-                    <MudTh>Фото</MudTh>
+                    <MudTh Style="width: 250px;">Описание</MudTh>
+                    <MudTh Style="width: 300px;">Фото</MudTh>
                     <MudTh>Баркоды</MudTh>
                     <MudTh>Категория</MudTh>
                     <MudTh>Остаток</MudTh>
@@ -68,25 +64,20 @@
                     {
                     <MudTh>@attrName</MudTh>
                     }
-
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.sid</MudTd>
                     <MudTd>@context.name</MudTd>
                     <MudTd>@($"{Math.Max(context.width, 1)}×{Math.Max(context.height, 1)}×{Math.Max(context.depth, 1)}")</MudTd>
                     <MudTd>@($"{context.box_depth}×{context.box_width}×{context.box_height}")</MudTd>
-                    <MudTd>
-                        <MudTooltip Text="@context.description" Placement="Placement.Bottom">
-                            <MudText Class="line-clamp-2">@context.description</MudText>
-                        </MudTooltip>
+                    <MudTd Style="max-height: 100px; overflow-y: auto;">
+                        <MudText Class="line-clamp-2">@context.description</MudText>
                     </MudTd>
+
                     <MudTd>
-                        <MudStack Spacing="1">
-                            @foreach (var url in context.photo_urls)
-                            {
-                                <MudLink Href="@url" Target="_blank">@url</MudLink>
-                            }
-                        </MudStack>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="@(() => DownloadPhotosForProduct(context.sid))">
+                            📥 Фото
+                        </MudButton>
                     </MudTd>
                     <MudTd>@context.barcodes</MudTd>
                     <MudTd>@context.category_name</MudTd>
@@ -97,21 +88,25 @@
                     <MudTd>@context.vat</MudTd>
                     <MudTd>@context.trademark_name</MudTd>
                     <MudTd>@context.country_name</MudTd>
+
                     @foreach (var attrName in _dynamicAttrNames.OrderBy(n => n))
                     {
                     var attr = context.Attributes.FirstOrDefault(a => a.attr_name == attrName);
                     <MudTd>@(attr?.value_text ?? "")</MudTd>
                     }
-
-
-
-
                 </RowTemplate>
             </MudTable>
         }
     </MudStack>
 </MudPaper>
-
+<style>
+    .line-clamp-2 {
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+</style>
 
 @code {
     private List<ExternalAccount> _accounts = new();
@@ -122,11 +117,6 @@
     private List<Product> _products = new();
     public List<ProductAttribute> Attributes { get; set; } = new();
     private HashSet<string> _dynamicAttrNames = new();
-
-    
-
-
-    
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !_initialized)
@@ -136,45 +126,36 @@
             StateHasChanged();
         }
     }
-
     private async Task LoadAccounts()
     {
         _accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
     }
-
 private async Task Fetch()
 {
     if (_selectedAccount == null) return;
-
     var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         .Select(long.Parse)
         .ToList();
-
     var res = await Http.PostAsJsonAsync("api/simaland/fetch", new
     {
         AccountId = _selectedAccount.Id,
         Articles = articles
     });
-
     if (!res.IsSuccessStatusCode)
     {
         _resultJson = $"Ошибка: {res.StatusCode}";
         return;
     }
-
     var json = await res.Content.ReadAsStringAsync();
     using var doc = JsonDocument.Parse(json);
     var root = doc.RootElement;
-
     if (!root.TryGetProperty("products", out var productArray))
     {
         _resultJson = "Ответ не содержит секции products";
         return;
     }
-
     _products.Clear();
     _dynamicAttrNames.Clear();
-
     foreach (var prodElem in productArray.EnumerateArray())
     {
         var product = JsonSerializer.Deserialize<Product>(prodElem.GetRawText(), new JsonSerializerOptions
@@ -184,10 +165,7 @@ private async Task Fetch()
 
         if (product == null)
             continue;
-
-        // Убедимся, что список Attributes инициализирован
         product.Attributes = product.Attributes ?? new List<ProductAttribute>();
-
         if (prodElem.TryGetProperty("attrs", out var attrsArray) && attrsArray.ValueKind == JsonValueKind.Array)
         {
             foreach (var attr in attrsArray.EnumerateArray())
@@ -213,11 +191,34 @@ private async Task Fetch()
 
         _products.Add(product);
     }
-
     _resultJson = $"Загружено товаров: {_products.Count}, атрибутов: {_dynamicAttrNames.Count}";
     StateHasChanged();
 }
-
+private async Task DownloadPhotosForProduct(long sid)
+{
+    var product = _products.FirstOrDefault(p => p.sid == sid);
+    if (product is null)
+    {
+        _resultJson = $"Товар с артикулом {sid} не найден в списке.";
+        return;
+    }
+    var response = await Http.PostAsJsonAsync("api/simaland/download-photos", new List<Product> { product });
+    _resultJson = response.IsSuccessStatusCode
+        ? $"Фото артикула {sid} скачаны успешно."
+        : $"Ошибка при скачивании фото артикула {sid}: {response.StatusCode}";
+}
+private async Task DownloadPhotosForAll()
+{
+    if (!_products.Any())
+    {
+        _resultJson = "Нет товаров для скачивания.";
+        return;
+    }
+    var response = await Http.PostAsJsonAsync("api/simaland/download-photos", _products);
+    _resultJson = response.IsSuccessStatusCode
+        ? "Фото для всех товаров скачаны успешно."
+        : $"Ошибка при скачивании: {response.StatusCode}";
+}
 
 
 
@@ -226,7 +227,6 @@ private async Task Fetch()
         var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(long.Parse)
             .ToList();
-
         var request = new HttpRequestMessage(HttpMethod.Post, "api/simaland/export-excel")
         {
             Content = JsonContent.Create(new
@@ -235,21 +235,16 @@ private async Task Fetch()
                 Articles = articles
             })
         };
-
         var response = await Http.SendAsync(request);
         if (!response.IsSuccessStatusCode)
         {
             _resultJson = $"Ошибка: {response.StatusCode}";
             return;
         }
-
         var data = await response.Content.ReadAsByteArrayAsync();
         var base64 = Convert.ToBase64String(data);
-
         await JS.InvokeVoidAsync("downloadFileFromBlazor", "simaland-products.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
     }
-
-
     private async Task DownloadJson()
     {
         var json = JsonSerializer.Serialize(
@@ -259,22 +254,59 @@ private async Task Fetch()
                 WriteIndented = true,
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
-
         await DownloadFile("products.json", "application/json", json);
     }
-
-
     private async Task DownloadCsv()
     {
         var csv = new StringBuilder();
-        csv.AppendLine("Артикул,Наименование,Описание,Ширина,Высота,Глубина,Вес,Фото,Категория,Остаток,МинПартия,ОптЦена,РознЦена");
+
+        var headers = new List<string>
+        {
+            "Артикул", "Наименование", "Описание", "Габариты", "Упаковка", "Категория",
+            "ОптЦена", "РознЦена", "НДС", "ТорговаяМарка", "Страна", "Фото"
+        };
+
+        headers.AddRange(_dynamicAttrNames.OrderBy(n => n));
+
+        csv.AppendLine(string.Join(",", headers));
 
         foreach (var p in _products)
         {
-            csv.AppendLine($"{p.sid},\"{p.name}\",\"{p.description}\",{p.width},{p.height},{p.depth},{p.weight},{p.base_photo_url},{p.category_id},{p.balance},{p.qty_multiplier},{p.wholesale_price},{p.price}");
+            var row = new List<string>
+            {
+                p.sid.ToString(),
+                Escape(p.name),
+                Escape(p.description),
+                $"{p.width}×{p.height}×{p.depth}",
+                $"{p.box_depth}×{p.box_width}×{p.box_height}",
+                Escape(p.category_name),
+                p.wholesale_price.ToString("0.##"),
+                p.price.ToString("0.##"),
+                p.vat?.ToString() ?? "",
+                Escape(p.trademark_name),
+                Escape(p.country_name),
+                Escape(string.Join(" | ", p.photo_urls ?? new()))
+            };
+
+            foreach (var attrName in _dynamicAttrNames.OrderBy(n => n))
+            {
+                var attr = p.Attributes.FirstOrDefault(a => a.attr_name == attrName);
+                row.Add(Escape(attr?.value_text));
+            }
+
+            csv.AppendLine(string.Join(",", row));
         }
 
         await DownloadFile("products.csv", "text/csv", csv.ToString());
+    }
+
+    private static string Escape(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return "";
+
+        var escaped = input.Replace("\"", "\"\"");
+        return $"\"{escaped}\"";
     }
 
     private async Task DownloadFile(string filename, string contentType, string content)
@@ -284,19 +316,15 @@ private async Task Fetch()
 
         await JS.InvokeVoidAsync("downloadFileFromBlazor", filename, contentType, base64);
     }
-
     private async Task TriggerFileUpload()
     {
         await JS.InvokeVoidAsync("triggerFileInputClick", "jsonFileInput");
     }
-
     private async Task OnJsonFileChanged(ChangeEventArgs _)
     {
         try
         {
-// вызываем JS, чтобы прочитать содержимое файла
             var jsonText = await JS.InvokeAsync<string>("readUploadedJson", "jsonFileInput");
-
             if (!string.IsNullOrWhiteSpace(jsonText))
             {
                 var articles = JsonSerializer.Deserialize<List<long>>(jsonText);
@@ -315,7 +343,6 @@ private async Task Fetch()
             _resultJson = $"Ошибка при чтении файла: {ex.Message}";
         }
     }
-
     private async Task StoreToDatabase()
     {
         var attributes = _products.SelectMany(p => p.Attributes.Select(attr => new ProductAttribute
@@ -341,22 +368,17 @@ private async Task Fetch()
             _resultJson = $"Ошибка загрузки: {res.StatusCode}";
         }
     }
-
-    
     public class FetchResponse
     {
         public List<Product> Products { get; set; } = new();
         public List<ProductAttribute> Attributes { get; set; } = new();
     }
-
-
     public class ExternalAccount
     {
         public int Id { get; set; }
         public string Platform { get; set; } = "";
         public string Name { get; set; } = "";
     }
-
     public class Product
     {
         public long sid { get; set; }
@@ -384,17 +406,12 @@ private async Task Fetch()
         public string? country_name { get; set; }
         public string? unit_name { get; set; }
         public List<ProductAttribute> Attributes { get; set; } = new();
-
     }
     public class ProductAttribute
     {
-        public long product_sid { get; set; }    // 👈 обязателен
+        public long product_sid { get; set; }    
         public string attr_name { get; set; } = "";
         public string value_type { get; set; } = "text";
         public string? value_text { get; set; }
     }
-    
-    
- 
-
 }
