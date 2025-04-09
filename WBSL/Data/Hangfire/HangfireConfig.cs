@@ -16,7 +16,7 @@ public static class HangfireConfig
 
     public static void RegisterJobs()
     {
-        RecurringJob.AddOrUpdate<SimalandService>(
+        RecurringJob.AddOrUpdate<SimalandBackgroundService>(
             "fetch_simaland_balance",
             job => job.SyncProductsBalanceAsync(),
             "*/30 * * * *" // CRON: каждые 30 минут
