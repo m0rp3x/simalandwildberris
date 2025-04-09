@@ -1,111 +1,217 @@
-﻿using System.Text.Json;
+using System.Security.Claims;
+using System.Text.Json;
 using System.Text.RegularExpressions;
-using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 using Shared;
+using WBSL.Models;
 
-namespace WBSL.Data.Services.SimaLand;
+namespace WBSL.Data.Services.Simaland;
 
-public class SimaLandFetchService
+public class SimalandFetchService
 {
-    private readonly HttpClient _client;
+    private readonly IHttpClientFactory _httpFactory;
+    private readonly QPlannerDbContext _db;
+    private readonly IConfiguration _config;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public SimaLandFetchService(IHttpClientFactory factory, IConfiguration config)
-    {
-        _client = factory.CreateClient("SimaLand");
-        _client.DefaultRequestHeaders.Add("X-Api-Key", config["SimaLand:ApiKey"]!);
+    public SimalandFetchService(IHttpClientFactory httpFactory, QPlannerDbContext db, IConfiguration config,
+        IHttpContextAccessor httpContextAccessor){
+        _httpFactory = httpFactory;
+        _db = db;
+        _config = config;
+        _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task<List<SimaProductDto>> GetProductsBySids(List<long> sids)
-    {
-        var results = new List<SimaProductDto>();
+    public async Task<List<SimalandProductDto>>
+        FetchProductsAsync(int accountId, List<long> articleSids){
+        // Аутентификация и проверка аккаунта
+        var userId = GetCurrentUserId();
+        var account = await VerifyAccountAsync(accountId, userId);
 
-        foreach (var sid in sids)
-        {
-            var response = await _client.GetAsync($"item/?sid={sid}&expand=description,stocks,barcodes,attrs,category,trademark,country,unit,category_id");
-            if (!response.IsSuccessStatusCode) continue;
+        var client = CreateSimalandClient(account.token);
+        var results = new List<SimalandProductDto>();
 
-            var json = await response.Content.ReadAsStringAsync();
-            var root = JsonDocument.Parse(json).RootElement;
-            var items = root.GetProperty("items");
-            if (items.GetArrayLength() == 0) continue;
+        foreach (var sid in articleSids){
+            try{
+                var response =
+                    await client.GetAsync(
+                        $"item/?sid={sid}&expand=description,stocks,barcodes,attrs,category,trademark,country,unit,category_id");
+                if (!response.IsSuccessStatusCode) continue;
 
-            var product = items[0];
-            var dto = new SimaProductDto
-            {
-                Sid = product.GetProperty("sid").GetInt64(),
-                Name = product.GetProperty("name").GetString() ?? "",
-                Width = product.GetProperty("width").GetDecimal(),
-                Height = product.GetProperty("height").GetDecimal(),
-                Depth = product.GetProperty("depth").GetDecimal(),
-                Weight = product.GetProperty("weight").GetDecimal(),
-                BoxDepth = product.GetProperty("box_depth").GetDecimal(),
-                BoxHeight = product.GetProperty("box_height").GetDecimal(),
-                BoxWidth = product.GetProperty("box_width").GetDecimal(),
-                CategoryId = product.GetProperty("category_id").GetInt32(),
-                QtyMultiplier = product.GetProperty("qty_multiplier").GetInt32(),
-                WholesalePrice = product.GetProperty("wholesale_price").GetDecimal(),
-                Price = product.GetProperty("price").GetDecimal(),
-                Balance = product.TryGetProperty("balance", out var b) && b.ValueKind == JsonValueKind.Number ? b.GetInt32() : null
-            };
+                var json = await response.Content.ReadAsStringAsync();
+                var product = await ProcessProductResponse(client, json, sid);
 
-            if (product.TryGetProperty("description", out var desc))
-            {
-                var raw = desc.GetString() ?? "";
-                dto.Description = Regex.Replace(raw, "<.*?>", string.Empty);
+                results.Add(product);
             }
-
-            if (product.TryGetProperty("barcodes", out var barcodes))
-            {
-                var all = barcodes.EnumerateArray().Select(x => x.GetString()).Where(x => !string.IsNullOrWhiteSpace(x));
-                dto.Barcodes = string.Join(",", all);
+            catch (Exception ex){
+                Console.WriteLine($"Error processing product {sid}");
             }
-
-            if (product.TryGetProperty("category", out var cat) && cat.TryGetProperty("name", out var cn))
-                dto.CategoryName = cn.GetString();
-            if (product.TryGetProperty("trademark", out var tm) && tm.TryGetProperty("name", out var tn))
-                dto.TrademarkName = tn.GetString();
-            if (product.TryGetProperty("country", out var co) && co.TryGetProperty("name", out var con))
-                dto.CountryName = con.GetString();
-            if (product.TryGetProperty("unit", out var un) && un.TryGetProperty("name", out var unn))
-                dto.UnitName = unn.GetString();
-
-            if (product.TryGetProperty("photoIndexes", out var indexesElem) &&
-                product.TryGetProperty("photoVersions", out var versionsElem))
-            {
-                var itemId = product.GetProperty("id").GetInt32();
-                var versions = versionsElem.EnumerateArray()
-                    .Where(x => x.TryGetProperty("number", out _) && x.TryGetProperty("version", out _))
-                    .ToDictionary(x => x.GetProperty("number").GetString() ?? "0", x =>
-                        x.GetProperty("version").GetInt32());
-
-                dto.PhotoUrls = indexesElem.EnumerateArray().Select(indexElem =>
-                {
-                    var index = indexElem.GetString() ?? "0";
-                    var version = versions.TryGetValue(index, out var ver) ? ver : 0;
-                    return $"https://goods-photos.static1-sima-land.com/items/{itemId}/{index}/700.jpg?v={version}";
-                }).ToList();
-            }
-
-            if (product.TryGetProperty("attrs", out var attrsElem))
-            {
-                foreach (var attr in attrsElem.EnumerateArray())
-                {
-                    var name = attr.TryGetProperty("attr_name", out var an) ? an.GetString() ?? "" : "";
-                    var value = attr.TryGetProperty("value", out var v) ? v.ToString() ?? "" : "";
-                    if (!string.IsNullOrWhiteSpace(name))
-                    {
-                        dto.Attributes.Add(new SimaProductAttributeDto
-                        {
-                            AttrName = name,
-                            Value = value
-                        });
-                    }
-                }
-            }
-
-            results.Add(dto);
         }
 
         return results;
+    }
+
+    private async Task<SimalandProductDto?> ProcessProductResponse(HttpClient client,
+        string json, long sid){
+        var root = JsonSerializer.Deserialize<JsonElement>(json);
+        var items = root.GetProperty("items");
+        if (items.GetArrayLength() == 0) return null;
+
+        var product = items[0];
+        var dto = new SimalandProductDto();
+
+        // Базовые свойства
+        dto.sid = sid;
+        dto.name = product.TryGetProperty("name", out var name) ? name.GetString() : string.Empty;
+        dto.description = product.TryGetProperty("description", out var desc)
+            ? Regex.Replace(desc.GetString() ?? "", "<.*?>", string.Empty)
+            : string.Empty;
+        dto.price = product.TryGetProperty("price", out var price) ? price.GetDecimal() : 0;
+        dto.balance = product.TryGetProperty("stocks", out var stocks) && stocks.GetArrayLength() > 0
+            ? stocks[0].GetProperty("balance").GetInt32()
+            : 0;
+
+        // Категория
+        if (product.TryGetProperty("category_id", out var categoryId)){
+            dto.category_id = categoryId.ValueKind == JsonValueKind.Number 
+                ? categoryId.GetInt32() 
+                : int.TryParse(categoryId.GetString(), out var parsedId) ? parsedId : 0;
+            var categoryResponse = await client.GetAsync($"category/{dto.category_id}/?expand=sub_categories");
+            if (categoryResponse.IsSuccessStatusCode){
+                var categoryJson = await categoryResponse.Content.ReadAsStringAsync();
+                var category = JsonSerializer.Deserialize<JsonElement>(categoryJson);
+                dto.category_name = category.TryGetProperty("name", out var catName) ? catName.GetString() : null;
+            }
+        }
+
+        // Фотографии
+        dto.photo_urls = GetPhotoUrls(product);
+        dto.base_photo_url = product.TryGetProperty("base_photo_url", out var baseUrl) ? baseUrl.GetString() : null;
+
+        // Штрихкоды
+        if (product.TryGetProperty("barcodes", out var barcodes)){
+            dto.barcodes = string.Join(",", barcodes.EnumerateArray().Select(b => b.GetString()));
+        }
+
+        // Дополнительные поля
+        dto.trademark_name = GetNestedProperty(product, "trademark", "name");
+        dto.country_name = GetNestedProperty(product, "country", "name");
+        dto.unit_name = GetNestedProperty(product, "unit", "name");
+
+        // Атрибуты
+        if (product.TryGetProperty("attrs", out var attrs)){
+            foreach (var attr in attrs.EnumerateArray()){
+                var attrName = attr.TryGetProperty("attr_name", out var an) ? an.GetString() : null;
+                var attrValue = attr.TryGetProperty("value", out var av) ? av.ToString() : null;
+
+                if (!string.IsNullOrEmpty(attrName)){
+                    dto.Attributes.Add(new ProductAttribute{
+                        product_sid = sid,
+                        attr_name = attrName,
+                        value_text = attrValue
+                    });
+                }
+            }
+        }
+
+        return dto;
+    }
+
+    private List<string> GetPhotoUrls(JsonElement product)
+{
+    var urls = new List<string>();
+
+    // Первый вариант фото (photoIndexes + photoVersions)
+    if (product.TryGetProperty("photoIndexes", out var indexes) && 
+        product.TryGetProperty("photoVersions", out var versions))
+    {
+        try
+        {
+            var itemId = product.GetProperty("id").GetInt32();
+            var versionDict = new Dictionary<string, int>();
+
+            foreach (var versionElem in versions.EnumerateArray())
+            {
+                var number = versionElem.TryGetProperty("number", out var numProp) 
+                    ? numProp.GetString() ?? "0" 
+                    : "0";
+                
+                if (versionElem.TryGetProperty("version", out var verProp))
+                {
+                    var version = verProp.ValueKind == JsonValueKind.Number 
+                        ? verProp.GetInt32() 
+                        : int.TryParse(verProp.GetString(), out var parsed) ? parsed : 0;
+                    versionDict[number] = version;
+                }
+            }
+
+            foreach (var indexElem in indexes.EnumerateArray())
+            {
+                var index = indexElem.ValueKind == JsonValueKind.Number 
+                    ? indexElem.GetInt32().ToString() 
+                    : indexElem.GetString() ?? "0";
+                
+                var version = versionDict.TryGetValue(index, out var ver) ? ver : 0;
+                urls.Add($"https://goods-photos.static1-sima-land.com/items/{itemId}/{index}/700.jpg?v={version}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error processing photoIndexes/photoVersions");
+        }
+    }
+    // Второй вариант фото (base_photo_url + agg_photos)
+    else if (product.TryGetProperty("base_photo_url", out var baseUrl) && 
+             product.TryGetProperty("agg_photos", out var aggPhotos))
+    {
+        try
+        {
+            var baseUrlStr = baseUrl.GetString() ?? "";
+            if (!baseUrlStr.EndsWith("/")) baseUrlStr += "/";
+
+            foreach (var photoElem in aggPhotos.EnumerateArray())
+            {
+                var photoId = photoElem.ValueKind == JsonValueKind.Number 
+                    ? photoElem.GetInt32().ToString() 
+                    : photoElem.GetString() ?? "0";
+                
+                urls.Add($"{baseUrlStr}{photoId}/700.jpg");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error processing base_photo_url/agg_photos");
+        }
+    }
+
+    return urls;
+}
+
+    private string GetNestedProperty(JsonElement element, string objectName, string propertyName){
+        if (element.TryGetProperty(objectName, out var obj) &&
+            obj.ValueKind == JsonValueKind.Object &&
+            obj.TryGetProperty(propertyName, out var prop)){
+            return prop.GetString();
+        }
+
+        return null;
+    }
+
+    private Guid GetCurrentUserId(){
+        var user = _httpContextAccessor.HttpContext?.User;
+        if (user == null) throw new InvalidOperationException("Пользователь не найден.");
+        return Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty);
+    }
+
+    private async Task<external_account> VerifyAccountAsync(int accountId, Guid userId){
+        var account = await _db.external_accounts
+            .FirstOrDefaultAsync(a => a.id == accountId && a.user_id == userId && a.platform == "SimaLand");
+        return account ?? throw new InvalidOperationException("Аккаунт не найден или не принадлежит пользователю.");
+    }
+
+    private HttpClient CreateSimalandClient(string token){
+        var client = _httpFactory.CreateClient("SimaLand");
+        client.DefaultRequestHeaders.Add("X-Api-Key", token);
+        return client;
     }
 }
