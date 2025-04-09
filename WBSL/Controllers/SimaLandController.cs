@@ -296,31 +296,44 @@ public async Task<IActionResult> ExportExcel([FromBody] SimaRequest request)
 
     return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "simaland-products.xlsx");
 }
-    [HttpPost("download-photos")]
-    public async Task<IActionResult> DownloadPhotos([FromBody] List<product> products)
+[HttpPost("download-photos")]
+public async Task<IActionResult> DownloadPhotos([FromBody] List<product> products)
+{
+    var savePath = _config.GetValue<string>("SimaLand:PhotoStoragePath");
+    if (string.IsNullOrWhiteSpace(savePath))
+        return BadRequest("Путь к папке хранения не задан в конфиге");
+
+    foreach (var product in products)
     {
-        var savePath = _config.GetValue<string>("SimaLand:PhotoStoragePath");
-        if (string.IsNullOrWhiteSpace(savePath))
-            return BadRequest("Путь к папке хранения не задан в конфиге");
+        var folderPath = Path.Combine(savePath, product.sid.ToString());
+        Directory.CreateDirectory(folderPath);
 
-        foreach (var product in products)
+        int fallbackIndex = 0;
+
+        foreach (var url in product.photo_urls ?? new List<string>())
         {
-            var folderPath = Path.Combine(savePath, product.sid.ToString());
-            Directory.CreateDirectory(folderPath);
-
-            foreach (var url in product.photo_urls ?? new List<string>())
+            try
             {
-                var fileName = Path.GetFileName(new Uri(url).LocalPath);
+                var uri = new Uri(url);
+                var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                string indexPart = segments.Length >= 3 ? segments[^2] : fallbackIndex++.ToString();
+                var fileName = $"{product.sid}_{indexPart}.jpg";
                 var filePath = Path.Combine(folderPath, fileName);
 
                 using var http = new HttpClient();
                 var imageBytes = await http.GetByteArrayAsync(url);
                 await System.IO.File.WriteAllBytesAsync(filePath, imageBytes);
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Ошибка при загрузке изображения: {url} — {ex.Message}");
+            }
         }
-
-        return Ok(new { success = true });
     }
+
+    return Ok(new { success = true });
+}
+
     public class SimaRequest
     {
         public int AccountId { get; set; }
