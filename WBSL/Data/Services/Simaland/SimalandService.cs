@@ -51,7 +51,7 @@ public class SimalandBackgroundService : SimalandBaseService
     private bool IsTransientError(Exception ex){
         return ex is TimeoutException
                || ex is HttpRequestException
-               || (ex.InnerException != null && IsTransientError(ex.InnerException));
+               || ex.InnerException != null;
     }
 
     private class ProductInfo

@@ -13,6 +13,7 @@ using WBSL.Data.Handlers;
 using WBSL.Data.Hangfire;
 using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Data.Services;
+using WBSL.Data.Services.Simaland;
 using WBSL.Data.Services.Wildberries;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -70,6 +71,8 @@ builder.Services.AddTransient<AccountTokenService>();
 builder.Services.AddScoped<WildberriesService>();
 builder.Services.AddScoped<WildberriesCategoryService>();
 builder.Services.AddScoped<WildberriesProductsService>();
+builder.Services.AddScoped<WildberriesCharacteristicsService>();
+builder.Services.AddScoped<SimalandFetchService>();
 
 builder.Services.AddHttpClient("SimaLand", client => {
         client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/");
@@ -81,7 +84,7 @@ builder.Services.AddHttpClient("SimaLand", client => {
     });
 
 
-builder.Services.AddHttpClient("WildBerries", client =>
+builder.Services.AddHttpClient("Wildberries", client =>
     {
         client.BaseAddress = new Uri("https://content-api.wildberries.ru");
     })

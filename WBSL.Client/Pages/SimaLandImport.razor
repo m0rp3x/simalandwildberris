@@ -1,6 +1,7 @@
 @page "/simaland-import"
 @using System.Text
 @using System.Text.Json
+@using Shared
 @inject HttpClient Http
 @inject IJSRuntime JS
 
@@ -8,12 +9,11 @@
     <MudStack Spacing="3">
         <MudText Typo="Typo.h5">📦 Импорт товаров из Сима-Ленд</MudText>
         <MudSelect T="ExternalAccount" @bind-Value="_selectedAccount" Label="Выберите аккаунт" Variant="Variant.Outlined" FullWidth>
-            @foreach (var account in _accounts)
-            {
+            @foreach (var account in _accounts){
                 <MudSelectItem Value="@account">@account.Name</MudSelectItem>
             }
         </MudSelect>
-        <MudTextField T="string" @bind-Value="_rawArticles" Label="Артикулы (через запятую)" Variant="Variant.Outlined" Lines="3" FullWidth />
+        <MudTextField T="string" @bind-Value="_rawArticles" Label="Артикулы (через запятую)" Variant="Variant.Outlined" Lines="3" FullWidth/>
 
         <MudStack Row="true" Spacing="2">
             <MudButton OnClick="Fetch" Variant="Variant.Filled" Color="Color.Primary" Disabled="_selectedAccount == null">
@@ -26,7 +26,7 @@
                 📦 Скачать все фото
             </MudButton>
         </MudStack>
-        <MudDivider />
+        <MudDivider/>
         <MudText Typo="Typo.h6">💾 Экспорт</MudText>
         <MudStack Row="true" Spacing="2">
             <MudButton Variant="Variant.Outlined" OnClick="DownloadJson">Скачать JSON</MudButton>
@@ -36,11 +36,10 @@
         <MudText Typo="Typo.h6">📂 Загрузка из файла</MudText>
         <MudStack Row="true" Spacing="2">
             <MudButton Variant="Variant.Outlined" OnClick="TriggerFileUpload">Загрузить JSON с артикулами</MudButton>
-            <input type="file" id="jsonFileInput" accept=".json" style="display:none" @onchange="OnJsonFileChanged" />
+            <input type="file" id="jsonFileInput" accept=".json" style="display:none" @onchange="OnJsonFileChanged"/>
         </MudStack>
-        <MudDivider Class="my-4" />
-        @if (_products.Any())
-        {
+        <MudDivider Class="my-4"/>
+        @if (_products.Any()){
             <MudText Typo="Typo.h6">📋 Найдено товаров: @_products.Count</MudText>
 
             <MudTable Items="_products" Hover="true" Dense="true">
@@ -60,9 +59,8 @@
                     <MudTh>НДС</MudTh>
                     <MudTh>Торговая Марка</MudTh>
                     <MudTh>Страна</MudTh>
-                    @foreach (var attrName in _dynamicAttrNames.OrderBy(n => n))
-                    {
-                    <MudTh>@attrName</MudTh>
+                    @foreach (var attrName in _dynamicAttrNames.OrderBy(n => n)){
+                        <MudTh>@attrName</MudTh>
                     }
                 </HeaderContent>
                 <RowTemplate>
@@ -89,10 +87,9 @@
                     <MudTd>@context.trademark_name</MudTd>
                     <MudTd>@context.country_name</MudTd>
 
-                    @foreach (var attrName in _dynamicAttrNames.OrderBy(n => n))
-                    {
-                    var attr = context.Attributes.FirstOrDefault(a => a.attr_name == attrName);
-                    <MudTd>@(attr?.value_text ?? "")</MudTd>
+                    @foreach (var attrName in _dynamicAttrNames.OrderBy(n => n)){
+                        var attr = context.Attributes.FirstOrDefault(a => a.attr_name == attrName);
+                        <MudTd>@(attr?.value_text ?? "")</MudTd>
                     }
                 </RowTemplate>
             </MudTable>
@@ -115,153 +112,140 @@
     private bool _initialized = false;
     private string _resultJson = string.Empty;
     private List<Product> _products = new();
-    public List<ProductAttribute> Attributes { get; set; } = new();
+    public List<ProductAttribute> Attributes{ get; set; } = new();
     private HashSet<string> _dynamicAttrNames = new();
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender && !_initialized)
-        {
+
+    protected override async Task OnAfterRenderAsync(bool firstRender){
+        if (firstRender && !_initialized){
             _initialized = true;
             await LoadAccounts();
             StateHasChanged();
         }
     }
-    private async Task LoadAccounts()
-    {
+
+    private async Task LoadAccounts(){
         _accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
     }
-private async Task Fetch()
-{
-    if (_selectedAccount == null) return;
-    var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .Select(long.Parse)
-        .ToList();
-    var res = await Http.PostAsJsonAsync("api/simaland/fetch", new
-    {
-        AccountId = _selectedAccount.Id,
-        Articles = articles
-    });
-    if (!res.IsSuccessStatusCode)
-    {
-        _resultJson = $"Ошибка: {res.StatusCode}";
-        return;
-    }
-    var json = await res.Content.ReadAsStringAsync();
-    using var doc = JsonDocument.Parse(json);
-    var root = doc.RootElement;
-    if (!root.TryGetProperty("products", out var productArray))
-    {
-        _resultJson = "Ответ не содержит секции products";
-        return;
-    }
-    _products.Clear();
-    _dynamicAttrNames.Clear();
-    foreach (var prodElem in productArray.EnumerateArray())
-    {
-        var product = JsonSerializer.Deserialize<Product>(prodElem.GetRawText(), new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
 
-        if (product == null)
-            continue;
-        product.Attributes = product.Attributes ?? new List<ProductAttribute>();
-        if (prodElem.TryGetProperty("attrs", out var attrsArray) && attrsArray.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var attr in attrsArray.EnumerateArray())
-            {
-                var attrId = attr.TryGetProperty("attr_id", out var idProp) ? idProp.GetInt32() : 0;
-                var attrName = attr.TryGetProperty("attr_name", out var an) ? an.GetString() ?? "" : "";
-                var value = attr.TryGetProperty("value", out var v) ? v.ToString() ?? "" : "";
-
-                if (!string.IsNullOrWhiteSpace(attrName))
-                {
-                    product.Attributes.Add(new ProductAttribute
-                    {
-                        product_sid = product.sid,
-                        attr_name = attrName,
-                        value_type = "text",
-                        value_text = value
-                    });
-
-                    _dynamicAttrNames.Add(attrName);
-                }
-            }
-        }
-
-        _products.Add(product);
-    }
-    _resultJson = $"Загружено товаров: {_products.Count}, атрибутов: {_dynamicAttrNames.Count}";
-    StateHasChanged();
-}
-private async Task DownloadPhotosForProduct(long sid)
-{
-    var product = _products.FirstOrDefault(p => p.sid == sid);
-    if (product is null)
-    {
-        _resultJson = $"Товар с артикулом {sid} не найден в списке.";
-        return;
-    }
-    var response = await Http.PostAsJsonAsync("api/simaland/download-photos", new List<Product> { product });
-    _resultJson = response.IsSuccessStatusCode
-        ? $"Фото артикула {sid} скачаны успешно."
-        : $"Ошибка при скачивании фото артикула {sid}: {response.StatusCode}";
-}
-private async Task DownloadPhotosForAll()
-{
-    if (!_products.Any())
-    {
-        _resultJson = "Нет товаров для скачивания.";
-        return;
-    }
-    var response = await Http.PostAsJsonAsync("api/simaland/download-photos", _products);
-    _resultJson = response.IsSuccessStatusCode
-        ? "Фото для всех товаров скачаны успешно."
-        : $"Ошибка при скачивании: {response.StatusCode}";
-}
-
-
-
-    private async Task DownloadExcel()
-    {
+    private async Task Fetch(){
+        if (_selectedAccount == null) return;
         var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(long.Parse)
             .ToList();
-        var request = new HttpRequestMessage(HttpMethod.Post, "api/simaland/export-excel")
-        {
-            Content = JsonContent.Create(new
-            {
+        var res = await Http.PostAsJsonAsync("api/simaland/fetch", new{
+            AccountId = _selectedAccount.Id,
+            Articles = articles
+        });
+        if (!res.IsSuccessStatusCode){
+            _resultJson = $"Ошибка: {res.StatusCode}";
+            return;
+        }
+
+        var json = await res.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        if (!root.TryGetProperty("products", out var productArray)){
+            _resultJson = "Ответ не содержит секции products";
+            return;
+        }
+
+        _products.Clear();
+        _dynamicAttrNames.Clear();
+        foreach (var prodElem in productArray.EnumerateArray()){
+            var product = JsonSerializer.Deserialize<Product>(prodElem.GetRawText(), new JsonSerializerOptions{
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (product == null)
+                continue;
+            product.Attributes = product.Attributes ?? new List<ProductAttribute>();
+            if (prodElem.TryGetProperty("attrs", out var attrsArray) && attrsArray.ValueKind == JsonValueKind.Array){
+                foreach (var attr in attrsArray.EnumerateArray()){
+                    var attrId = attr.TryGetProperty("attr_id", out var idProp) ? idProp.GetInt32() : 0;
+                    var attrName = attr.TryGetProperty("attr_name", out var an) ? an.GetString() ?? "" : "";
+                    var value = attr.TryGetProperty("value", out var v) ? v.ToString() ?? "" : "";
+
+                    if (!string.IsNullOrWhiteSpace(attrName)){
+                        product.Attributes.Add(new ProductAttribute{
+                            product_sid = product.sid,
+                            attr_name = attrName,
+                            value_type = "text",
+                            value_text = value
+                        });
+
+                        _dynamicAttrNames.Add(attrName);
+                    }
+                }
+            }
+
+            _products.Add(product);
+        }
+
+        _resultJson = $"Загружено товаров: {_products.Count}, атрибутов: {_dynamicAttrNames.Count}";
+        StateHasChanged();
+    }
+
+    private async Task DownloadPhotosForProduct(long sid){
+        var product = _products.FirstOrDefault(p => p.sid == sid);
+        if (product is null){
+            _resultJson = $"Товар с артикулом {sid} не найден в списке.";
+            return;
+        }
+
+        var response = await Http.PostAsJsonAsync("api/simaland/download-photos", new List<Product>{ product });
+        _resultJson = response.IsSuccessStatusCode
+            ? $"Фото артикула {sid} скачаны успешно."
+            : $"Ошибка при скачивании фото артикула {sid}: {response.StatusCode}";
+    }
+
+    private async Task DownloadPhotosForAll(){
+        if (!_products.Any()){
+            _resultJson = "Нет товаров для скачивания.";
+            return;
+        }
+
+        var response = await Http.PostAsJsonAsync("api/simaland/download-photos", _products);
+        _resultJson = response.IsSuccessStatusCode
+            ? "Фото для всех товаров скачаны успешно."
+            : $"Ошибка при скачивании: {response.StatusCode}";
+    }
+
+
+    private async Task DownloadExcel(){
+        var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(long.Parse)
+            .ToList();
+        var request = new HttpRequestMessage(HttpMethod.Post, "api/simaland/export-excel"){
+            Content = JsonContent.Create(new{
                 AccountId = _selectedAccount!.Id,
                 Articles = articles
             })
         };
         var response = await Http.SendAsync(request);
-        if (!response.IsSuccessStatusCode)
-        {
+        if (!response.IsSuccessStatusCode){
             _resultJson = $"Ошибка: {response.StatusCode}";
             return;
         }
+
         var data = await response.Content.ReadAsByteArrayAsync();
         var base64 = Convert.ToBase64String(data);
         await JS.InvokeVoidAsync("downloadFileFromBlazor", "simaland-products.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
     }
-    private async Task DownloadJson()
-    {
+
+    private async Task DownloadJson(){
         var json = JsonSerializer.Serialize(
             _products,
-            new JsonSerializerOptions
-            {
+            new JsonSerializerOptions{
                 WriteIndented = true,
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
         await DownloadFile("products.json", "application/json", json);
     }
-    private async Task DownloadCsv()
-    {
+
+    private async Task DownloadCsv(){
         var csv = new StringBuilder();
 
-        var headers = new List<string>
-        {
+        var headers = new List<string>{
             "Артикул", "Наименование", "Описание", "Габариты", "Упаковка", "Категория",
             "ОптЦена", "РознЦена", "НДС", "ТорговаяМарка", "Страна", "Фото"
         };
@@ -270,10 +254,8 @@ private async Task DownloadPhotosForAll()
 
         csv.AppendLine(string.Join(",", headers));
 
-        foreach (var p in _products)
-        {
-            var row = new List<string>
-            {
+        foreach (var p in _products){
+            var row = new List<string>{
                 p.sid.ToString(),
                 Escape(p.name),
                 Escape(p.description),
@@ -288,8 +270,7 @@ private async Task DownloadPhotosForAll()
                 Escape(string.Join(" | ", p.photo_urls ?? new()))
             };
 
-            foreach (var attrName in _dynamicAttrNames.OrderBy(n => n))
-            {
+            foreach (var attrName in _dynamicAttrNames.OrderBy(n => n)){
                 var attr = p.Attributes.FirstOrDefault(a => a.attr_name == attrName);
                 row.Add(Escape(attr?.value_text));
             }
@@ -300,8 +281,7 @@ private async Task DownloadPhotosForAll()
         await DownloadFile("products.csv", "text/csv", csv.ToString());
     }
 
-    private static string Escape(string? input)
-    {
+    private static string Escape(string? input){
         if (string.IsNullOrWhiteSpace(input))
             return "";
 
@@ -309,109 +289,97 @@ private async Task DownloadPhotosForAll()
         return $"\"{escaped}\"";
     }
 
-    private async Task DownloadFile(string filename, string contentType, string content)
-    {
+    private async Task DownloadFile(string filename, string contentType, string content){
         var byteArray = System.Text.Encoding.UTF8.GetBytes(content);
         var base64 = Convert.ToBase64String(byteArray);
 
         await JS.InvokeVoidAsync("downloadFileFromBlazor", filename, contentType, base64);
     }
-    private async Task TriggerFileUpload()
-    {
+
+    private async Task TriggerFileUpload(){
         await JS.InvokeVoidAsync("triggerFileInputClick", "jsonFileInput");
     }
-    private async Task OnJsonFileChanged(ChangeEventArgs _)
-    {
-        try
-        {
+
+    private async Task OnJsonFileChanged(ChangeEventArgs _){
+        try{
             var jsonText = await JS.InvokeAsync<string>("readUploadedJson", "jsonFileInput");
-            if (!string.IsNullOrWhiteSpace(jsonText))
-            {
+            if (!string.IsNullOrWhiteSpace(jsonText)){
                 var articles = JsonSerializer.Deserialize<List<long>>(jsonText);
-                if (articles != null && articles.Count > 0)
-                {
+                if (articles != null && articles.Count > 0){
                     _rawArticles = string.Join(", ", articles);
                 }
-                else
-                {
+                else{
                     _resultJson = "Файл пуст или формат неверный.";
                 }
             }
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex){
             _resultJson = $"Ошибка при чтении файла: {ex.Message}";
         }
     }
-    private async Task StoreToDatabase()
-    {
-        var attributes = _products.SelectMany(p => p.Attributes.Select(attr => new ProductAttribute
-        {
+
+    private async Task StoreToDatabase(){
+        var attributes = _products.SelectMany(p => p.Attributes.Select(attr => new ProductAttribute{
             product_sid = p.sid,
             attr_name = attr.attr_name,
             value_type = attr.value_type,
             value_text = attr.value_text
         })).ToList();
 
-        var res = await Http.PostAsJsonAsync("api/simaland/store", new
-        {
+        var res = await Http.PostAsJsonAsync("api/simaland/store", new{
             products = _products,
             attributes
         });
 
-        if (res.IsSuccessStatusCode)
-        {
+        if (res.IsSuccessStatusCode){
             _resultJson = "Успешно загружено в базу!";
         }
-        else
-        {
+        else{
             _resultJson = $"Ошибка загрузки: {res.StatusCode}";
         }
     }
+
     public class FetchResponse
     {
-        public List<Product> Products { get; set; } = new();
-        public List<ProductAttribute> Attributes { get; set; } = new();
+        public List<Product> Products{ get; set; } = new();
+        public List<ProductAttribute> Attributes{ get; set; } = new();
     }
-    public class ExternalAccount
-    {
-        public int Id { get; set; }
-        public string Platform { get; set; } = "";
-        public string Name { get; set; } = "";
-    }
+
     public class Product
     {
-        public long sid { get; set; }
-        public string name { get; set; } = "";
-        public string color { get; set; } = "";
-        public string description { get; set; } = "";
-        public decimal width { get; set; }
-        public decimal height { get; set; }
-        public decimal depth { get; set; }
-        public decimal weight { get; set; }
-        public decimal box_depth { get; set; }
-        public decimal box_height { get; set; }
-        public decimal box_width { get; set; }
-        public string base_photo_url { get; set; } = "";
-        public int category_id { get; set; }
-        public int? balance { get; set; }
-        public int qty_multiplier { get; set; }
-        public decimal wholesale_price { get; set; }
-        public decimal price { get; set; }
-        public string category_name { get; set; } = "";
-        public List<string> photo_urls { get; set; } = new();
-        public string? barcodes { get; set; }
-        public int? vat { get; set; }
-        public string? trademark_name { get; set; }
-        public string? country_name { get; set; }
-        public string? unit_name { get; set; }
-        public List<ProductAttribute> Attributes { get; set; } = new();
+        public long sid{ get; set; }
+        public string name{ get; set; } = "";
+        public string color{ get; set; } = "";
+        public string description{ get; set; } = "";
+        public decimal width{ get; set; }
+        public decimal height{ get; set; }
+        public decimal depth{ get; set; }
+        public decimal weight{ get; set; }
+        public decimal box_depth{ get; set; }
+        public decimal box_height{ get; set; }
+        public decimal box_width{ get; set; }
+        public string base_photo_url{ get; set; } = "";
+        public int category_id{ get; set; }
+        public int? balance{ get; set; }
+        public int qty_multiplier{ get; set; }
+        public decimal wholesale_price{ get; set; }
+        public decimal price{ get; set; }
+        public string category_name{ get; set; } = "";
+        public List<string> photo_urls{ get; set; } = new();
+        public string? barcodes{ get; set; }
+        public int? vat{ get; set; }
+        public string? trademark_name{ get; set; }
+        public string? country_name{ get; set; }
+        public string? unit_name{ get; set; }
+        public List<ProductAttribute> Attributes{ get; set; } = new();
     }
+
     public class ProductAttribute
     {
-        public long product_sid { get; set; }    
-        public string attr_name { get; set; } = "";
-        public string value_type { get; set; } = "text";
-        public string? value_text { get; set; }
+        public long product_sid{ get; set; }
+        public string attr_name{ get; set; } = "";
+        public string value_type{ get; set; } = "text";
+        public string? value_text{ get; set; }
     }
+
 }

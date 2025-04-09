@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Shared;
 using WBSL.Data;
+using WBSL.Data.Services.Simaland;
 using WBSL.Data.Services.Wildberries;
 
 namespace WBSL.Controllers;
@@ -14,30 +16,44 @@ public class WildberriesController : ControllerBase
     private static DateTime _lastProductsSyncTime = DateTime.MinValue;
     private static readonly object _categoriesLock = new object();
     private static readonly object _productsLock = new object();
-
-    private readonly IHttpClientFactory _httpFactory;
+    
     private readonly QPlannerDbContext _db;
     private readonly WildberriesService _wildberriesService;
     private readonly WildberriesCategoryService _categoryService;
     private readonly WildberriesProductsService _productsService;
     private readonly WildberriesCharacteristicsService _characteristicsService;
-    private HttpClient WbClient => _httpFactory.CreateClient("WildBerries");
+    private readonly SimalandFetchService _simalandFetchService;
 
     public WildberriesController(QPlannerDbContext db, IHttpClientFactory clientFactory,
         WildberriesService wildberriesService, WildberriesProductsService productsService, WildberriesCategoryService categoryService,
-        WildberriesCharacteristicsService characteristicsService){
-        _httpFactory = clientFactory;
+        WildberriesCharacteristicsService characteristicsService, SimalandFetchService simalandFetchService){
         _db = db;
         _wildberriesService = wildberriesService;
         _productsService = productsService;
         _categoryService = categoryService;
         _characteristicsService = characteristicsService;
+        _simalandFetchService = simalandFetchService;
     }
 
-    [HttpGet("wbItem/{vendorCode}")]
-    public async Task<IActionResult> GetProduct(string vendorCode){
-        var product = await _wildberriesService.GetProduct(vendorCode);
-        return Ok(product);
+    [HttpGet("wbItem/{vendorCode}/{accountId:int}/{wbAccountId:int}")]
+    public async Task<IActionResult> GetProduct(string vendorCode, int accountId, int wbAccountId){
+        List<long> vendorCodes = new List<long>();
+        vendorCodes.Add(long.Parse(vendorCode));
+        
+        var product = await _wildberriesService.GetProduct(vendorCode, wbAccountId);
+        var simalandProduct = await _simalandFetchService.FetchProductsAsync(accountId, vendorCodes);
+        return Ok(new WbItemApiResponse(){
+            wbProduct = product,
+            SimalandProducts = null,
+            Attributes = simalandProduct.Attributes.Select(a => new ProductAttribute
+            {
+                id = a.id,
+                product_sid = a.product_sid,
+                attr_name = a.attr_name,
+                value_text = a.value_text,
+                created_at = a.created_at
+            }).ToList()
+        });
     }
 
     [HttpGet("sync/categories")]

@@ -1,7 +1,10 @@
 ﻿@page "/wb-product"
 @using System.Text.Json
 @using Shared
+@using Shared.Enums
 @using WBSL.Client.Data.DTO
+@using WbAdditionalCharacteristicDto = Shared.WbAdditionalCharacteristicDto
+@using WbCharacteristicDto = Shared.WbCharacteristicDto
 @inject HttpClient Client
 @inject ISnackbar Snackbar
 
@@ -11,17 +14,21 @@
     <MudTextField @bind-Value="VendorCode" Label="Артикул товара"
                   Variant="Variant.Outlined" FullWidth Class="mb-4"/>
 
+    <MudSelect T="ExternalAccount" @bind-Value="SelectedWbAccount" Label="Выберите аккаунт WB" Variant="Variant.Outlined" FullWidth>
+        @foreach (var account in _accounts.Where(x=>x.Platform == ExternalAccountType.Wildberries.ToString()))
+        {
+            <MudSelectItem Value="@account">@account.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect T="ExternalAccount" @bind-Value="SelectedSimaAccount" Label="Выберите аккаунт SimaLand" Variant="Variant.Outlined" FullWidth>
+        @foreach (var account in _accounts.Where(x=>x.Platform == ExternalAccountType.SimaLand.ToString()))
+        {
+        <MudSelectItem Value="@account">@account.Name</MudSelectItem>
+        }
+    </MudSelect>
     <MudButton OnClick="SearchProduct" Variant="Variant.Filled"
-               Color="Color.Primary" FullWidth Disabled="@IsLoading">
+               Color="Color.Primary" FullWidth Disabled="@(IsLoading && !isSearchAvailable)">
         @(IsLoading ? "Поиск..." : "Найти товар")
-    </MudButton>
-    <MudButton OnClick="TEST" Variant="Variant.Filled"
-               Color="Color.Primary" FullWidth Disabled="@IsLoading">
-        TEST
-    </MudButton>
-    <MudButton OnClick="TEST2" Variant="Variant.Filled"
-               Color="Color.Primary" FullWidth Disabled="@IsLoading">
-        TEST2
     </MudButton>
 
     @if (Product != null){
@@ -93,16 +100,42 @@
 
 @code {
     private string VendorCode = string.Empty;
-    private WbProductDto? Product;
+    private ExternalAccount? _selectedWbAccount;
+    private ExternalAccount? _selectedSimaAccount;
+
+    public ExternalAccount? SelectedWbAccount{
+        get => _selectedWbAccount;
+        set{
+            _selectedWbAccount = value;
+            isSearchAvailable = _selectedWbAccount != null && _selectedSimaAccount != null;
+            StateHasChanged();
+        }
+    }
+    
+    public ExternalAccount? SelectedSimaAccount{
+        get => _selectedSimaAccount;
+        set{
+            _selectedSimaAccount = value;
+            isSearchAvailable = _selectedWbAccount != null && _selectedSimaAccount != null;
+            StateHasChanged();
+        }
+    }
+
+    private List<ExternalAccount> _accounts = new();
+    private WbProductCardDto Product;
     private List<WbAdditionalCharacteristicDto>? characteristicDto;
     private List<PropertyMapping> mappings;
-    private bool IsLoading = false;
+    private bool IsLoading = true;
+    private bool isSearchAvailable = false;
 
-    private async Task TEST(){
-        await Client.GetAsync("api/Wildberries/sync/productCards");
+
+    protected override async Task OnInitializedAsync(){
+        await LoadAccounts();
     }
-    private async Task TEST2(){
-        await Client.GetAsync("api/Wildberries/sync/categories");
+
+    private async Task LoadAccounts()
+    {
+        _accounts = await Client.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
     }
 
     private async Task SearchProduct(){
@@ -116,14 +149,14 @@
         Snackbar.Add("Ищем товар...", Severity.Info);
 
         try{
-            var response = await Client.GetFromJsonAsync<WbProductFullInfoDto>($"api/Wildberries/wbItem/{VendorCode}");
+            var response = await Client.GetFromJsonAsync<WbItemApiResponse>($"api/Wildberries/wbItem/{VendorCode}/{_selectedSimaAccount.Id}/{_selectedWbAccount.Id}");
 
             if (response is null){
                 throw new Exception("Товар не найден");
             }
 
-            Product = response.Product;
-            characteristicDto = response.AdditionalCharacteristics;
+            Product = response.wbProduct.Product;
+            characteristicDto = response.wbProduct.AdditionalCharacteristics;
             Snackbar.Add("Товар найден!", Severity.Success);
             GetCombinedProperties();
         }
