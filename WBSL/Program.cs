@@ -7,8 +7,11 @@ using System.Text;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
+using WBSL.Data.Config;
 using WBSL.Data.Handlers;
 using WBSL.Data.Hangfire;
+using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Data.Services;
 using WBSL.Data.Services.Wildberries;
 
@@ -51,6 +54,18 @@ builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();
 
+builder.Services.Configure<RateLimitConfig>("SimaLand",
+    builder.Configuration.GetSection("RateLimits:SimaLand"));
+builder.Services.Configure<RateLimitConfig>("WildBerries",
+    builder.Configuration.GetSection("RateLimits:WildBerries"));
+
+builder.Services.AddScoped<PlatformHttpClientFactory>(sp => 
+    new PlatformHttpClientFactory(
+        sp.GetRequiredService<IHttpClientFactory>(),
+        sp.GetRequiredService<AccountTokenService>(),
+        sp.GetRequiredService<IHttpContextAccessor>()));
+
+
 builder.Services.AddTransient<RateLimitedAuthHandler>();
 builder.Services.AddTransient<AccountTokenService>();
 builder.Services.AddScoped<WildberriesService>();
@@ -61,7 +76,7 @@ builder.Services.AddHttpClient("SimaLand", client => {
         client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/");
     })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("SimaLand"))
-    .AddHttpMessageHandler(sp => new RateLimitedAuthHandler(sp, 200, timeRequestLimit: 10));
+    .AddHttpMessageHandler(sp => new RateLimitedAuthHandler(sp.GetRequiredService<IOptions<RateLimitConfig>>()));
 
 
 builder.Services.AddHttpClient("WildBerries", client =>
@@ -69,7 +84,7 @@ builder.Services.AddHttpClient("WildBerries", client =>
         client.BaseAddress = new Uri("https://content-api.wildberries.ru");
     })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerries"))
-    .AddHttpMessageHandler(sp => new RateLimitedAuthHandler(sp, 80, timeRequestLimit: 60));
+    .AddHttpMessageHandler(sp => new RateLimitedAuthHandler(sp.GetRequiredService<IOptions<RateLimitConfig>>()));
 
 var app = builder.Build();
 app.MapControllers(); // <-- обязательно!

@@ -1,24 +1,21 @@
 ﻿using System.Collections.Concurrent;
-using WBSL.Data.Enums;
-using WBSL.Data.Services;
+using Microsoft.Extensions.Options;
+using WBSL.Data.Config;
 
 namespace WBSL.Data.Handlers;
 
 public class RateLimitedAuthHandler : DelegatingHandler
 {
-    private readonly IServiceProvider _serviceProvider;
     private readonly int _requestLimit;
     private readonly int _timeRequestLimit;
     private static readonly ConcurrentDictionary<string, RollingWindowRateLimiter> _limiters = new();
     private static readonly ConcurrentDictionary<string, CircuitBreakerState> _circuitBreakers = new();
     
-    public RateLimitedAuthHandler(IServiceProvider serviceProvider, int requestLimit, int timeRequestLimit)
+    public RateLimitedAuthHandler(IOptions<RateLimitConfig> options)
     {
-        _serviceProvider = serviceProvider;
-        _requestLimit = requestLimit;
-        _timeRequestLimit = timeRequestLimit;
+        _requestLimit = options.Value.RequestLimit;
+        _timeRequestLimit = options.Value.TimeRequestLimit;
     }
-
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
         CancellationToken cancellationToken){
@@ -33,12 +30,6 @@ public class RateLimitedAuthHandler : DelegatingHandler
         
         try{
             await limiter.WaitAsync(cancellationToken);
-            using var scope = _serviceProvider.CreateScope();
-            var httpContextAccessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
-
-            var user = httpContextAccessor.HttpContext?.User;
-            if (user == null)
-                throw new InvalidOperationException("No user context available.");
 
             var response = await base.SendAsync(request, cancellationToken);
             
