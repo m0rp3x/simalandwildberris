@@ -4,27 +4,35 @@ using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
-using WBSL.Client.Pages;
-using WBSL.Data;
 using WBSL.Models;
 
 namespace WBSL.Data.Services.Simaland;
 
-public class SimaLandService
+public class SimalandFetchService
 {
     private readonly IHttpClientFactory _httpFactory;
     private readonly QPlannerDbContext _db;
     private readonly IConfiguration _config;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public SimaLandService(IHttpClientFactory httpFactory, QPlannerDbContext db, IConfiguration config)
+    public SimalandFetchService(IHttpClientFactory httpFactory, QPlannerDbContext db, IConfiguration config, IHttpContextAccessor httpContextAccessor)
     {
         _httpFactory = httpFactory;
         _db = db;
         _config = config;
+        _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task<(List<JsonElement> Products, List<product_attribute> Attributes)> FetchProductsAsync(int accountId, Guid userId, List<long> articleSids)
+    public async Task<(List<JsonElement> Products, List<product_attribute> Attributes)> FetchProductsAsync(int accountId, List<long> articleSids)
     {
+        Guid userId = Guid.Empty;
+        var user = _httpContextAccessor.HttpContext?.User;
+        if (user != null){
+            userId = Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty);
+        }
+        else{
+            throw new InvalidOperationException("Пользователь не найден.");
+        }
         var account = await _db.external_accounts
             .FirstOrDefaultAsync(a => a.id == accountId && a.user_id == userId && a.platform == "SimaLand");
 

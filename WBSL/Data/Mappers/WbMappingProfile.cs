@@ -1,4 +1,4 @@
-﻿using WBSL.Data.Services.Wildberries.Models;
+﻿using Shared;
 using WBSL.Models;
 
 namespace WBSL.Data.Mappers;

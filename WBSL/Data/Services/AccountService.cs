@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Shared.Enums;
 using WBSL.Data.Enums;
 using WBSL.Data.Errors;
 using WBSL.Models;
@@ -54,7 +55,7 @@ public class AccountTokenService
             case ExternalAccountType.SimaLand:
                 return await _db.external_accounts
                     .FirstOrDefaultAsync(a => a.user_id == userId && a.platform == "SimaLand");
-            case ExternalAccountType.WildBerries:
+            case ExternalAccountType.Wildberries:
                 return await _db.external_accounts
                     .FirstOrDefaultAsync(a => a.user_id == userId && a.platform == "Wildberries");
             default:

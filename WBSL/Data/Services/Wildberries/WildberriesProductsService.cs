@@ -1,8 +1,8 @@
 ﻿using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Shared;
 using WBSL.Data.HttpClientFactoryExt;
-using WBSL.Data.Services.Wildberries.Models;
 using WBSL.Models;
 
 namespace WBSL.Data.Services.Wildberries;

@@ -1,7 +1,7 @@
-﻿namespace WBSL.Data.Enums;
+﻿namespace Shared.Enums;
 
 public enum ExternalAccountType
 {
     SimaLand = 0,
-    WildBerries = 1
+    Wildberries = 1
 }

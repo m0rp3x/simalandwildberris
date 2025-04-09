@@ -1,4 +1,5 @@
-﻿using WBSL.Data.Enums;
+﻿using Shared.Enums;
+using WBSL.Data.Enums;
 using WBSL.Data.HttpClientFactoryExt;
 
 namespace WBSL.Data.Services.Wildberries;
@@ -12,5 +13,5 @@ public abstract class WildberriesBaseService
     }
     
     protected Task<HttpClient> GetWbClientAsync(int? accountId = null) 
-        => _clientFactory.CreateClientAsync(ExternalAccountType.WildBerries, accountId);
+        => _clientFactory.CreateClientAsync(ExternalAccountType.Wildberries, accountId);
 }

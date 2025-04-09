@@ -1,4 +1,5 @@
-﻿using WBSL.Data.Enums;
+﻿using Shared.Enums;
+using WBSL.Data.Enums;
 using WBSL.Data.HttpClientFactoryExt;
 
 namespace WBSL.Data.Services.Simaland;

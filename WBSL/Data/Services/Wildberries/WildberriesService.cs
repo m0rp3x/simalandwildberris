@@ -1,12 +1,9 @@
 ﻿using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using WBSL.Client.Data.DTO;
+using Shared;
 using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Data.Mappers;
-using WBSL.Data.Services.Wildberries.Models;
-using WbProductFullInfoDto = WBSL.Data.Services.Wildberries.Models.WbProductFullInfoDto;
-
 
 namespace WBSL.Data.Services.Wildberries;
 
@@ -18,7 +15,7 @@ public class WildberriesService : WildberriesBaseService
         _db = db;
     }
 
-    public async Task<WbProductFullInfoDto?> GetProduct(string vendorCode){
+    public async Task<WbProductFullInfoDto?> GetProduct(string vendorCode, int? accountId = null){
         var productFromDb = await _db.WbProductCards
             .Include(p => p.WbPhotos)
             .Include(p => p.WbProductCardCharacteristics)
@@ -38,7 +35,7 @@ public class WildberriesService : WildberriesBaseService
         }
 
         try{
-            var response = await GetProductByVendorCode(vendorCode);
+            var response = await GetProductByVendorCode(vendorCode, accountId);
             response.EnsureSuccessStatusCode();
 
             var apiResponse = await response.Content.ReadFromJsonAsync<WbApiResponse>();
@@ -77,7 +74,7 @@ public class WildberriesService : WildberriesBaseService
             jsonDocument.RootElement.GetProperty("data").GetRawText(), options);
     }
 
-    private async Task<HttpResponseMessage> GetProductByVendorCode(string vendorCode){
+    private async Task<HttpResponseMessage> GetProductByVendorCode(string vendorCode, int? accountId = null){
         var requestData = new{
             settings = new{
                 cursor = new{
@@ -101,7 +98,7 @@ public class WildberriesService : WildberriesBaseService
             Encoding.UTF8,
             "application/json"
         );
-        var WbClient = await GetWbClientAsync();
+        var WbClient = await GetWbClientAsync(accountId);
         return await WbClient.PostAsync("/content/v2/get/cards/list", content);
     }
 }

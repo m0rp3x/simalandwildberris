@@ -1,7 +1,5 @@
-﻿using WBSL.Client.Data.DTO;
-using WBSL.Models;
-
-namespace WBSL.Data.Services.Wildberries.Models;
+﻿
+namespace Shared;
 
 public class WbApiResponse
 {
@@ -21,6 +19,18 @@ public class WbProductFullInfoDto
         Product = product;
         AdditionalCharacteristics = null;
     }
+}
+public class WbAdditionalCharacteristicDto
+{
+    public int CharcID { get; set; }
+    public string SubjectName { get; set; }
+    public int SubjectID { get; set; }
+    public string Name { get; set; }
+    public bool Required { get; set; }
+    public string UnitName { get; set; }
+    public int MaxCount { get; set; }
+    public bool Popular { get; set; }
+    public int CharcType { get; set; }
 }
 public class WbProductCardDto
  {
