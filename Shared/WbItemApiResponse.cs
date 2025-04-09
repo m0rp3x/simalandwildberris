@@ -4,7 +4,6 @@ public class WbItemApiResponse
 {
     public WbProductFullInfoDto? wbProduct{ get; set; }
     public List<SimalandProductDto>? SimalandProducts { get; set; }
-    public List<ProductAttribute>? Attributes { get; set; }
 }
 public class SimalandProductDto
 {

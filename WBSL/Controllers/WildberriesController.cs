@@ -44,15 +44,7 @@ public class WildberriesController : ControllerBase
         var simalandProduct = await _simalandFetchService.FetchProductsAsync(accountId, vendorCodes);
         return Ok(new WbItemApiResponse(){
             wbProduct = product,
-            SimalandProducts = null,
-            Attributes = simalandProduct.Attributes.Select(a => new ProductAttribute
-            {
-                id = a.id,
-                product_sid = a.product_sid,
-                attr_name = a.attr_name,
-                value_text = a.value_text,
-                created_at = a.created_at
-            }).ToList()
+            SimalandProducts = simalandProduct,
         });
     }
 
