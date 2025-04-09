@@ -23,6 +23,29 @@ public class AccountTokenService
         return account;
     }
 
+    public async Task<external_account> GetAccountAsync(ExternalAccountType platform, int? accountId = null, Guid? userId = null){
+        
+        external_account? account;
+        if (userId.HasValue && userId.Value != Guid.Empty ){
+            account = await _db.external_accounts
+                .FirstOrDefaultAsync(a => a.user_id == userId && a.id == accountId && a.platform == platform.ToString());
+        }
+        else{
+            account = await _db.external_accounts
+                .FirstOrDefaultAsync(a => a.id == accountId && a.platform == platform.ToString());
+        }
+
+        if (account == null && userId.HasValue && userId.Value != Guid.Empty){
+            account = await _db.external_accounts
+                .FirstOrDefaultAsync(a => a.user_id == userId && a.platform == platform.ToString());
+        }
+        
+
+        if (account == null)
+            throw new AccountNotFoundError("Аккаунт не найден или не принадлежит вам.");
+
+        return account;
+    }
 
     private async Task<external_account?> GetExternalAccounts(ClaimsPrincipal User, ExternalAccountType platform){
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -31,7 +54,7 @@ public class AccountTokenService
             case ExternalAccountType.SimaLand:
                 return await _db.external_accounts
                     .FirstOrDefaultAsync(a => a.user_id == userId && a.platform == "SimaLand");
-            case ExternalAccountType.WildBerris:
+            case ExternalAccountType.WildBerries:
                 return await _db.external_accounts
                     .FirstOrDefaultAsync(a => a.user_id == userId && a.platform == "Wildberries");
             default:

@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using WBSL.Client.Data.DTO;
+using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Data.Mappers;
 using WBSL.Data.Services.Wildberries.Models;
 using WbProductFullInfoDto = WBSL.Data.Services.Wildberries.Models.WbProductFullInfoDto;
@@ -13,7 +14,7 @@ public class WildberriesService : WildberriesBaseService
 {
     private readonly QPlannerDbContext _db;
 
-    public WildberriesService(IHttpClientFactory httpFactory, QPlannerDbContext db) : base(httpFactory){
+    public WildberriesService(PlatformHttpClientFactory httpFactory, QPlannerDbContext db) : base(httpFactory){
         _db = db;
     }
 
@@ -65,6 +66,7 @@ public class WildberriesService : WildberriesBaseService
     }
 
     private async Task<List<WbAdditionalCharacteristicDto>?> GetProductChars(int? subjectId){
+        var WbClient = await GetWbClientAsync();
         var response = await WbClient.GetAsync($"/content/v2/object/charcs/{subjectId}");
         response.EnsureSuccessStatusCode();
 
@@ -99,7 +101,7 @@ public class WildberriesService : WildberriesBaseService
             Encoding.UTF8,
             "application/json"
         );
-
+        var WbClient = await GetWbClientAsync();
         return await WbClient.PostAsync("/content/v2/get/cards/list", content);
     }
 }

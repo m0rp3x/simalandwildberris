@@ -1,11 +1,16 @@
-﻿namespace WBSL.Data.Services.Wildberries;
+﻿using WBSL.Data.Enums;
+using WBSL.Data.HttpClientFactoryExt;
+
+namespace WBSL.Data.Services.Wildberries;
 
 public abstract class WildberriesBaseService
 {
-    protected HttpClient WbClient { get; }
+    protected PlatformHttpClientFactory _clientFactory { get; }
     
-    protected WildberriesBaseService(IHttpClientFactory factory)
-    {
-        WbClient = factory.CreateClient("WildBerries");
+    protected WildberriesBaseService(PlatformHttpClientFactory factory){
+        _clientFactory = factory;
     }
+    
+    protected Task<HttpClient> GetWbClientAsync(int? accountId = null) 
+        => _clientFactory.CreateClientAsync(ExternalAccountType.WildBerries, accountId);
 }

@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Data.Services.Wildberries.Models;
 
 namespace WBSL.Data.Services.Wildberries;
@@ -7,11 +8,12 @@ public class WildberriesCharacteristicsService : WildberriesBaseService
 {
     private readonly QPlannerDbContext _db;
 
-    public WildberriesCharacteristicsService(QPlannerDbContext db, IHttpClientFactory factory) : base(factory){
+    public WildberriesCharacteristicsService(QPlannerDbContext db, PlatformHttpClientFactory factory) : base(factory){
         _db = db;
     }
     
     private async Task<List<WbColor>> GetWbColorsApiAsync(){
+        var WbClient = await GetWbClientAsync();
         var response = await WbClient.GetAsync("/content/v2/directory/colors");
 
         response.EnsureSuccessStatusCode();
@@ -32,6 +34,7 @@ public class WildberriesCharacteristicsService : WildberriesBaseService
     }
 
     private async Task<List<string>> GetWbSexesApiAsync(){
+        var WbClient = await GetWbClientAsync();
         var response = await WbClient.GetAsync("/content/v2/directory/kinds");
 
         response.EnsureSuccessStatusCode();
@@ -48,6 +51,7 @@ public class WildberriesCharacteristicsService : WildberriesBaseService
     }
 
     private async Task<List<WbCountry>> GetWbCountriesApiAsync(){
+        var WbClient = await GetWbClientAsync();
         var response = await WbClient.GetAsync("/content/v2/directory/countries");
         
         response.EnsureSuccessStatusCode();
