@@ -10,7 +10,7 @@ public class WbProductFullInfoDto
 {
     public WbProductCardDto Product { get; set; }
     public List<WbAdditionalCharacteristicDto>? AdditionalCharacteristics { get; set; }
-
+    public WbProductFullInfoDto() {} 
     public WbProductFullInfoDto(WbProductCardDto product, List<WbAdditionalCharacteristicDto>? characteristics){
         Product = product;
         AdditionalCharacteristics = characteristics;

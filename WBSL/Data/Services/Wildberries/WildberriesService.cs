@@ -21,6 +21,7 @@ public class WildberriesService : WildberriesBaseService
             .Include(p => p.WbProductCardCharacteristics)
             .ThenInclude(x => x.Characteristic)
             .Include(p => p.SizeChrts)
+            .Include(x=>x.Dimensions)
             .FirstOrDefaultAsync(p => p.VendorCode == vendorCode);
 
         if (productFromDb != null){

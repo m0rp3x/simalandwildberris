@@ -3,12 +3,14 @@ using Microsoft.JSInterop;
 using MudBlazor;
 using MudBlazor.Services;
 using WBSL.Client.Data.Handlers;
+using WBSL.Client.Data.Services;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
 builder.Services.AddMudServices();
 
 builder.Services.AddScoped<AuthHandler>();
+builder.Services.AddScoped<ProductMappingService>();
 
 builder.Services.AddScoped(sp =>
 {

@@ -96,11 +96,10 @@ builder.Services.AddHttpClient("Wildberries", client =>
         
 var app = builder.Build();
 app.MapControllers(); // <-- обязательно!
-
+app.UseHangfireDashboard();
 if (app.Environment.IsDevelopment())
 {   
     app.UseWebAssemblyDebugging();
-    app.UseHangfireDashboard();
 }
 else
 {

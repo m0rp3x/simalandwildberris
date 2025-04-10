@@ -3,10 +3,12 @@
 @using Shared
 @using Shared.Enums
 @using WBSL.Client.Data.DTO
+@using WBSL.Client.Data.Services
 @using WbAdditionalCharacteristicDto = Shared.WbAdditionalCharacteristicDto
 @using WbCharacteristicDto = Shared.WbCharacteristicDto
 @inject HttpClient Client
 @inject ISnackbar Snackbar
+@inject ProductMappingService MappingService
 
 <MudPaper Class="pa-6 mx-auto mt-8" Style="max-width: 800px;" Elevation="4">
     <MudText Typo="Typo.h5" Class="mb-4">Поиск товара Wildberries</MudText>
@@ -15,15 +17,13 @@
                   Variant="Variant.Outlined" FullWidth Class="mb-4"/>
 
     <MudSelect T="ExternalAccount" @bind-Value="SelectedWbAccount" Label="Выберите аккаунт WB" Variant="Variant.Outlined" FullWidth>
-        @foreach (var account in _accounts.Where(x=>x.Platform == ExternalAccountType.Wildberries.ToString()))
-        {
+        @foreach (var account in _accounts.Where(x => x.Platform == ExternalAccountType.Wildberries.ToString())){
             <MudSelectItem Value="@account">@account.Name</MudSelectItem>
         }
     </MudSelect>
     <MudSelect T="ExternalAccount" @bind-Value="SelectedSimaAccount" Label="Выберите аккаунт SimaLand" Variant="Variant.Outlined" FullWidth>
-        @foreach (var account in _accounts.Where(x=>x.Platform == ExternalAccountType.SimaLand.ToString()))
-        {
-        <MudSelectItem Value="@account">@account.Name</MudSelectItem>
+        @foreach (var account in _accounts.Where(x => x.Platform == ExternalAccountType.SimaLand.ToString())){
+            <MudSelectItem Value="@account">@account.Name</MudSelectItem>
         }
     </MudSelect>
     <MudButton OnClick="SearchProduct" Variant="Variant.Filled"
@@ -69,28 +69,29 @@
             <MudTable Items="@mappings" Hover="true" Dense="true">
                 <HeaderContent>
                     <MudTh>Параметр</MudTh>
-                    <MudTh>Значение с WB</MudTh>
-                    <MudTh>Сопоставление с Сима-ленд</MudTh>
+                    <MudTh>Значение WB</MudTh>
+                    <MudTh>Поле SimaLand</MudTh>
+                    <MudTh>Значение SimaLand</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Параметр">
-                        <MudText Typo="Typo.body2">@context.PropertyName</MudText>
-                    </MudTd>
-                    <MudTd DataLabel="Значение с WB">
-                        <MudText Typo="Typo.body2">@context.WbValue</MudText>
-                    </MudTd>
-                    <MudTd DataLabel="Сопоставление с Сима-ленд">
+                    <MudTd DataLabel="Параметр">@context.PropertyName</MudTd>
+                    <MudTd DataLabel="WB">@context.WbValue</MudTd>
+                    <MudTd DataLabel="SimaLand">
                         @if (context.IsSelectable){
-                            <MudSelect T="string" Value="@context.SimaLandFieldName" ValueChanged="@(v => OnSimaLandValueChanged(v, context))" Variant="Variant.Outlined" Dense="true">
+                            <MudSelect T="string" Value="@context.SimaLandFieldName"
+                                       ValueChanged="@(v => OnSimaLandValueChanged(v, context))">
                                 <MudSelectItem Value="@string.Empty">Не выбрано</MudSelectItem>
-                                @foreach (var option in GetSimaLandOptions()){
-                                    <MudSelectItem Value="@option">@option</MudSelectItem>
+                                @foreach (var opt in GetSimaLandOptions()){
+                                    <MudSelectItem Value="@opt">@opt</MudSelectItem>
                                 }
                             </MudSelect>
                         }
                         else{
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">@context.SimaLandFieldName</MudText>
+                            <MudText>@context.SimaLandFieldName</MudText>
                         }
+                    </MudTd>
+                    <MudTd>
+                        @context.SimaLandValue
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -111,7 +112,7 @@
             StateHasChanged();
         }
     }
-    
+
     public ExternalAccount? SelectedSimaAccount{
         get => _selectedSimaAccount;
         set{
@@ -123,6 +124,7 @@
 
     private List<ExternalAccount> _accounts = new();
     private WbProductCardDto Product;
+    WbItemApiResponse curResponse;
     private List<WbAdditionalCharacteristicDto>? characteristicDto;
     private List<PropertyMapping> mappings;
     private bool IsLoading = true;
@@ -133,8 +135,7 @@
         await LoadAccounts();
     }
 
-    private async Task LoadAccounts()
-    {
+    private async Task LoadAccounts(){
         _accounts = await Client.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
     }
 
@@ -155,10 +156,25 @@
                 throw new Exception("Товар не найден");
             }
 
+            curResponse = response;
             Product = response.wbProduct.Product;
             characteristicDto = response.wbProduct.AdditionalCharacteristics;
+            mappings = MappingService.GenerateMappings(wbProduct: Product, simaProduct: response.SimalandProducts?.First());
+            if (response.SimalandProducts?.Any() == true){
+                var sima = response.SimalandProducts.First();
+
+                foreach (var mapping in mappings.Where(m => m.IsSelectable)){
+                    if (!string.IsNullOrEmpty(mapping.SimaLandFieldName)){
+                        var simaProp = sima.GetType().GetProperty(mapping.SimaLandFieldName);
+                        if (simaProp != null){
+                            var value = simaProp.GetValue(sima);
+                            mapping.SimaLandValue = value?.ToString() ?? "";
+                        }
+                    }
+                }
+            }
+
             Snackbar.Add("Товар найден!", Severity.Success);
-            GetCombinedProperties();
         }
         catch (Exception ex){
             Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
@@ -181,113 +197,70 @@
 
         return charact.Value?.ToString() ?? "N/A";
     }
-    
-    private void OnSimaLandValueChanged(string value, PropertyMapping context)
-    {
+
+    private void OnSimaLandValueChanged(string value, PropertyMapping context){
         context.SimaLandFieldName = value;
-        StateHasChanged();
-    }
-    
-    private List<PropertyMapping> GetCombinedProperties(){
-        mappings = new List<PropertyMapping>();
 
-        if (characteristicDto == null) return mappings;
+        var sima = curResponse?.SimalandProducts?.FirstOrDefault();
+        if (sima == null) return;
 
-        // Основные свойства из WbProductCardDto
-        mappings.Add(new PropertyMapping{
-            PropertyName = "Артикул продавца",
-            WbValue = Product.VendorCode,
-            WbFieldName = nameof(WbProductDto.VendorCode),
-            SimaLandFieldName = nameof(SimalandProduct.sid),
-            IsSelectable = false
-        });
-
-        mappings.Add(new PropertyMapping{
-            PropertyName = "Бренд",
-            WbValue = Product.Brand,
-            WbFieldName = nameof(WbProductDto.Brand),
-            SimaLandFieldName = nameof(SimalandProduct.trademark),
-            IsSelectable = true
-        });
-
-        mappings.Add(new PropertyMapping{
-            PropertyName = "Название",
-            WbValue = Product.Title,
-            WbFieldName = nameof(WbProductDto.Title),
-            SimaLandFieldName = nameof(SimalandProduct.name),
-            IsSelectable = true
-        });
-
-        mappings.Add(new PropertyMapping{
-            PropertyName = "Описание",
-            WbValue = Product.Description,
-            WbFieldName = nameof(WbProductDto.Description),
-            SimaLandFieldName = nameof(SimalandProduct.description),
-            IsSelectable = true
-        });
-
-        // Габариты
-        if (Product.Dimensions != null){
-            mappings.Add(new PropertyMapping{
-                PropertyName = "Ширина",
-                WbValue = Product.Dimensions.Width.ToString(),
-                WbFieldName = nameof(WbProductDto.Dimensions.Width),
-                SimaLandFieldName = nameof(SimalandProduct.width),
-                IsSelectable = true
-            });
-
-            mappings.Add(new PropertyMapping{
-                PropertyName = "Высота",
-                WbValue = Product.Dimensions.Height.ToString(),
-                WbFieldName = nameof(WbProductDto.Dimensions.Height),
-                SimaLandFieldName = nameof(SimalandProduct.height),
-                IsSelectable = true
-            });
-
-            mappings.Add(new PropertyMapping{
-                PropertyName = "Длина",
-                WbValue = Product.Dimensions.Length.ToString(),
-                WbFieldName = nameof(WbProductDto.Dimensions.Length),
-                SimaLandFieldName = nameof(SimalandProduct.depth),
-                IsSelectable = true
-            });
-
-            mappings.Add(new PropertyMapping{
-                PropertyName = "Вес",
-                WbValue = Product.Dimensions.WeightBrutto.ToString(),
-                WbFieldName = nameof(WbProductDto.Dimensions.WeightBrutto),
-                SimaLandFieldName = nameof(SimalandProduct.weight),
-                IsSelectable = true
-            });
+        // Сначала пробуем стандартные поля
+        var prop = typeof(SimalandProductDto).GetProperty(value);
+        if (prop != null){
+            var val = prop.GetValue(sima);
+            context.SimaLandValue = val?.ToString() ?? "";
+            context.IsFromAttribute = false;
+            return;
         }
 
-        // Характеристики
-        if (Product.Characteristics != null){
-            foreach (var charact in Product.Characteristics){
-                string value = charact.Value switch{
-                    string s => s,
-                    double d => d.ToString(),
-                    List<string> list => string.Join(", ", list),
-                    _ => charact.Value?.ToString() ?? ""
-                };
+        // Иначе ищем по атрибутам
+        var attr = sima.Attributes.FirstOrDefault(a => a.attr_name == value);
+        if (attr != null){
+            context.SimaLandValue = attr.value_text;
+            context.IsFromAttribute = true;
+        }
 
-                mappings.Add(new PropertyMapping{
-                    PropertyName = charact.Name,
-                    WbValue = value,
-                    IsSelectable = true
-                });
+        StateHasChanged();
+    }
+
+    public WbProductCardDto BuildUpdatedWbProduct(WbProductCardDto original){
+        var updated = JsonSerializer.Deserialize<WbProductCardDto>(
+            JsonSerializer.Serialize(original)); // Клонируем объект
+
+        foreach (var map in mappings){
+            if (!string.IsNullOrWhiteSpace(map.SimaLandValue) && !string.IsNullOrWhiteSpace(map.WbFieldName)){
+                SetPropertyValue(updated, map.WbFieldName, map.SimaLandValue);
             }
         }
 
-        return mappings;
+        return updated!;
+    }
+
+    private void SetPropertyValue(object target, string propertyPath, string value){
+        var parts = propertyPath.Split('.');
+
+        for (int i = 0; i < parts.Length - 1; i++){
+            var prop = target.GetType().GetProperty(parts[i]);
+            if (prop == null) return;
+            target = prop.GetValue(target) ?? throw new Exception($"Null for intermediate path {parts[i]}");
+        }
+
+        var finalProp = target.GetType().GetProperty(parts.Last());
+        if (finalProp == null || !finalProp.CanWrite) return;
+
+        object convertedValue = Convert.ChangeType(value, Nullable.GetUnderlyingType(finalProp.PropertyType) ?? finalProp.PropertyType);
+        finalProp.SetValue(target, convertedValue);
     }
 
     private List<string> GetSimaLandOptions(){
-        var a = mappings.FirstOrDefault();
-        return typeof(SimalandProduct)
+        var sima = curResponse?.SimalandProducts?.FirstOrDefault();
+        var standardProps = typeof(SimalandProductDto)
             .GetProperties()
-            .Select(p => p.Name)
-            .ToList();
+            .Select(p => p.Name);
+
+        var attributes = sima?.Attributes?.Select(a => a.attr_name) ?? Enumerable.Empty<string>();
+
+        return standardProps.Concat(attributes).Distinct().OrderBy(x => x).ToList();
     }
 
 }
