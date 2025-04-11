@@ -23,6 +23,7 @@ builder.Services.AddMudServices();
 builder.Services.AddDbContext<QPlannerDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 // Hangfire
+
 builder.Services.AddHangfireWithJobs(builder.Configuration);
 
 // Add services to the container.
@@ -110,9 +111,12 @@ else
 
 app.UseHttpsRedirection();
 
-HangfireConfig.RegisterJobs();
-
 app.UseAntiforgery();
+
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    HangfireConfig.RegisterJobs();
+});
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
