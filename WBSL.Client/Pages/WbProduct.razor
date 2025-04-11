@@ -2,15 +2,15 @@
 @using System.Text.Json
 @using Shared
 @using Shared.Enums
-@using WBSL.Client.Data.DTO
 @using WBSL.Client.Data.Services
 @using WbAdditionalCharacteristicDto = Shared.WbAdditionalCharacteristicDto
 @using WbCharacteristicDto = Shared.WbCharacteristicDto
 @inject HttpClient Client
 @inject ISnackbar Snackbar
 @inject ProductMappingService MappingService
+@inject IJSRuntime JS
 
-<MudPaper Class="pa-6 mx-auto mt-8" Style="max-width: 800px;" Elevation="4">
+<MudPaper Class="pa-6 mx-auto mt-8" Style="" Elevation="4">
     <MudText Typo="Typo.h5" Class="mb-4">Поиск товара Wildberries</MudText>
 
     <MudTextField @bind-Value="VendorCode" Label="Артикул товара"
@@ -69,19 +69,23 @@
             <MudTable Items="@mappings" Hover="true" Dense="true">
                 <HeaderContent>
                     <MudTh>Параметр</MudTh>
-                    <MudTh>Значение WB</MudTh>
+                    <MudTh>WB</MudTh>
                     <MudTh>Поле SimaLand</MudTh>
                     <MudTh>Значение SimaLand</MudTh>
+                    <MudTh>Обязательно</MudTh>
+                    <MudTh>Ед.</MudTh>
+                    <MudTh>Тип</MudTh>
+                    <MudTh>Макс. знач.</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Параметр">@context.PropertyName</MudTd>
-                    <MudTd DataLabel="WB">@context.WbValue</MudTd>
-                    <MudTd DataLabel="SimaLand">
+                    <MudTd>@context.PropertyName</MudTd>
+                    <MudTd>@context.WbValue</MudTd>
+                    <MudTd>
                         @if (context.IsSelectable){
                             <MudSelect T="string" Value="@context.SimaLandFieldName"
                                        ValueChanged="@(v => OnSimaLandValueChanged(v, context))">
-                                <MudSelectItem Value="@string.Empty">Не выбрано</MudSelectItem>
-                                @foreach (var opt in GetSimaLandOptions()){
+                                <MudSelectItem Value="@("__nothing__")">Не выбрано</MudSelectItem>
+                                @foreach (var opt in GetSimaLandOptions(context)){
                                     <MudSelectItem Value="@opt">@opt</MudSelectItem>
                                 }
                             </MudSelect>
@@ -90,12 +94,23 @@
                             <MudText>@context.SimaLandFieldName</MudText>
                         }
                     </MudTd>
+                    <MudTd>@context.SimaLandValue</MudTd>
                     <MudTd>
-                        @context.SimaLandValue
+                        @if (context.IsRequired){
+                            <MudText Color="Color.Error">Обязательно</MudText>
+                        }
                     </MudTd>
+                    <MudTd>@context.UnitName</MudTd>
+                    <MudTd>@context.CharcType</MudTd>
+                    <MudTd>@context.MaxCount</MudTd>
                 </RowTemplate>
             </MudTable>
         </MudPaper>
+
+        <MudButton OnClick="@BuildUpdatedWbProduct" Variant="Variant.Filled" Color="Color.Primary"/>
+        <MudButton OnClick="@SaveMappingTemplate" Variant="Variant.Outlined" Color="Color.Secondary" Class="mt-4">
+            Сохранить шаблон маппинга
+        </MudButton>
     }
 </MudPaper>
 
@@ -127,12 +142,16 @@
     WbItemApiResponse curResponse;
     private List<WbAdditionalCharacteristicDto>? characteristicDto;
     private List<PropertyMapping> mappings;
+    private List<PropertyMappingTemplate> savedTemplate;
     private bool IsLoading = true;
     private bool isSearchAvailable = false;
 
 
     protected override async Task OnInitializedAsync(){
-        await LoadAccounts();
+        if (OperatingSystem.IsBrowser()) // ← вот эта штука 100% работает в .NET 8/9
+        {
+            await LoadAccounts();
+        }
     }
 
     private async Task LoadAccounts(){
@@ -159,7 +178,13 @@
             curResponse = response;
             Product = response.wbProduct.Product;
             characteristicDto = response.wbProduct.AdditionalCharacteristics;
-            mappings = MappingService.GenerateMappings(wbProduct: Product, simaProduct: response.SimalandProducts?.First());
+            savedTemplate = await LoadMappingTemplate();
+            mappings = MappingService.GenerateMappings(
+                wbProduct: Product,
+                simaProduct: response.SimalandProducts?.First(),
+                additionalCharacteristics: characteristicDto,
+                savedTemplates: savedTemplate
+            );
             if (response.SimalandProducts?.Any() == true){
                 var sima = response.SimalandProducts.First();
 
@@ -200,7 +225,16 @@
 
     private void OnSimaLandValueChanged(string value, PropertyMapping context){
         context.SimaLandFieldName = value;
-
+        
+        if (value == "__nothing__")
+        {
+            context.SimaLandFieldName = null;
+            context.SimaLandValue = null;
+            context.IsFromAttribute = false;
+            StateHasChanged();
+            return;
+        }
+        
         var sima = curResponse?.SimalandProducts?.FirstOrDefault();
         if (sima == null) return;
 
@@ -223,17 +257,84 @@
         StateHasChanged();
     }
 
-    public WbProductCardDto BuildUpdatedWbProduct(WbProductCardDto original){
+
+    public async Task BuildUpdatedWbProduct(){
         var updated = JsonSerializer.Deserialize<WbProductCardDto>(
-            JsonSerializer.Serialize(original)); // Клонируем объект
+            JsonSerializer.Serialize(Product)) ?? new WbProductCardDto();
+
+        updated.Characteristics ??= new List<WbCharacteristicDto>();
 
         foreach (var map in mappings){
-            if (!string.IsNullOrWhiteSpace(map.SimaLandValue) && !string.IsNullOrWhiteSpace(map.WbFieldName)){
+            if (string.IsNullOrWhiteSpace(map.WbFieldName) || string.IsNullOrWhiteSpace(map.SimaLandValue))
+                continue;
+
+            // Пропускаем значения "0", если надо
+            if (map.SimaLandValue.Trim() == "0")
+                continue;
+
+            var formattedValue = FormatValueForWb(map);
+
+            if (map.WbFieldName.StartsWith("Characteristics:")){
+                if (map.CharcID is not int charcId)
+                    continue;
+
+                var existing = updated.Characteristics.FirstOrDefault(c => c.Id == charcId);
+
+                if (existing != null){
+                    existing.Value = formattedValue;
+                }
+                else{
+                    updated.Characteristics.Add(new WbCharacteristicDto{
+                        Id = charcId,
+                        Name = map.PropertyName,
+                        Value = formattedValue
+                    });
+                }
+            }
+            else{
+                // Обычные поля — через SetPropertyValue
                 SetPropertyValue(updated, map.WbFieldName, map.SimaLandValue);
             }
         }
 
-        return updated!;
+        // Проверка обязательных
+        var missingRequired = mappings
+            .Where(m => m.IsRequired)
+            .Where(m => string.IsNullOrWhiteSpace(m.SimaLandValue) || m.SimaLandValue.Trim() == "0")
+            .ToList();
+
+        if (missingRequired.Any()){
+            var missingNames = string.Join(", ", missingRequired.Select(m => m.PropertyName));
+            throw new InvalidOperationException($"Не все обязательные поля заполнены: {missingNames}");
+        }
+
+        var test = updated;
+    }
+
+    public bool ValidateMappings(List<PropertyMapping> mappings, out List<string> errors){
+        errors = new List<string>();
+
+        foreach (var map in mappings){
+            if (map.IsRequired && string.IsNullOrWhiteSpace(map.SimaLandValue)){
+                errors.Add($"Характеристика '{map.PropertyName}' обязательна, но не заполнена.");
+            }
+
+            if (map.MaxCount == 1 && map.SimaLandValue?.Split(',').Length > 1){
+                errors.Add($"Характеристика '{map.PropertyName}' допускает только одно значение.");
+            }
+        }
+
+        return errors.Count == 0;
+    }
+
+    public object FormatValueForWb(PropertyMapping mapping){
+        if (string.IsNullOrWhiteSpace(mapping.SimaLandValue)) return "";
+
+        return mapping.CharcType switch{
+            0 or 1 => $"[\"{mapping.SimaLandValue}\"]", // строка/массив строк
+            4 => $"[{mapping.SimaLandValue}]", // число/массив чисел
+            _ => mapping.SimaLandValue
+        };
     }
 
     private void SetPropertyValue(object target, string propertyPath, string value){
@@ -242,7 +343,13 @@
         for (int i = 0; i < parts.Length - 1; i++){
             var prop = target.GetType().GetProperty(parts[i]);
             if (prop == null) return;
-            target = prop.GetValue(target) ?? throw new Exception($"Null for intermediate path {parts[i]}");
+            var propValue = prop.GetValue(target);
+            if (propValue == null){
+                propValue = Activator.CreateInstance(prop.PropertyType);
+                prop.SetValue(target, propValue);
+            }
+
+            target = propValue;
         }
 
         var finalProp = target.GetType().GetProperty(parts.Last());
@@ -252,15 +359,74 @@
         finalProp.SetValue(target, convertedValue);
     }
 
-    private List<string> GetSimaLandOptions(){
-        var sima = curResponse?.SimalandProducts?.FirstOrDefault();
-        var standardProps = typeof(SimalandProductDto)
-            .GetProperties()
-            .Select(p => p.Name);
+    private async Task SaveMappingTemplate(){
+        if (mappings == null) return;
 
-        var attributes = sima?.Attributes?.Select(a => a.attr_name) ?? Enumerable.Empty<string>();
+        var template = mappings
+            .Where(m => m.IsSelectable)
+            .Select(m => new PropertyMappingTemplate{
+                WbFieldName = m.WbFieldName,
+                SimaLandFieldName = m.SimaLandFieldName
+            })
+            .ToList();
 
-        return standardProps.Concat(attributes).Distinct().OrderBy(x => x).ToList();
+        var json = JsonSerializer.Serialize(template);
+
+        await JS.InvokeVoidAsync("mappingStorage.saveMapping", "wb_mapping_template", json);
+
+        Snackbar.Add("Шаблон маппинга сохранён в localStorage ✅", Severity.Success);
     }
 
+    private async Task<List<PropertyMappingTemplate>> LoadMappingTemplate(){
+        var json = await JS.InvokeAsync<string>("mappingStorage.loadMapping", "wb_mapping_template");
+        if (string.IsNullOrWhiteSpace(json))
+            return new List<PropertyMappingTemplate>();
+
+        try{
+            return JsonSerializer.Deserialize<List<PropertyMappingTemplate>>(json) ?? new();
+        }
+        catch{
+            Snackbar.Add("⚠️ Ошибка при чтении шаблона маппинга", Severity.Warning);
+            return new();
+        }
+    }
+
+    private List<string> GetSimaLandOptions(PropertyMapping map){
+        var sima = curResponse?.SimalandProducts?.FirstOrDefault();
+        if (sima == null) return new List<string>();
+
+        var charcType = map.CharcType;
+
+        var props = typeof(SimalandProductDto).GetProperties()
+            .Where(p => IsTypeCompatible(p.PropertyType, charcType))
+            .Select(p => p.Name);
+
+        var attrs = sima.Attributes?
+            .Where(a => IsValueCompatible(a.value_text, charcType))
+            .Select(a => a.attr_name) ?? Enumerable.Empty<string>();
+
+        return props.Concat(attrs).Distinct().OrderBy(x => x).ToList();
+    }
+    private bool IsTypeCompatible(Type type, int? charcType)
+    {
+        if (charcType == null) return true;
+
+        return charcType switch
+        {
+            0 or 1 => type == typeof(string),
+            4 => type == typeof(int) || type == typeof(double) || type == typeof(float) || type == typeof(decimal),
+            _ => true
+        };
+    }
+    private bool IsValueCompatible(string? value, int? charcType)
+    {
+        if (charcType == null || string.IsNullOrWhiteSpace(value)) return false;
+
+        return charcType switch
+        {
+            0 or 1 => true,
+            4 => double.TryParse(value, out _),
+            _ => true
+        };
+    }
 }

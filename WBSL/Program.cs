@@ -8,6 +8,7 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
+using WBSL.Client.Data.Services;
 using WBSL.Data.Config;
 using WBSL.Data.Handlers;
 using WBSL.Data.Hangfire;
@@ -74,6 +75,8 @@ builder.Services.AddScoped<WildberriesCategoryService>();
 builder.Services.AddScoped<WildberriesProductsService>();
 builder.Services.AddScoped<WildberriesCharacteristicsService>();
 builder.Services.AddScoped<SimalandFetchService>();
+
+builder.Services.AddScoped<ProductMappingService>();
 
 builder.Services.AddHttpClient("SimaLand", client => {
         client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/");

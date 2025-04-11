@@ -16,24 +16,24 @@ public class WildberriesService : WildberriesBaseService
     }
 
     public async Task<WbProductFullInfoDto?> GetProduct(string vendorCode, int? accountId = null){
-        var productFromDb = await _db.WbProductCards
-            .Include(p => p.WbPhotos)
-            .Include(p => p.WbProductCardCharacteristics)
-            .ThenInclude(x => x.Characteristic)
-            .Include(p => p.SizeChrts)
-            .Include(x=>x.Dimensions)
-            .FirstOrDefaultAsync(p => p.VendorCode == vendorCode);
-
-        if (productFromDb != null){
-            var productDto = WbProductCardMapper.MapToDto(productFromDb);
-
-            if (productFromDb.SubjectID.HasValue){
-                var additionalCharacteristics = await GetProductChars(productFromDb.SubjectID);
-                return new WbProductFullInfoDto(productDto, additionalCharacteristics);
-            }
-
-            return new WbProductFullInfoDto(productDto);
-        }
+        // var productFromDb = await _db.WbProductCards
+        //     .Include(p => p.WbPhotos)
+        //     .Include(p => p.WbProductCardCharacteristics)
+        //     .ThenInclude(x => x.Characteristic)
+        //     .Include(p => p.SizeChrts)
+        //     .Include(x=>x.Dimensions)
+        //     .FirstOrDefaultAsync(p => p.VendorCode == vendorCode);
+        //
+        // if (productFromDb != null){
+        //     var productDto = WbProductCardMapper.MapToDto(productFromDb);
+        //
+        //     if (productFromDb.SubjectID.HasValue){
+        //         var additionalCharacteristics = await GetProductChars(productFromDb.SubjectID);
+        //         return new WbProductFullInfoDto(productDto, additionalCharacteristics);
+        //     }
+        //
+        //     return new WbProductFullInfoDto(productDto);
+        // }
 
         try{
             var response = await GetProductByVendorCode(vendorCode, accountId);
@@ -44,9 +44,9 @@ public class WildberriesService : WildberriesBaseService
 
             if (apiProduct == null) return null;
 
-            var productToSave = WbProductCardMapper.MapFromDto(apiProduct);
-            await _db.WbProductCards.AddAsync(productToSave);
-            await _db.SaveChangesAsync();
+            // var productToSave = WbProductCardMapper.MapFromDto(apiProduct);
+            // await _db.WbProductCards.AddAsync(productToSave);
+            // await _db.SaveChangesAsync();
 
             if (apiProduct.SubjectID == 0) return new WbProductFullInfoDto(apiProduct);
             var additionalCharacteristics = await GetProductChars(apiProduct.SubjectID);
