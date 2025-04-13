@@ -75,7 +75,6 @@
                     <MudTh>Обязательно</MudTh>
                     <MudTh>Ед.</MudTh>
                     <MudTh>Тип</MudTh>
-                    <MudTh>Макс. знач.</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.PropertyName</MudTd>
@@ -101,8 +100,7 @@
                         }
                     </MudTd>
                     <MudTd>@context.UnitName</MudTd>
-                    <MudTd>@context.CharcType</MudTd>
-                    <MudTd>@context.MaxCount</MudTd>
+                    <MudTd>@GetTypeString(context.CharcType)</MudTd>
                 </RowTemplate>
             </MudTable>
         </MudPaper>
@@ -456,5 +454,13 @@
             _ => true
         };
     }
-
+    private string GetTypeString(int? charcType)
+    {
+        return charcType switch
+        {
+            0 or 1 => "Строка",
+            4 => "Число",
+            _ => "Не определено"
+        };
+    }
 }

@@ -136,8 +136,7 @@ public class WildberriesService : WildberriesBaseService
 
             var matchedErrors = errorList?.Data?
                 .Where(e =>
-                    vendorCodes.Contains(e.VendorCode) &&
-                    e.UpdateAt >= response.UpdateStartedAt) // фильтр по времени
+                    vendorCodes.Contains(e.VendorCode)) // фильтр по времени
                 .ToList();
 
             if (matchedErrors != null && matchedErrors.Any())
@@ -192,7 +191,7 @@ public class WildberriesService : WildberriesBaseService
         return new WbUpdateResponse
         {
             Response = response,
-            UpdateStartedAt = DateTime.Now
+            UpdateStartedAt = DateTime.UtcNow
         };
     }
     
