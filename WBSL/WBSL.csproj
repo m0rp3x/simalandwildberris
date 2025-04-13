@@ -29,4 +29,40 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.*" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="wwwroot\10495294\10495294_0.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10495294\10495294_1.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10495294\10495294_2.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10495294\10495294_3.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10495306\10495306_0.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10495306\10495306_1.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10495306\10495306_2.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10495306\10495306_3.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10667905\10667905_0.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10697811\10697811_0.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10697816\10697816_0.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10754254\10754254_0.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10785684\10785684_0.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10785684\10785684_2.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10785684\10785684_3.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10821062\10821062_0.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10821062\10821062_1.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10821062\10821062_2.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10821062\10821062_3.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10821062\10821062_4.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10821062\10821062_5.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10821062\10821062_6.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10821062\10821062_7.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10843661\10843661_0.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10843661\10843661_1.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10843661\10843661_2.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10843661\10843661_3.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10843661\10843661_4.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10843661\10843661_5.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10857988\10857988_0.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10857992\10857992_0.jpg" />
+    <_ContentIncludedByDefault Remove="wwwroot\10857994\10857994_0.jpg" />
+  </ItemGroup>
+
 </Project>
