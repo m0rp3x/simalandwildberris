@@ -107,7 +107,9 @@
             </MudTable>
         </MudPaper>
 
-        <MudButton OnClick="@BuildUpdatedWbProduct" Variant="Variant.Filled" Color="Color.Primary"/>
+        <MudButton OnClick="@BuildUpdatedWbProduct" Variant="Variant.Filled" Color="Color.Primary">
+            Сохранить
+        </MudButton>
         <MudButton OnClick="@SaveMappingTemplate" Variant="Variant.Outlined" Color="Color.Secondary" Class="mt-4">
             Сохранить шаблон маппинга
         </MudButton>
@@ -225,16 +227,15 @@
 
     private void OnSimaLandValueChanged(string value, PropertyMapping context){
         context.SimaLandFieldName = value;
-        
-        if (value == "__nothing__")
-        {
+
+        if (value == "__nothing__"){
             context.SimaLandFieldName = null;
             context.SimaLandValue = null;
             context.IsFromAttribute = false;
             StateHasChanged();
             return;
         }
-        
+
         var sima = curResponse?.SimalandProducts?.FirstOrDefault();
         if (sima == null) return;
 
@@ -297,34 +298,57 @@
             }
         }
 
-        // Проверка обязательных
+        if (!ValidateMappings(mappings, out var validationErrors)){
+            Snackbar.Add(string.Join("\n", validationErrors), Severity.Error);
+            return;
+        }
+
+        await UpdateItemsAsync(new List<WbProductCardDto>{ updated });
+        
+        await SearchProduct();
+    }
+
+    private async Task UpdateItemsAsync(List<WbProductCardDto> products){
+        var response = await Client.PostAsJsonAsync($"api/Wildberries/updateWbItem/{_selectedWbAccount.Id}", products);
+
+        var result = await response.Content.ReadFromJsonAsync<WbApiResult>();
+
+        if (result is null){
+            Snackbar.Add("Не удалось получить ответ от сервера", Severity.Error);
+            return;
+        }
+
+        if (result.Error){
+            // Можно показать errorText
+            Snackbar.Add(result.ErrorText ?? "Произошла ошибка", Severity.Error);
+
+            // Можно логировать или показать additionalErrors, если нужно
+            if (result.AdditionalErrors is JsonElement json && json.ValueKind == JsonValueKind.Object){
+                foreach (var prop in json.EnumerateObject()){
+                    Snackbar.Add($"{prop.Name}: {prop.Value}", Severity.Warning);
+                }
+            }
+
+            return;
+        }
+
+        Snackbar.Add("Товары успешно обновлены", Severity.Success);
+    }
+
+    public bool ValidateMappings(List<PropertyMapping> mappings, out List<string> errors){
+        errors = new List<string>();
+
         var missingRequired = mappings
             .Where(m => m.IsRequired)
             .Where(m => string.IsNullOrWhiteSpace(m.SimaLandValue) || m.SimaLandValue.Trim() == "0")
             .ToList();
 
         if (missingRequired.Any()){
-            var missingNames = string.Join(", ", missingRequired.Select(m => m.PropertyName));
-            throw new InvalidOperationException($"Не все обязательные поля заполнены: {missingNames}");
+            var missingNames = missingRequired.Select(m => m.PropertyName).ToList();
+            errors.Add($"Не все обязательные поля заполнены: {string.Join(", ", missingNames)}");
         }
 
-        var test = updated;
-    }
-
-    public bool ValidateMappings(List<PropertyMapping> mappings, out List<string> errors){
-        errors = new List<string>();
-
-        foreach (var map in mappings){
-            if (map.IsRequired && string.IsNullOrWhiteSpace(map.SimaLandValue)){
-                errors.Add($"Характеристика '{map.PropertyName}' обязательна, но не заполнена.");
-            }
-
-            if (map.MaxCount == 1 && map.SimaLandValue?.Split(',').Length > 1){
-                errors.Add($"Характеристика '{map.PropertyName}' допускает только одно значение.");
-            }
-        }
-
-        return errors.Count == 0;
+        return !errors.Any();
     }
 
     public object FormatValueForWb(PropertyMapping mapping){
@@ -407,26 +431,25 @@
 
         return props.Concat(attrs).Distinct().OrderBy(x => x).ToList();
     }
-    private bool IsTypeCompatible(Type type, int? charcType)
-    {
+
+    private bool IsTypeCompatible(Type type, int? charcType){
         if (charcType == null) return true;
 
-        return charcType switch
-        {
+        return charcType switch{
             0 or 1 => type == typeof(string),
             4 => type == typeof(int) || type == typeof(double) || type == typeof(float) || type == typeof(decimal),
             _ => true
         };
     }
-    private bool IsValueCompatible(string? value, int? charcType)
-    {
+
+    private bool IsValueCompatible(string? value, int? charcType){
         if (charcType == null || string.IsNullOrWhiteSpace(value)) return false;
 
-        return charcType switch
-        {
+        return charcType switch{
             0 or 1 => true,
             4 => double.TryParse(value, out _),
             _ => true
         };
     }
+
 }

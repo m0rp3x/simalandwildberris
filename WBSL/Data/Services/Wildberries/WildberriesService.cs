@@ -1,9 +1,8 @@
 ﻿using System.Text;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using Shared;
 using WBSL.Data.HttpClientFactoryExt;
-using WBSL.Data.Mappers;
+using WBSL.Data.Services.Wildberries.Models;
 
 namespace WBSL.Data.Services.Wildberries;
 
@@ -62,6 +61,12 @@ public class WildberriesService : WildberriesBaseService
             return null;
         }
     }
+    
+    public async Task<WbApiResult> UpdateWbItemsAsync(List<WbProductCardDto> itemsToUpdate, int? accountId = null)
+    {
+        var response = await SendUpdateRequestAsync(itemsToUpdate, accountId);
+        return await ParseWbResponseAsync(response);
+    }
 
     private async Task<List<WbAdditionalCharacteristicDto>?> GetProductChars(int? subjectId){
         var WbClient = await GetWbClientAsync();
@@ -102,4 +107,48 @@ public class WildberriesService : WildberriesBaseService
         var WbClient = await GetWbClientAsync(accountId);
         return await WbClient.PostAsync("/content/v2/get/cards/list", content);
     }
+
+    private async Task<WbApiResult> ParseWbResponseAsync(HttpResponseMessage response)
+    {
+        var responseContent = await response.Content.ReadAsStringAsync();
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseContent);
+            var root = document.RootElement;
+
+            return new WbApiResult
+            {
+                Error = root.GetProperty("error").GetBoolean(),
+                ErrorText = root.GetProperty("errorText").GetString(),
+                AdditionalErrors = root.TryGetProperty("additionalErrors", out var additional)
+                    ? JsonSerializer.Deserialize<object>(additional.GetRawText())
+                    : null
+            };
+        }
+        catch
+        {
+            return new WbApiResult
+            {
+                Error = true,
+                ErrorText = "Ошибка при разборе ответа от WB",
+                AdditionalErrors = responseContent
+            };
+        }
+    }
+
+    private async Task<HttpResponseMessage> SendUpdateRequestAsync(List<WbProductCardDto> itemsToUpdate, int? accountId = null)
+    {
+        var json = JsonSerializer.Serialize(itemsToUpdate, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false
+        });
+
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var WbClient = await GetWbClientAsync(accountId);
+        return await WbClient.PostAsync("/content/v2/cards/update", content);
+    }
+
 }
