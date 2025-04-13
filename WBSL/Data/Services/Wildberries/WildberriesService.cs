@@ -64,8 +64,10 @@ public class WildberriesService : WildberriesBaseService
     
     public async Task<WbApiResult> UpdateWbItemsAsync(List<WbProductCardDto> itemsToUpdate, int? accountId = null)
     {
-        var response = await SendUpdateRequestAsync(itemsToUpdate, accountId);
-        return await ParseWbResponseAsync(response);
+        var WbClient = await GetWbClientAsync(accountId);
+        var response = await SendUpdateRequestAsync(itemsToUpdate, WbClient, accountId);
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        return await ParseWbResponseAsync(response, itemsToUpdate.Select(x=>x.VendorCode).ToList(),WbClient);
     }
 
     private async Task<List<WbAdditionalCharacteristicDto>?> GetProductChars(int? subjectId){
@@ -108,22 +110,56 @@ public class WildberriesService : WildberriesBaseService
         return await WbClient.PostAsync("/content/v2/get/cards/list", content);
     }
 
-    private async Task<WbApiResult> ParseWbResponseAsync(HttpResponseMessage response)
+    private async Task<WbApiResult> ParseWbResponseAsync(WbUpdateResponse response, List<string> vendorCodes, HttpClient wbClient)
     {
-        var responseContent = await response.Content.ReadAsStringAsync();
+        var responseContent = await response.Response.Content.ReadAsStringAsync();
 
         try
         {
-            using var document = JsonDocument.Parse(responseContent);
-            var root = document.RootElement;
+            var errorListResponse = await wbClient.GetAsync("/content/v2/cards/error/list");
+
+            if (!errorListResponse.IsSuccessStatusCode)
+            {
+                return new WbApiResult
+                {
+                    Error = true,
+                    ErrorText = $"Не удалось получить ошибки из WB (StatusCode: {errorListResponse.StatusCode})",
+                    AdditionalErrors = await errorListResponse.Content.ReadAsStringAsync()
+                };
+            }
+
+            var errorListJson = await errorListResponse.Content.ReadAsStringAsync();
+            var errorList = JsonSerializer.Deserialize<WbErrorListResponse>(errorListJson, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            var matchedErrors = errorList?.Data?
+                .Where(e =>
+                    vendorCodes.Contains(e.VendorCode) &&
+                    e.UpdateAt >= response.UpdateStartedAt) // фильтр по времени
+                .ToList();
+
+            if (matchedErrors != null && matchedErrors.Any())
+            {
+                var errorsDict = matchedErrors.ToDictionary(
+                    e => e.VendorCode,
+                    e => (object)e.Errors // каст к object для универсальности WbApiResult
+                );
+
+                return new WbApiResult
+                {
+                    Error = true,
+                    ErrorText = "Ошибка при обновлении товаров",
+                    AdditionalErrors = errorsDict
+                };
+            }
 
             return new WbApiResult
             {
-                Error = root.GetProperty("error").GetBoolean(),
-                ErrorText = root.GetProperty("errorText").GetString(),
-                AdditionalErrors = root.TryGetProperty("additionalErrors", out var additional)
-                    ? JsonSerializer.Deserialize<object>(additional.GetRawText())
-                    : null
+                Error = false,
+                ErrorText = "",
+                AdditionalErrors = null
             };
         }
         catch
@@ -136,8 +172,13 @@ public class WildberriesService : WildberriesBaseService
             };
         }
     }
+    public class WbUpdateResponse
+    {
+        public HttpResponseMessage Response { get; set; }
+        public DateTime UpdateStartedAt { get; set; }
+    }
 
-    private async Task<HttpResponseMessage> SendUpdateRequestAsync(List<WbProductCardDto> itemsToUpdate, int? accountId = null)
+    private async Task<WbUpdateResponse> SendUpdateRequestAsync(List<WbProductCardDto> itemsToUpdate, HttpClient WbClient, int? accountId = null)
     {
         var json = JsonSerializer.Serialize(itemsToUpdate, new JsonSerializerOptions
         {
@@ -146,9 +187,13 @@ public class WildberriesService : WildberriesBaseService
         });
 
         var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        var WbClient = await GetWbClientAsync(accountId);
-        return await WbClient.PostAsync("/content/v2/cards/update", content);
+        
+        var  response = await WbClient.PostAsync("/content/v2/cards/update", content);
+        return new WbUpdateResponse
+        {
+            Response = response,
+            UpdateStartedAt = DateTime.Now
+        };
     }
-
+    
 }

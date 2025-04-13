@@ -168,6 +168,7 @@
 
         IsLoading = true;
         Product = null;
+        StateHasChanged();
         Snackbar.Add("Ищем товар...", Severity.Info);
 
         try{
@@ -353,10 +354,14 @@
 
     public object FormatValueForWb(PropertyMapping mapping){
         if (string.IsNullOrWhiteSpace(mapping.SimaLandValue)) return "";
-
+        
+        var normalizedValue = mapping.SimaLandFieldName == "Цвет"
+            ? char.ToLower(mapping.SimaLandValue[0]) + mapping.SimaLandValue.Substring(1)
+            : mapping.SimaLandValue;
+        
         return mapping.CharcType switch{
-            0 or 1 => $"[\"{mapping.SimaLandValue}\"]", // строка/массив строк
-            4 => $"[{mapping.SimaLandValue}]", // число/массив чисел
+            0 or 1 => new List<string> { normalizedValue.Trim() },
+            4 => new List<int> { int.Parse(normalizedValue.Trim()) },
             _ => mapping.SimaLandValue
         };
     }
