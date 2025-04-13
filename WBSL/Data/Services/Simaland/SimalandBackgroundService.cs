@@ -20,8 +20,12 @@ public class SimalandBackgroundService : SimalandBaseService
     [AutomaticRetry(Attempts = 3, OnAttemptsExceeded = AttemptsExceededAction.Delete)]
     public async Task<bool> SyncProductsBalanceAsync(){
         try{
-            var сlient = await GetClientAsync(2);
             var ids = _db.products.Select(x => x.sid).ToList();
+
+            if (ids.Count == 0){
+                return true;
+            }
+            var сlient = await GetClientAsync(2);
             var result = await FetchAndSaveProductsBalance(ids, сlient);
 
             if (!result){

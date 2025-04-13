@@ -12,6 +12,7 @@ public static class HangfireConfig
             config.UsePostgreSqlStorage(configuration.GetConnectionString("Postgres")));
 
         services.AddHangfireServer();
+        
     }
 
     public static void RegisterJobs()

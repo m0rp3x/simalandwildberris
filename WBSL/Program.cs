@@ -22,6 +22,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMudServices();
 builder.Services.AddDbContext<QPlannerDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Hangfire
 builder.Services.AddHangfireWithJobs(builder.Configuration);
 
 // Add services to the container.
@@ -75,7 +76,6 @@ builder.Services.AddScoped<SimalandFetchService>();
 
 builder.Services.AddHttpClient("SimaLand", client => {
         client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/");
-        client.Timeout = TimeSpan.FromSeconds(10); // или больше, если нужно
     })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("SimaLand"))
     .AddHttpMessageHandler(sp => {
