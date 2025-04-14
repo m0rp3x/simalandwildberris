@@ -24,9 +24,13 @@ public class AccountTokenService
         return account;
     }
 
-    public async Task<external_account> GetAccountAsync(ExternalAccountType platform, int? accountId = null, Guid? userId = null){
+    public async Task<external_account> GetAccountAsync(ExternalAccountType platform, int? accountId = null, Guid? userId = null, bool isSync = false){
         
         external_account? account = null;
+        if (isSync){
+            account = await _db.external_accounts
+                .FirstOrDefaultAsync(a => a.id == accountId && a.platform == platform.ToString());
+        }
         if (userId.HasValue && userId.Value != Guid.Empty ){
             account = await _db.external_accounts
                 .FirstOrDefaultAsync(a => a.user_id == userId && a.id == accountId && a.platform == platform.ToString());

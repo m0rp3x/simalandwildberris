@@ -9,7 +9,7 @@ namespace WBSL.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+
 public class WildberriesController : ControllerBase
 {
     private static DateTime _lastCategoriesSyncTime = DateTime.MinValue;
@@ -42,7 +42,8 @@ public class WildberriesController : ControllerBase
         vendorCodes.Add(long.Parse(vendorCode));
 
         var product = await _wildberriesService.GetProduct(vendorCode, wbAccountId);
-        var simalandProduct = await _simalandFetchService.FetchProductsWithMergedAttributesAsync(accountId, vendorCodes);
+        var simalandProduct =
+            await _simalandFetchService.FetchProductsWithMergedAttributesAsync(accountId, vendorCodes);
         return Ok(new WbItemApiResponse(){
             wbProduct = product,
             SimalandProducts = simalandProduct,
@@ -52,16 +53,27 @@ public class WildberriesController : ControllerBase
     [HttpPost("updateWbItem/{wbAccountId:int}")]
     public async Task<IActionResult> UpdateProduct([FromBody] List<WbProductCardDto> products, int wbAccountId){
         var result = await _wildberriesService.UpdateWbItemsAsync(products, wbAccountId);
-        
+
         return Ok(result);
     }
 
     [HttpPost("createWbItem/{wbAccountId:int}")]
     public async Task<IActionResult> CreateProduct([FromBody] List<WbProductCardDto> products, int wbAccountId){
         var result = await _wildberriesService.CreteWbItemsAsync(products, wbAccountId);
-        
+
         return Ok(result);
     }
+
+    [HttpGet("categories")]
+    public async Task<IActionResult> GetCategories([FromQuery] string? query, [FromQuery] int? baseSubjectId)
+    {
+        if (baseSubjectId == null)
+            return BadRequest("baseSubjectId обязателен");
+
+        var results = await _wildberriesService.SearchCategoriesAsync(query, baseSubjectId.Value);
+        return Ok(results);
+    }
+
     [HttpGet("sync/categories")]
     public async Task<IActionResult> SyncCategories(){
         lock (_categoriesLock){
@@ -69,7 +81,7 @@ public class WildberriesController : ControllerBase
             if (timeSinceLastSync < TimeSpan.FromMinutes(30)){
                 return StatusCode(429, "Синхронизация категорий возможна только раз в 30 минут.");
             }
-
+        
             _lastCategoriesSyncTime = DateTime.UtcNow;
         }
 

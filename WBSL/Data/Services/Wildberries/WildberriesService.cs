@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Shared;
 using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Data.Services.Wildberries.Models;
@@ -89,6 +90,29 @@ public class WildberriesService : WildberriesBaseService
         return MergeResults(allResults);
     }
 
+
+    public async Task<List<WbCategoryDto>> SearchCategoriesAsync(string? query, int baseSubjectId){
+        var baseCategory = await _db.wildberries_categories
+            .FirstOrDefaultAsync(c => c.id == baseSubjectId);
+
+        if (baseCategory == null)
+            return new List<WbCategoryDto>();
+
+        var parentId = baseCategory.parent_id;
+
+        // 2. Ищем все категории с тем же parent_id и по совпадению в названии
+        var relatedCategories = await _db.wildberries_categories
+            .Where(c => c.parent_id == parentId &&
+                        EF.Functions.ILike(c.name, $"%{query}%"))
+            .Select(c => new WbCategoryDto
+            {
+                Id = c.id,
+                Name = c.name
+            })
+            .ToListAsync();
+
+        return relatedCategories;
+    }
     public async Task<WbApiResult> UpdateWbItemsAsync(List<WbProductCardDto> itemsToUpdate, int accountId){
         var WbClient = await GetWbClientAsync(accountId);
         var response = await SendUpdateRequestAsync(itemsToUpdate, WbClient, accountId);

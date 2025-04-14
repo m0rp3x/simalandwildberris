@@ -1,4 +1,6 @@
 ﻿@page "/wb-product"
+@using System.ComponentModel.DataAnnotations
+@using System.Reflection
 @using System.Text.Json
 @using Shared
 @using Shared.Enums
@@ -10,7 +12,6 @@
 @inject ProductMappingService MappingService
 @inject IJSRuntime JS
 
-
 <MudPaper Class="pa-6 mx-auto mt-8" Style="" Elevation="4">
     <MudText Typo="Typo.h5" Class="mb-4">Поиск товара Wildberries</MudText>
 
@@ -19,12 +20,12 @@
 
     <MudSelect T="ExternalAccount" @bind-Value="SelectedWbAccount" Label="Выберите аккаунт WB" Variant="Variant.Outlined" FullWidth>
         @foreach (var account in _accounts.Where(x => x.Platform == ExternalAccountType.Wildberries.ToString())){
-        <MudSelectItem Value="@account">@account.Name</MudSelectItem>
+            <MudSelectItem Value="@account">@account.Name</MudSelectItem>
         }
     </MudSelect>
     <MudSelect T="ExternalAccount" @bind-Value="SelectedSimaAccount" Label="Выберите аккаунт SimaLand" Variant="Variant.Outlined" FullWidth>
         @foreach (var account in _accounts.Where(x => x.Platform == ExternalAccountType.SimaLand.ToString())){
-        <MudSelectItem Value="@account">@account.Name</MudSelectItem>
+            <MudSelectItem Value="@account">@account.Name</MudSelectItem>
         }
     </MudSelect>
     <MudButton OnClick="SearchProduct" Variant="Variant.Filled"
@@ -33,98 +34,99 @@
     </MudButton>
 
     @if (Product != null){
-    <MudPaper Class="mt-6 pa-4" Elevation="2">
-        <MudText Typo="Typo.h6">@Product.Title</MudText>
-        <MudText Typo="Typo.subtitle1" Color="Color.Secondary">@Product.Brand</MudText>
+        <MudPaper Class="mt-6 pa-4" Elevation="2">
+            <MudText Typo="Typo.h6">@Product.Title</MudText>
+            <MudText Typo="Typo.subtitle1" Color="Color.Secondary">@Product.Brand</MudText>
 
-        <MudGrid Class="mt-4">
-            <MudItem xs="12" sm="6">
-                <MudCarousel TData="object" Style="height: 200px; width: 100%;" AutoCycle="false">
-                    @foreach (var photo in Product.Photos){
-                    <MudCarouselItem>
-                        <div class="d-flex justify-center align-center" style="height: 100%;">
-                            <MudImage Src="@photo.Big" Style="max-height: 100%; max-width: 100%; object-fit: contain;"/>
-                        </div>
-                    </MudCarouselItem>
-                    }
-                </MudCarousel>
-            </MudItem>
-            <MudItem xs="12" sm="6" Class="pl-4">
-                <MudText Typo="Typo.body1">Артикул: @Product.VendorCode</MudText>
-                <MudText Typo="Typo.body1">Категория: @Product.SubjectName</MudText>
-
-                <MudList T="WbCharacteristicDto" Class="mt-2">
-                    @foreach (var charact in Product.Characteristics.Take(5)){
-                    <MudListItem>
-                        <MudText>@charact.Name: @GetCharacteristicValue(charact)</MudText>
-                    </MudListItem>
-                    }
-                </MudList>
-            </MudItem>
-        </MudGrid>
-    </MudPaper>
-
-    <MudPaper Class="mt-6 pa-4" Elevation="2">
-        <MudText Typo="Typo.h6" Class="mb-4">Сопоставление характеристик товара</MudText>
-
-        <MudTable Items="@mappings" Hover="true" Dense="true">
-            <HeaderContent>
-                <MudTh>Параметр</MudTh>
-                <MudTh>WB</MudTh>
-                <MudTh>Поля SimaLand</MudTh>
-                <MudTh>Значения</MudTh>
-                <MudTh>Обязательно</MudTh>
-                <MudTh>Ед.</MudTh>
-                <MudTh>Тип</MudTh>
-                <MudTh>Макс. знач.</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@context.PropertyName</MudTd>
-                <MudTd>@context.WbValue</MudTd>
-                <MudTd>
-                    @if (context.IsSelectable){
-                    @for (int i = 0; i < (context.SimaLandFieldNames ??= new()).Count; i++){
-                    <MudSelect T="string" Value="@context.SimaLandFieldNames[i]"
-                               ValueChanged="v => OnMultipleSimaLandValueChanged(v, context, i)" Dense="true" Class="mb-1">
-                        <MudSelectItem Value="@("__nothing__")">Не выбрано</MudSelectItem>
-                        @foreach (var opt in GetSimaLandOptions(context)){
-                        <MudSelectItem Value="@opt">@opt</MudSelectItem>
+            <MudGrid Class="mt-4">
+                <MudItem xs="12" sm="6">
+                    <MudCarousel TData="object" Style="height: 200px; width: 100%;" AutoCycle="false">
+                        @foreach (var photo in Product.Photos){
+                            <MudCarouselItem>
+                                <div class="d-flex justify-center align-center" style="height: 100%;">
+                                    <MudImage Src="@photo.Big" Style="max-height: 100%; max-width: 100%; object-fit: contain;"/>
+                                </div>
+                            </MudCarouselItem>
                         }
-                    </MudSelect>
-                    }
-                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => AddSimaLandField(context)">+</MudButton>
-                    }
-                    else{
-                    <MudText>@context.SimaLandFieldName</MudText>
-                    }
-                </MudTd>
-                <MudTd>
-                    @if ((context.SimaLandValues ??= new()).Any()){
-                    <MudList T="string">
-                        @foreach (var val in context.SimaLandValues){
-                        <MudListItem>@val</MudListItem>
+                    </MudCarousel>
+                </MudItem>
+                <MudItem xs="12" sm="6" Class="pl-4">
+                    <MudText Typo="Typo.body1">Артикул: @Product.VendorCode</MudText>
+                    <MudText Typo="Typo.body1">Категория: @Product.SubjectName</MudText>
+
+                    <MudList T="WbCharacteristicDto" Class="mt-2">
+                        @foreach (var charact in Product.Characteristics.Take(5)){
+                            <MudListItem>
+                                <MudText>@charact.Name: @GetCharacteristicValue(charact)</MudText>
+                            </MudListItem>
                         }
                     </MudList>
-                    }
-                </MudTd>
-                <MudTd>
-                    @if (context.IsRequired){
-                    <MudText Color="Color.Error">Обязательно</MudText>
-                    }
-                </MudTd>
-                <MudTd>@context.UnitName</MudTd>
-                <MudTd>@GetTypeString(context.CharcType)</MudTd>
-                <MudTd>@context.MaxCount</MudTd>
-            </RowTemplate>
-        </MudTable>
-    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
 
-    <MudButton OnClick="@BuildUpdatedWbProduct" Variant="Variant.Filled" Color="Color.Primary">
-        Сохранить
-    </MudButton>
-    <MudButton OnClick="@SaveMappingTemplate" Variant="Variant.Outlined" Color="Color.Secondary" Class="mt-4">
-        Сохранить шаблон маппинга
-    </MudButton>
+        <MudPaper Class="mt-6 pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">Сопоставление характеристик товара</MudText>
+
+            <MudTable Items="@mappings" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Параметр</MudTh>
+                    <MudTh>WB</MudTh>
+                    <MudTh>Поле SimaLand</MudTh>
+                    <MudTh>Значение SimaLand</MudTh>
+                    <MudTh>Обязательно</MudTh>
+                    <MudTh>Ед.</MudTh>
+                    <MudTh>Тип</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.PropertyName</MudTd>
+                    <MudTd>@context.WbValue</MudTd>
+                    <MudTd>
+                        @if (context.MappingType == MappingWbType.Category){
+                            <MudAutocomplete T="string"
+                                             Value="@context.SimaLandValue"
+                                             ValueChanged="v => context.SimaLandValue = v"
+                                             SearchFunc="@((q, t) => SearchSimaLandCategories(q, context.SubjectId, t))"
+                                             ToStringFunc="v => v"
+                                             Immediate="true"
+                                             MinCharacters="0"
+                                             Dense="true"
+                                             ResetValueOnEmptyText="false"
+                                             Clearable="true"
+                                             Label="Категория SimaLand"
+                                             Variant="Variant.Outlined"/>
+                        }
+                        else if (context.IsSelectable){
+                            <MudSelect T="string" Value="@context.SimaLandFieldName"
+                                       ValueChanged="@(v => OnSimaLandValueChanged(v, context))">
+                                <MudSelectItem Value="@("__nothing__")">Не выбрано</MudSelectItem>
+                                @foreach (var opt in GetSimaLandOptions(context)){
+                                    <MudSelectItem Value="@opt">@opt</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                        else{
+                            <MudText>@context.SimaLandFieldName</MudText>
+                        }
+                    </MudTd>
+                    <MudTd>@context.SimaLandValue</MudTd>
+                    <MudTd>
+                        @if (context.IsRequired){
+                            <MudText Color="Color.Error">Обязательно</MudText>
+                        }
+                    </MudTd>
+                    <MudTd>@context.UnitName</MudTd>
+                    <MudTd>@GetTypeString(context.CharcType)</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+
+        <MudButton OnClick="@BuildUpdatedWbProduct" Variant="Variant.Filled" Color="Color.Primary">
+            Загрузить
+        </MudButton>
+        <MudButton OnClick="@SaveMappingTemplate" Variant="Variant.Outlined" Color="Color.Secondary" Class="mt-4">
+            Сохранить шаблон маппинга
+        </MudButton>
     }
 </MudPaper>
 
@@ -159,12 +161,13 @@
     private List<PropertyMappingTemplate> savedTemplate;
     private bool IsLoading = true;
     private bool isSearchAvailable = false;
+    private Dictionary<string, string> _displayToPropertyMap;
 
 
     protected override async Task OnInitializedAsync(){
-        if (OperatingSystem.IsBrowser()) // ← вот эта штука 100% работает в .NET 8/9
-        {
+        if (OperatingSystem.IsBrowser()){
             await LoadAccounts();
+            BuildDisplayNameMap();
         }
     }
 
@@ -191,9 +194,10 @@
             }
 
             curResponse = response;
-            if(response.wbProduct is null){
+            if (response.wbProduct is null){
                 throw new Exception("Товар не найден на вб");
             }
+
             Product = response.wbProduct.Product;
             characteristicDto = response.wbProduct.AdditionalCharacteristics;
             savedTemplate = await LoadMappingTemplate();
@@ -208,10 +212,12 @@
 
                 foreach (var mapping in mappings.Where(m => m.IsSelectable)){
                     if (!string.IsNullOrEmpty(mapping.SimaLandFieldName)){
-                        var simaProp = sima.GetType().GetProperty(mapping.SimaLandFieldName);
-                        if (simaProp != null){
-                            var value = simaProp.GetValue(sima);
-                            mapping.SimaLandValue = value?.ToString() ?? "";
+                        if (_displayToPropertyMap.TryGetValue(mapping.SimaLandFieldName, out var realPropName)){
+                            var simaProp = sima.GetType().GetProperty(realPropName);
+                            if (simaProp != null){
+                                var value = simaProp.GetValue(sima);
+                                mapping.SimaLandValue = value?.ToString() ?? "";
+                            }
                         }
                     }
                 }
@@ -256,12 +262,15 @@
         if (sima == null) return;
 
         // Сначала пробуем стандартные поля
-        var prop = typeof(SimalandProductDto).GetProperty(value);
-        if (prop != null){
-            var val = prop.GetValue(sima);
-            context.SimaLandValue = val?.ToString() ?? "";
-            context.IsFromAttribute = false;
-            return;
+        if (_displayToPropertyMap.TryGetValue(value, out var realPropName)){
+            var prop = sima.GetType().GetProperty(realPropName);
+            if (prop != null){
+                var val = prop.GetValue(sima);
+                context.SimaLandValue = val?.ToString() ?? "";
+                context.IsFromAttribute = false;
+                StateHasChanged();
+                return;
+            }
         }
 
         // Иначе ищем по атрибутам
@@ -282,6 +291,9 @@
         updated.Characteristics ??= new List<WbCharacteristicDto>();
 
         foreach (var map in mappings){
+            if (map.MappingType == MappingWbType.Category)
+                continue;
+
             if (string.IsNullOrWhiteSpace(map.WbFieldName) || string.IsNullOrWhiteSpace(map.SimaLandValue))
                 continue;
 
@@ -314,14 +326,52 @@
             }
         }
 
+        var categoryMapping = mappings.FirstOrDefault(m => m.MappingType == MappingWbType.Category);
+
+        if (categoryMapping != null && !string.IsNullOrWhiteSpace(categoryMapping.SimaLandValue)){
+            var parts = categoryMapping.SimaLandValue.Split(':', 2);
+            if (parts.Length == 2 &&
+                int.TryParse(parts[0].Trim(), out var categoryId)){
+                updated.SubjectID = categoryId;
+                updated.SubjectName = parts[1].Trim();
+            }
+        }
+
         if (!ValidateMappings(mappings, out var validationErrors)){
             Snackbar.Add(string.Join("\n", validationErrors), Severity.Error);
             return;
         }
 
-        await UpdateItemsAsync(new List<WbProductCardDto>{ updated });
-        
+        await CreateItemsAsync(new List<WbProductCardDto>{ updated });
+
         await SearchProduct();
+    }
+
+    private async Task CreateItemsAsync(List<WbProductCardDto> products){
+        var response = await Client.PostAsJsonAsync($"api/Wildberries/createWbItem/{_selectedWbAccount.Id}", products);
+
+        var result = await response.Content.ReadFromJsonAsync<WbApiResult>();
+
+        if (result is null){
+            Snackbar.Add("Не удалось получить ответ от сервера", Severity.Error);
+            return;
+        }
+
+        if (result.Error){
+            // Можно показать errorText
+            Snackbar.Add(result.ErrorText ?? "Произошла ошибка", Severity.Error);
+
+            // Можно логировать или показать additionalErrors, если нужно
+            if (result.AdditionalErrors is JsonElement json && json.ValueKind == JsonValueKind.Object){
+                foreach (var prop in json.EnumerateObject()){
+                    Snackbar.Add($"{prop.Name}: {prop.Value}", Severity.Warning);
+                }
+            }
+
+            return;
+        }
+
+        Snackbar.Add("Товары успешно обновлены", Severity.Success);
     }
 
     private async Task UpdateItemsAsync(List<WbProductCardDto> products){
@@ -369,14 +419,14 @@
 
     public object FormatValueForWb(PropertyMapping mapping){
         if (string.IsNullOrWhiteSpace(mapping.SimaLandValue)) return "";
-        
+
         var normalizedValue = mapping.SimaLandFieldName == "Цвет"
             ? char.ToLower(mapping.SimaLandValue[0]) + mapping.SimaLandValue.Substring(1)
             : mapping.SimaLandValue;
-        
+
         return mapping.CharcType switch{
-            0 or 1 => new List<string> { normalizedValue.Trim() },
-            4 => new List<int> { int.Parse(normalizedValue.Trim()) },
+            0 or 1 => new List<string>{ normalizedValue.Trim() },
+            4 => new List<int>{ int.Parse(normalizedValue.Trim()) },
             _ => mapping.SimaLandValue
         };
     }
@@ -399,8 +449,37 @@
         var finalProp = target.GetType().GetProperty(parts.Last());
         if (finalProp == null || !finalProp.CanWrite) return;
 
-        object convertedValue = Convert.ChangeType(value, Nullable.GetUnderlyingType(finalProp.PropertyType) ?? finalProp.PropertyType);
-        finalProp.SetValue(target, convertedValue);
+        var targetType = Nullable.GetUnderlyingType(finalProp.PropertyType) ?? finalProp.PropertyType;
+
+        try{
+            object? convertedValue;
+            
+            if (targetType == typeof(int)){
+                if (double.TryParse(value.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var doubleVal)){
+                    convertedValue = (int)Math.Round(doubleVal); // или Math.Floor(doubleVal) если нужно вниз
+                }
+                else{
+                    convertedValue = Convert.ChangeType(value, targetType);
+                }
+            }
+            else{
+                convertedValue = Convert.ChangeType(value, targetType);
+            }
+
+            finalProp.SetValue(target, convertedValue);
+        }
+        catch (Exception ex){
+            Console.WriteLine($"Ошибка при конвертации значения '{value}' в {targetType.Name}: {ex.Message}");
+        }
+    }
+
+    private void BuildDisplayNameMap(){
+        _displayToPropertyMap = typeof(SimalandProductDto).GetProperties()
+            .Select(p => {
+                var display = p.GetCustomAttribute<DisplayAttribute>()?.Name;
+                return new{ Prop = p.Name, Display = display ?? p.Name };
+            })
+            .ToDictionary(x => x.Display, x => x.Prop);
     }
 
     private async Task SaveMappingTemplate(){
@@ -442,9 +521,10 @@
         var charcType = map.CharcType;
 
         var props = typeof(SimalandProductDto).GetProperties()
-            .Where(p => IsTypeCompatible(p.PropertyType, charcType))
-            .Select(p => p.Name);
-
+            .Where(p =>
+                IsTypeCompatible(p.PropertyType, charcType) &&
+                p.GetCustomAttribute<DisplayAttribute>() != null)
+            .Select(p => p.GetCustomAttribute<DisplayAttribute>()!.Name);
         var attrs = sima.Attributes?
             .Where(a => IsValueCompatible(a.value_text, charcType))
             .Select(a => a.attr_name) ?? Enumerable.Empty<string>();
@@ -471,45 +551,32 @@
             _ => true
         };
     }
-    private void AddSimaLandField(PropertyMapping context){
-        context.SimaLandFieldNames ??= new List<string>();
-        context.SimaLandFieldNames.Add("__nothing__");
-        context.SimaLandValues ??= new List<string>();
-        context.SimaLandValues.Add("");
-    }
 
-    private void OnMultipleSimaLandValueChanged(string value, PropertyMapping context, int index){
-        if (value == "__nothing__"){
-            context.SimaLandFieldNames[index] = "";
-            context.SimaLandValues[index] = "";
-            return;
-        }
-
-        var sima = curResponse?.SimalandProducts?.FirstOrDefault();
-        if (sima == null) return;
-
-        context.SimaLandFieldNames[index] = value;
-
-        var prop = typeof(SimalandProductDto).GetProperty(value);
-        if (prop != null){
-            var val = prop.GetValue(sima)?.ToString() ?? "";
-            context.SimaLandValues[index] = val;
-            return;
-        }
-
-        var attr = sima.Attributes?.FirstOrDefault(a => a.attr_name == value);
-        if (attr != null){
-            context.SimaLandValues[index] = attr.value_text;
-        }
-    }
-
-    private string GetTypeString(int? charcType)
-    {
-        return charcType switch
-        {
+    private string GetTypeString(int? charcType){
+        return charcType switch{
             0 or 1 => "Строка",
             4 => "Число",
             _ => "Не определено"
         };
     }
+
+    private async Task<IEnumerable<string>>? SearchSimaLandCategories(string? value, int? subjectId, CancellationToken token){
+        if (subjectId == null)
+            return Array.Empty<string>();
+
+        await Task.Delay(300, token);
+
+        try{
+            var result = await Client.GetFromJsonAsync<List<WbCategoryDto>>($"api/wildberries/categories?query={value}&baseSubjectId={subjectId}", token);
+            return result?.Select(c => $"{c.Id}: {c.Name}") ?? Enumerable.Empty<string>();
+        }
+        catch (OperationCanceledException){
+            return Array.Empty<string>();
+        }
+        catch (Exception ex){
+            Console.WriteLine($"Ошибка при загрузке категорий: {ex.Message}");
+            return Array.Empty<string>();
+        }
+    }
+
 }

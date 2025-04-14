@@ -1,4 +1,6 @@
-﻿namespace Shared;
+﻿using Shared.Enums;
+
+namespace Shared;
 
 public class PropertyMapping
 {
@@ -16,6 +18,8 @@ public class PropertyMapping
     public int? MaxCount { get; set; } // Макс. кол-во значений
     public int? CharcID { get; set; } // ID характеристики
     
+    public MappingWbType MappingType{ get; set; } = MappingWbType.Default; // "Default" | "Category"
+    public int? SubjectId { get; set; }
     // Динамические поля:
     public List<string> SimaLandFieldNames { get; set; } = new();
     public List<string> SimaLandValues { get; set; } = new();

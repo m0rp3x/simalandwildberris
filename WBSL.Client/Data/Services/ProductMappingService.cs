@@ -1,4 +1,5 @@
 ﻿using Shared;
+using Shared.Enums;
 
 namespace WBSL.Client.Data.Services;
 
@@ -82,7 +83,16 @@ public class ProductMappingService
                 IsSelectable = true
             }
         };
-
+        baseMappings.Add(new PropertyMapping
+        {
+            PropertyName = "Категория",
+            WbValue = $"{wbProduct.SubjectName} ({wbProduct.SubjectID})",
+            SimaLandFieldName = null,
+            SimaLandValue = null,
+            MappingType = MappingWbType.Category,
+            IsSelectable = false,
+            SubjectId = wbProduct.SubjectID
+        });
         return baseMappings;
     }
 

@@ -80,7 +80,7 @@ public class SimalandFetchService
     }
     private async Task<SimalandProductDto?> ProcessProductResponse(HttpClient client,
         string json, long sid){
-        var root = JsonSerializer.Deserialize<JsonElement>(json);
+        var root = JsonDocument.Parse(json).RootElement;
         var items = root.GetProperty("items");
         if (items.GetArrayLength() == 0) return null;
 
@@ -97,6 +97,39 @@ public class SimalandFetchService
         dto.balance = product.TryGetProperty("stocks", out var stocks) && stocks.GetArrayLength() > 0
             ? stocks[0].GetProperty("balance").GetInt32()
             : 0;
+        
+        dto.width = product.TryGetProperty("width", out var widthProp) && widthProp.TryGetDecimal(out var width)
+            ? Math.Round(width, 3)
+            : 0;
+
+        dto.height = product.TryGetProperty("height", out var heightProp) && heightProp.TryGetDecimal(out var height)
+            ? Math.Round(height, 3)
+            : 0;
+
+        dto.depth = product.TryGetProperty("depth", out var depthProp) && depthProp.TryGetDecimal(out var depth)
+            ? Math.Round(depth, 3)
+            : 0;
+
+        dto.weight = product.TryGetProperty("weight", out var weightProp) && weightProp.TryGetDecimal(out var weight)
+            ? Math.Round(weight / 1000m, 3)
+            : 0;
+
+        dto.box_width = product.TryGetProperty("box_width", out var boxWidthProp) && boxWidthProp.TryGetDecimal(out var boxWidth)
+            ? Math.Round(boxWidth, 3)
+            : 0;
+
+        dto.box_height = product.TryGetProperty("box_height", out var boxHeightProp) && boxHeightProp.TryGetDecimal(out var boxHeight)
+            ? Math.Round(boxHeight, 3)
+            : 0;
+
+        dto.box_depth = product.TryGetProperty("box_depth", out var boxDepthProp) && boxDepthProp.TryGetDecimal(out var boxDepth)
+            ? Math.Round(boxDepth, 3)
+            : 0;
+
+        dto.wholesale_price = product.TryGetProperty("wholesale_price", out var wsPriceProp) && wsPriceProp.TryGetDecimal(out var wsPrice)
+            ? Math.Round(wsPrice, 3)
+            : 0;
+        dto.vat = product.TryGetProperty("vat", out var vatProp) && vatProp.TryGetInt32(out var vat) ? vat : null;
 
         // Категория
         if (product.TryGetProperty("category_id", out var categoryId)){
