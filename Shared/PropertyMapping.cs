@@ -15,6 +15,10 @@ public class PropertyMapping
     public int? CharcType { get; set; } // Тип характеристики
     public int? MaxCount { get; set; } // Макс. кол-во значений
     public int? CharcID { get; set; } // ID характеристики
+    
+    // Динамические поля:
+    public List<string> SimaLandFieldNames { get; set; } = new();
+    public List<string> SimaLandValues { get; set; } = new();
 }
 
 public class PropertyMappingTemplate
