@@ -21,7 +21,19 @@ public class SimalandFetchService
         _config = config;
         _httpContextAccessor = httpContextAccessor;
     }
+    public async Task<List<SimalandProductDto>> FetchProductsWithMergedAttributesAsync(int accountId, List<long> articleSids)
+    {
+        var products = await FetchProductsAsync(accountId, articleSids);
 
+        foreach (var product in products)
+        {
+            product.Attributes = MergeDuplicateAttributes(product.Attributes, product.sid);
+        }
+
+        return products;
+    }
+    
+    
     public async Task<List<SimalandProductDto>>
         FetchProductsAsync(int accountId, List<long> articleSids){
         // Аутентификация и проверка аккаунта
@@ -50,7 +62,22 @@ public class SimalandFetchService
 
         return results;
     }
-
+    
+    private List<ProductAttribute> MergeDuplicateAttributes(List<ProductAttribute> attributes, long sid)
+    {
+        return attributes
+            .GroupBy(attr => attr.attr_name)
+            .Select(group => new ProductAttribute
+            {
+                product_sid = sid,
+                attr_name = group.Key,
+                value_text = string.Join("; ", group
+                    .Select(a => a.value_text)
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .Distinct())
+            })
+            .ToList();
+    }
     private async Task<SimalandProductDto?> ProcessProductResponse(HttpClient client,
         string json, long sid){
         var root = JsonSerializer.Deserialize<JsonElement>(json);
@@ -73,9 +100,11 @@ public class SimalandFetchService
 
         // Категория
         if (product.TryGetProperty("category_id", out var categoryId)){
-            dto.category_id = categoryId.ValueKind == JsonValueKind.Number 
-                ? categoryId.GetInt32() 
-                : int.TryParse(categoryId.GetString(), out var parsedId) ? parsedId : 0;
+            dto.category_id = categoryId.ValueKind == JsonValueKind.Number
+                ? categoryId.GetInt32()
+                : int.TryParse(categoryId.GetString(), out var parsedId)
+                    ? parsedId
+                    : 0;
             var categoryResponse = await client.GetAsync($"category/{dto.category_id}/?expand=sub_categories");
             if (categoryResponse.IsSuccessStatusCode){
                 var categoryJson = await categoryResponse.Content.ReadAsStringAsync();
@@ -117,75 +146,66 @@ public class SimalandFetchService
         return dto;
     }
 
-    private List<string> GetPhotoUrls(JsonElement product)
-{
-    var urls = new List<string>();
+    private List<string> GetPhotoUrls(JsonElement product){
+        var urls = new List<string>();
 
-    // Первый вариант фото (photoIndexes + photoVersions)
-    if (product.TryGetProperty("photoIndexes", out var indexes) && 
-        product.TryGetProperty("photoVersions", out var versions))
-    {
-        try
-        {
-            var itemId = product.GetProperty("id").GetInt32();
-            var versionDict = new Dictionary<string, int>();
+        // Первый вариант фото (photoIndexes + photoVersions)
+        if (product.TryGetProperty("photoIndexes", out var indexes) &&
+            product.TryGetProperty("photoVersions", out var versions)){
+            try{
+                var itemId = product.GetProperty("id").GetInt32();
+                var versionDict = new Dictionary<string, int>();
 
-            foreach (var versionElem in versions.EnumerateArray())
-            {
-                var number = versionElem.TryGetProperty("number", out var numProp) 
-                    ? numProp.GetString() ?? "0" 
-                    : "0";
-                
-                if (versionElem.TryGetProperty("version", out var verProp))
-                {
-                    var version = verProp.ValueKind == JsonValueKind.Number 
-                        ? verProp.GetInt32() 
-                        : int.TryParse(verProp.GetString(), out var parsed) ? parsed : 0;
-                    versionDict[number] = version;
+                foreach (var versionElem in versions.EnumerateArray()){
+                    var number = versionElem.TryGetProperty("number", out var numProp)
+                        ? numProp.GetString() ?? "0"
+                        : "0";
+
+                    if (versionElem.TryGetProperty("version", out var verProp)){
+                        var version = verProp.ValueKind == JsonValueKind.Number
+                            ? verProp.GetInt32()
+                            : int.TryParse(verProp.GetString(), out var parsed)
+                                ? parsed
+                                : 0;
+                        versionDict[number] = version;
+                    }
+                }
+
+                foreach (var indexElem in indexes.EnumerateArray()){
+                    var index = indexElem.ValueKind == JsonValueKind.Number
+                        ? indexElem.GetInt32().ToString()
+                        : indexElem.GetString() ?? "0";
+
+                    var version = versionDict.TryGetValue(index, out var ver) ? ver : 0;
+                    urls.Add($"https://goods-photos.static1-sima-land.com/items/{itemId}/{index}/700.jpg?v={version}");
                 }
             }
-
-            foreach (var indexElem in indexes.EnumerateArray())
-            {
-                var index = indexElem.ValueKind == JsonValueKind.Number 
-                    ? indexElem.GetInt32().ToString() 
-                    : indexElem.GetString() ?? "0";
-                
-                var version = versionDict.TryGetValue(index, out var ver) ? ver : 0;
-                urls.Add($"https://goods-photos.static1-sima-land.com/items/{itemId}/{index}/700.jpg?v={version}");
+            catch (Exception ex){
+                Console.WriteLine("Error processing photoIndexes/photoVersions");
             }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Error processing photoIndexes/photoVersions");
-        }
-    }
-    // Второй вариант фото (base_photo_url + agg_photos)
-    else if (product.TryGetProperty("base_photo_url", out var baseUrl) && 
-             product.TryGetProperty("agg_photos", out var aggPhotos))
-    {
-        try
-        {
-            var baseUrlStr = baseUrl.GetString() ?? "";
-            if (!baseUrlStr.EndsWith("/")) baseUrlStr += "/";
+        // Второй вариант фото (base_photo_url + agg_photos)
+        else if (product.TryGetProperty("base_photo_url", out var baseUrl) &&
+                 product.TryGetProperty("agg_photos", out var aggPhotos)){
+            try{
+                var baseUrlStr = baseUrl.GetString() ?? "";
+                if (!baseUrlStr.EndsWith("/")) baseUrlStr += "/";
 
-            foreach (var photoElem in aggPhotos.EnumerateArray())
-            {
-                var photoId = photoElem.ValueKind == JsonValueKind.Number 
-                    ? photoElem.GetInt32().ToString() 
-                    : photoElem.GetString() ?? "0";
-                
-                urls.Add($"{baseUrlStr}{photoId}/700.jpg");
+                foreach (var photoElem in aggPhotos.EnumerateArray()){
+                    var photoId = photoElem.ValueKind == JsonValueKind.Number
+                        ? photoElem.GetInt32().ToString()
+                        : photoElem.GetString() ?? "0";
+
+                    urls.Add($"{baseUrlStr}{photoId}/700.jpg");
+                }
+            }
+            catch (Exception ex){
+                Console.WriteLine("Error processing base_photo_url/agg_photos");
             }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Error processing base_photo_url/agg_photos");
-        }
-    }
 
-    return urls;
-}
+        return urls;
+    }
 
     private string GetNestedProperty(JsonElement element, string objectName, string propertyName){
         if (element.TryGetProperty(objectName, out var obj) &&

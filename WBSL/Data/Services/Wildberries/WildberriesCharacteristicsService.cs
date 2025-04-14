@@ -12,8 +12,8 @@ public class WildberriesCharacteristicsService : WildberriesBaseService
         _db = db;
     }
     
-    private async Task<List<WbColor>> GetWbColorsApiAsync(){
-        var WbClient = await GetWbClientAsync();
+    private async Task<List<WbColor>> GetWbColorsApiAsync(int accountId){
+        var WbClient = await GetWbClientAsync(accountId);
         var response = await WbClient.GetAsync("/content/v2/directory/colors");
 
         response.EnsureSuccessStatusCode();
@@ -33,8 +33,8 @@ public class WildberriesCharacteristicsService : WildberriesBaseService
         return colors;
     }
 
-    private async Task<List<string>> GetWbSexesApiAsync(){
-        var WbClient = await GetWbClientAsync();
+    private async Task<List<string>> GetWbSexesApiAsync(int accountId){
+        var WbClient = await GetWbClientAsync(accountId);
         var response = await WbClient.GetAsync("/content/v2/directory/kinds");
 
         response.EnsureSuccessStatusCode();
@@ -50,8 +50,8 @@ public class WildberriesCharacteristicsService : WildberriesBaseService
         return kinds;
     }
 
-    private async Task<List<WbCountry>> GetWbCountriesApiAsync(){
-        var WbClient = await GetWbClientAsync();
+    private async Task<List<WbCountry>> GetWbCountriesApiAsync(int accountId){
+        var WbClient = await GetWbClientAsync(accountId);
         var response = await WbClient.GetAsync("/content/v2/directory/countries");
         
         response.EnsureSuccessStatusCode();

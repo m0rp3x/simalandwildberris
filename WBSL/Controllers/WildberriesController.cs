@@ -42,7 +42,7 @@ public class WildberriesController : ControllerBase
         vendorCodes.Add(long.Parse(vendorCode));
 
         var product = await _wildberriesService.GetProduct(vendorCode, wbAccountId);
-        var simalandProduct = await _simalandFetchService.FetchProductsAsync(accountId, vendorCodes);
+        var simalandProduct = await _simalandFetchService.FetchProductsWithMergedAttributesAsync(accountId, vendorCodes);
         return Ok(new WbItemApiResponse(){
             wbProduct = product,
             SimalandProducts = simalandProduct,
@@ -50,12 +50,18 @@ public class WildberriesController : ControllerBase
     }
 
     [HttpPost("updateWbItem/{wbAccountId:int}")]
-    public async Task<IActionResult> GetProduct([FromBody] List<WbProductCardDto> products, int wbAccountId){
+    public async Task<IActionResult> UpdateProduct([FromBody] List<WbProductCardDto> products, int wbAccountId){
         var result = await _wildberriesService.UpdateWbItemsAsync(products, wbAccountId);
         
         return Ok(result);
     }
 
+    [HttpPost("createWbItem/{wbAccountId:int}")]
+    public async Task<IActionResult> CreateProduct([FromBody] List<WbProductCardDto> products, int wbAccountId){
+        var result = await _wildberriesService.CreteWbItemsAsync(products, wbAccountId);
+        
+        return Ok(result);
+    }
     [HttpGet("sync/categories")]
     public async Task<IActionResult> SyncCategories(){
         lock (_categoriesLock){

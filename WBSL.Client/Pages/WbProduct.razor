@@ -177,6 +177,9 @@
             }
 
             curResponse = response;
+            if(response.wbProduct is null){
+                throw new Exception("Товар не найден на вб");
+            }
             Product = response.wbProduct.Product;
             characteristicDto = response.wbProduct.AdditionalCharacteristics;
             savedTemplate = await LoadMappingTemplate();

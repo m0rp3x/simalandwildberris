@@ -11,6 +11,6 @@ public abstract class SimalandBaseService
     {
         _clientFactory = factory;
     }
-    protected Task<HttpClient> GetClientAsync(int? accountId = null) 
+    protected Task<HttpClient> GetClientAsync(int accountId) 
         => _clientFactory.CreateClientAsync(ExternalAccountType.SimaLand, accountId);
 }

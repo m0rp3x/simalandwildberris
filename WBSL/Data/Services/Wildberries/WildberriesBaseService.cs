@@ -12,6 +12,6 @@ public abstract class WildberriesBaseService
         _clientFactory = factory;
     }
     
-    protected Task<HttpClient> GetWbClientAsync(int? accountId = null) 
+    protected Task<HttpClient> GetWbClientAsync(int accountId) 
         => _clientFactory.CreateClientAsync(ExternalAccountType.Wildberries, accountId);
 }

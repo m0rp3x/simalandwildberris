@@ -51,7 +51,29 @@ public class WbProductCardDto
      public DateTime CreatedAt{ get; set; }
      public DateTime UpdatedAt{ get; set; }
  }
+public class WbCreateVariantDto
+{
+    public string VendorCode { get; set; }
+    public string Title { get; set; }
+    public string Description { get; set; }
+    public string Brand { get; set; }
+    public WbDimensionsDto Dimensions { get; set; }
+    public List<WbCharacteristicDto> Characteristics { get; set; } = new();
+    public List<WbsizeDto> Sizes { get; set; } = new();
+    
+    public WbCreateVariantDto() {}
 
+    public WbCreateVariantDto(WbProductCardDto dto){
+        VendorCode = dto.VendorCode;
+        Title = dto.Title;
+        Description = dto.Description;
+        Brand = dto.Brand;
+        Dimensions = dto.Dimensions ?? new WbDimensionsDto();
+        Characteristics = dto.Characteristics ?? new List<WbCharacteristicDto>();
+        Sizes = dto.Sizes ?? new List<WbsizeDto>();
+        
+    }
+}
 public class WbPhotoDto
 {
     public string Big{ get; set; }

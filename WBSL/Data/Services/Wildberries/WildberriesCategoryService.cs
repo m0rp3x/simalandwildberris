@@ -25,7 +25,8 @@ public class WildberriesCategoryService : WildberriesBaseService
 
     public async Task<CategorySyncResult> SyncCategoriesAsync(){
         var errorsCount = 0;
-        var parentCategories = await FetchParentCategoriesAsync();
+        var accountId = 2;
+        var parentCategories = await FetchParentCategoriesAsync(accountId);
         var allCategories = new ConcurrentBag<wildberries_category>();
 
         var options = new ParallelOptions{ MaxDegreeOfParallelism = 2 };
@@ -33,7 +34,7 @@ public class WildberriesCategoryService : WildberriesBaseService
 
         await Parallel.ForEachAsync(parentCategories, options, async (parent, ct) => {
             try{
-                var subCategories = await FetchSubCategoriesAsync(parent.id, ct);
+                var subCategories = await FetchSubCategoriesAsync(parent.id, accountId,ct);
                 foreach (var category in subCategories)
                     allCategories.Add(category);
 
@@ -60,8 +61,8 @@ public class WildberriesCategoryService : WildberriesBaseService
         public List<wildberries_parrent_category> Data{ get; set; }
     }
 
-    private async Task<List<wildberries_parrent_category>> FetchParentCategoriesAsync(){
-        var WbClient = await GetWbClientAsync();
+    private async Task<List<wildberries_parrent_category>> FetchParentCategoriesAsync(int accountId){
+        var WbClient = await GetWbClientAsync(accountId);
         var response = await WbClient.GetAsync("content/v2/object/parent/all");
         response.EnsureSuccessStatusCode();
 
@@ -71,8 +72,9 @@ public class WildberriesCategoryService : WildberriesBaseService
 
     private async Task<List<wildberries_category>> FetchSubCategoriesAsync(
         int parentId,
+        int accountId,
         CancellationToken ct){
-        var WbClient = await GetWbClientAsync();
+        var WbClient = await GetWbClientAsync(accountId);
         var response = await WbClient.GetAsync(
             $"content/v2/object/all?parentID={parentId}",
             ct

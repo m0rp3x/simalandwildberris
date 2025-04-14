@@ -26,21 +26,11 @@ public class AccountTokenService
 
     public async Task<external_account> GetAccountAsync(ExternalAccountType platform, int? accountId = null, Guid? userId = null){
         
-        external_account? account;
+        external_account? account = null;
         if (userId.HasValue && userId.Value != Guid.Empty ){
             account = await _db.external_accounts
                 .FirstOrDefaultAsync(a => a.user_id == userId && a.id == accountId && a.platform == platform.ToString());
         }
-        else{
-            account = await _db.external_accounts
-                .FirstOrDefaultAsync(a => a.id == accountId && a.platform == platform.ToString());
-        }
-
-        if (account == null && userId.HasValue && userId.Value != Guid.Empty){
-            account = await _db.external_accounts
-                .FirstOrDefaultAsync(a => a.user_id == userId && a.platform == platform.ToString());
-        }
-        
 
         if (account == null)
             throw new AccountNotFoundError("Аккаунт не найден или не принадлежит вам.");

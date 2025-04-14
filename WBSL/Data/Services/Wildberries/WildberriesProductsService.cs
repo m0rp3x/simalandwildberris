@@ -27,13 +27,14 @@ public class WildberriesProductsService : WildberriesBaseService
     public async Task<ProductsSyncResult> SyncProductsAsync(){
         int totalRequests = 0;
         int totalCards = 0;
+        int accountId = 1;
         string updatedAt = string.Empty;
         long? nmID = null;
         var exceptions = new List<Exception>();
 
         do{
             try{
-                var (response, cardsCount) = await FetchProductsBatchAsync(updatedAt, nmID);
+                var (response, cardsCount) = await FetchProductsBatchAsync(updatedAt, nmID, accountId);
                 totalRequests++;
                 totalCards += cardsCount;
 
@@ -225,7 +226,7 @@ public class WildberriesProductsService : WildberriesBaseService
         return Math.Abs(totalCardsFetched) % 100 == 0;
     }
 
-    private async Task<(WbApiResponse Response, int CardsCount)> FetchProductsBatchAsync(string updatedAt, long? nmID){
+    private async Task<(WbApiResponse Response, int CardsCount)> FetchProductsBatchAsync(string updatedAt, long? nmID, int accountId){
         int attempt = 0;
         Exception lastException = null;
 
@@ -233,7 +234,7 @@ public class WildberriesProductsService : WildberriesBaseService
             attempt++;
             try{
                 var content = await CreateRequestContent(updatedAt, nmID);
-                var WbClient = await GetWbClientAsync();
+                var WbClient = await GetWbClientAsync(accountId);
                 var response = await WbClient.PostAsync("/content/v2/get/cards/list", content);
                 response.EnsureSuccessStatusCode();
 

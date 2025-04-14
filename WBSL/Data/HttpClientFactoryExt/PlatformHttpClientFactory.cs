@@ -22,7 +22,7 @@ public class PlatformHttpClientFactory
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task<HttpClient> CreateClientAsync(ExternalAccountType platform, int? accountId = null)
+    public async Task<HttpClient> CreateClientAsync(ExternalAccountType platform, int accountId)
     {
         Guid userId = Guid.Empty;
         var user = _httpContextAccessor.HttpContext?.User;
