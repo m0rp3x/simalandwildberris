@@ -10,6 +10,7 @@
 @inject ProductMappingService MappingService
 @inject IJSRuntime JS
 
+
 <MudPaper Class="pa-6 mx-auto mt-8" Style="" Elevation="4">
     <MudText Typo="Typo.h5" Class="mb-4">Поиск товара Wildberries</MudText>
 
@@ -18,12 +19,12 @@
 
     <MudSelect T="ExternalAccount" @bind-Value="SelectedWbAccount" Label="Выберите аккаунт WB" Variant="Variant.Outlined" FullWidth>
         @foreach (var account in _accounts.Where(x => x.Platform == ExternalAccountType.Wildberries.ToString())){
-            <MudSelectItem Value="@account">@account.Name</MudSelectItem>
+        <MudSelectItem Value="@account">@account.Name</MudSelectItem>
         }
     </MudSelect>
     <MudSelect T="ExternalAccount" @bind-Value="SelectedSimaAccount" Label="Выберите аккаунт SimaLand" Variant="Variant.Outlined" FullWidth>
         @foreach (var account in _accounts.Where(x => x.Platform == ExternalAccountType.SimaLand.ToString())){
-            <MudSelectItem Value="@account">@account.Name</MudSelectItem>
+        <MudSelectItem Value="@account">@account.Name</MudSelectItem>
         }
     </MudSelect>
     <MudButton OnClick="SearchProduct" Variant="Variant.Filled"
@@ -32,85 +33,98 @@
     </MudButton>
 
     @if (Product != null){
-        <MudPaper Class="mt-6 pa-4" Elevation="2">
-            <MudText Typo="Typo.h6">@Product.Title</MudText>
-            <MudText Typo="Typo.subtitle1" Color="Color.Secondary">@Product.Brand</MudText>
+    <MudPaper Class="mt-6 pa-4" Elevation="2">
+        <MudText Typo="Typo.h6">@Product.Title</MudText>
+        <MudText Typo="Typo.subtitle1" Color="Color.Secondary">@Product.Brand</MudText>
 
-            <MudGrid Class="mt-4">
-                <MudItem xs="12" sm="6">
-                    <MudCarousel TData="object" Style="height: 200px; width: 100%;" AutoCycle="false">
-                        @foreach (var photo in Product.Photos){
-                            <MudCarouselItem>
-                                <div class="d-flex justify-center align-center" style="height: 100%;">
-                                    <MudImage Src="@photo.Big" Style="max-height: 100%; max-width: 100%; object-fit: contain;"/>
-                                </div>
-                            </MudCarouselItem>
+        <MudGrid Class="mt-4">
+            <MudItem xs="12" sm="6">
+                <MudCarousel TData="object" Style="height: 200px; width: 100%;" AutoCycle="false">
+                    @foreach (var photo in Product.Photos){
+                    <MudCarouselItem>
+                        <div class="d-flex justify-center align-center" style="height: 100%;">
+                            <MudImage Src="@photo.Big" Style="max-height: 100%; max-width: 100%; object-fit: contain;"/>
+                        </div>
+                    </MudCarouselItem>
+                    }
+                </MudCarousel>
+            </MudItem>
+            <MudItem xs="12" sm="6" Class="pl-4">
+                <MudText Typo="Typo.body1">Артикул: @Product.VendorCode</MudText>
+                <MudText Typo="Typo.body1">Категория: @Product.SubjectName</MudText>
+
+                <MudList T="WbCharacteristicDto" Class="mt-2">
+                    @foreach (var charact in Product.Characteristics.Take(5)){
+                    <MudListItem>
+                        <MudText>@charact.Name: @GetCharacteristicValue(charact)</MudText>
+                    </MudListItem>
+                    }
+                </MudList>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Class="mt-6 pa-4" Elevation="2">
+        <MudText Typo="Typo.h6" Class="mb-4">Сопоставление характеристик товара</MudText>
+
+        <MudTable Items="@mappings" Hover="true" Dense="true">
+            <HeaderContent>
+                <MudTh>Параметр</MudTh>
+                <MudTh>WB</MudTh>
+                <MudTh>Поля SimaLand</MudTh>
+                <MudTh>Значения</MudTh>
+                <MudTh>Обязательно</MudTh>
+                <MudTh>Ед.</MudTh>
+                <MudTh>Тип</MudTh>
+                <MudTh>Макс. знач.</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.PropertyName</MudTd>
+                <MudTd>@context.WbValue</MudTd>
+                <MudTd>
+                    @if (context.IsSelectable){
+                    @for (int i = 0; i < (context.SimaLandFieldNames ??= new()).Count; i++){
+                    <MudSelect T="string" Value="@context.SimaLandFieldNames[i]"
+                               ValueChanged="v => OnMultipleSimaLandValueChanged(v, context, i)" Dense="true" Class="mb-1">
+                        <MudSelectItem Value="@("__nothing__")">Не выбрано</MudSelectItem>
+                        @foreach (var opt in GetSimaLandOptions(context)){
+                        <MudSelectItem Value="@opt">@opt</MudSelectItem>
                         }
-                    </MudCarousel>
-                </MudItem>
-                <MudItem xs="12" sm="6" Class="pl-4">
-                    <MudText Typo="Typo.body1">Артикул: @Product.VendorCode</MudText>
-                    <MudText Typo="Typo.body1">Категория: @Product.SubjectName</MudText>
-
-                    <MudList T="WbCharacteristicDto" Class="mt-2">
-                        @foreach (var charact in Product.Characteristics.Take(5)){
-                            <MudListItem>
-                                <MudText>@charact.Name: @GetCharacteristicValue(charact)</MudText>
-                            </MudListItem>
+                    </MudSelect>
+                    }
+                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => AddSimaLandField(context)">+</MudButton>
+                    }
+                    else{
+                    <MudText>@context.SimaLandFieldName</MudText>
+                    }
+                </MudTd>
+                <MudTd>
+                    @if ((context.SimaLandValues ??= new()).Any()){
+                    <MudList T="string">
+                        @foreach (var val in context.SimaLandValues){
+                        <MudListItem>@val</MudListItem>
                         }
                     </MudList>
-                </MudItem>
-            </MudGrid>
-        </MudPaper>
+                    }
+                </MudTd>
+                <MudTd>
+                    @if (context.IsRequired){
+                    <MudText Color="Color.Error">Обязательно</MudText>
+                    }
+                </MudTd>
+                <MudTd>@context.UnitName</MudTd>
+                <MudTd>@GetTypeString(context.CharcType)</MudTd>
+                <MudTd>@context.MaxCount</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
 
-        <MudPaper Class="mt-6 pa-4" Elevation="2">
-            <MudText Typo="Typo.h6" Class="mb-4">Сопоставление характеристик товара</MudText>
-
-            <MudTable Items="@mappings" Hover="true" Dense="true">
-                <HeaderContent>
-                    <MudTh>Параметр</MudTh>
-                    <MudTh>WB</MudTh>
-                    <MudTh>Поле SimaLand</MudTh>
-                    <MudTh>Значение SimaLand</MudTh>
-                    <MudTh>Обязательно</MudTh>
-                    <MudTh>Ед.</MudTh>
-                    <MudTh>Тип</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>@context.PropertyName</MudTd>
-                    <MudTd>@context.WbValue</MudTd>
-                    <MudTd>
-                        @if (context.IsSelectable){
-                            <MudSelect T="string" Value="@context.SimaLandFieldName"
-                                       ValueChanged="@(v => OnSimaLandValueChanged(v, context))">
-                                <MudSelectItem Value="@("__nothing__")">Не выбрано</MudSelectItem>
-                                @foreach (var opt in GetSimaLandOptions(context)){
-                                    <MudSelectItem Value="@opt">@opt</MudSelectItem>
-                                }
-                            </MudSelect>
-                        }
-                        else{
-                            <MudText>@context.SimaLandFieldName</MudText>
-                        }
-                    </MudTd>
-                    <MudTd>@context.SimaLandValue</MudTd>
-                    <MudTd>
-                        @if (context.IsRequired){
-                            <MudText Color="Color.Error">Обязательно</MudText>
-                        }
-                    </MudTd>
-                    <MudTd>@context.UnitName</MudTd>
-                    <MudTd>@GetTypeString(context.CharcType)</MudTd>
-                </RowTemplate>
-            </MudTable>
-        </MudPaper>
-
-        <MudButton OnClick="@BuildUpdatedWbProduct" Variant="Variant.Filled" Color="Color.Primary">
-            Сохранить
-        </MudButton>
-        <MudButton OnClick="@SaveMappingTemplate" Variant="Variant.Outlined" Color="Color.Secondary" Class="mt-4">
-            Сохранить шаблон маппинга
-        </MudButton>
+    <MudButton OnClick="@BuildUpdatedWbProduct" Variant="Variant.Filled" Color="Color.Primary">
+        Сохранить
+    </MudButton>
+    <MudButton OnClick="@SaveMappingTemplate" Variant="Variant.Outlined" Color="Color.Secondary" Class="mt-4">
+        Сохранить шаблон маппинга
+    </MudButton>
     }
 </MudPaper>
 
@@ -454,6 +468,38 @@
             _ => true
         };
     }
+    private void AddSimaLandField(PropertyMapping context){
+        context.SimaLandFieldNames ??= new List<string>();
+        context.SimaLandFieldNames.Add("__nothing__");
+        context.SimaLandValues ??= new List<string>();
+        context.SimaLandValues.Add("");
+    }
+
+    private void OnMultipleSimaLandValueChanged(string value, PropertyMapping context, int index){
+        if (value == "__nothing__"){
+            context.SimaLandFieldNames[index] = "";
+            context.SimaLandValues[index] = "";
+            return;
+        }
+
+        var sima = curResponse?.SimalandProducts?.FirstOrDefault();
+        if (sima == null) return;
+
+        context.SimaLandFieldNames[index] = value;
+
+        var prop = typeof(SimalandProductDto).GetProperty(value);
+        if (prop != null){
+            var val = prop.GetValue(sima)?.ToString() ?? "";
+            context.SimaLandValues[index] = val;
+            return;
+        }
+
+        var attr = sima.Attributes?.FirstOrDefault(a => a.attr_name == value);
+        if (attr != null){
+            context.SimaLandValues[index] = attr.value_text;
+        }
+    }
+
     private string GetTypeString(int? charcType)
     {
         return charcType switch
