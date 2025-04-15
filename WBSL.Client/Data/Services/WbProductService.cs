@@ -49,6 +49,37 @@ public class WbProductService
             return null;
         }
     }
+    
+    
+    public async Task<ProductCheckResponse?> CheckSimalandAndWbProductAsync(string vendorCode, ExternalAccount wbAccount,
+        ExternalAccount simaAccount){
+        if (string.IsNullOrWhiteSpace(vendorCode)){
+            _snackbar.Add("Введите артикул товара", Severity.Warning);
+            return null;
+        }
+
+        try{
+            _snackbar.Add("Ищем товар...", Severity.Info);
+            var response =
+                await _client.GetFromJsonAsync<ProductCheckResponse>(
+                    $"api/Wildberries/checkWbAndSimaland/{vendorCode}/{simaAccount.Id}/{wbAccount.Id}");
+
+            if (response is null){
+                throw new Exception("Товар не найден");
+            }
+
+            if (!response.IsNullFromWb){
+                _snackbar.Add("Товар найден в Wildberries", Severity.Warning);
+            }
+
+            _snackbar.Add("Товар найден!", Severity.Success);
+            return response;
+        }
+        catch (Exception ex){
+            _snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
+            return null;
+        }
+    }
 
     public async Task<bool> CreateItemsAsync(List<WbProductCardDto> products, int wbAccountId){
         var response = await _client.PostAsJsonAsync($"api/Wildberries/createWbItem/{wbAccountId}", products);

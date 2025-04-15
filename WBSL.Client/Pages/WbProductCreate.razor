@@ -1,0 +1,319 @@
+﻿@page "/wb-product"
+@using Shared
+@using Shared.Enums
+@using WBSL.Client.Data.Services
+@inject ISnackbar Snackbar
+@inject WbProductService ProductService
+@inject HttpClient Client
+
+<MudPaper Class="pa-6 mx-auto mt-8" Elevation="4">
+
+    <MudText Typo="Typo.h5" Class="mb-4">Создание товара Wildberries</MudText>
+
+    <MudTextField Label="Артикул" @bind-Value="VendorCode" FullWidth/>
+
+    <MudSelect T="ExternalAccount" Label="Аккаунт Wildberries" @bind-Value="SelectedWbAccount" FullWidth>
+        @foreach (var acc in _accounts.Where(x => x.Platform == ExternalAccountType.Wildberries.ToString())){
+            <MudSelectItem Value="@acc">@acc.Name</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudSelect T="ExternalAccount" Label="Аккаунт SimaLand" @bind-Value="SelectedSimaAccount" FullWidth>
+        @foreach (var acc in _accounts.Where(x => x.Platform == ExternalAccountType.SimaLand.ToString())){
+            <MudSelectItem Value="@acc">@acc.Name</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudButton OnClick="CheckProduct" Disabled="@(!CanSearch)" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
+        Проверить товар
+    </MudButton>
+
+    @if (_checkPerformed){
+        @if (!_isNullFromWb){
+            <MudAlert Severity="Severity.Warning" Elevation="2" Class="mt-4">
+                Товар с таким артикулом уже существует на Wildberries
+            </MudAlert>
+        }
+        else{
+            <MudDivider Class="my-6"/>
+            <MudText Typo="Typo.h6">Выбор категории</MudText>
+
+            <MudAutocomplete T="WbCategoryDto"
+                             Label="Родительская категория"
+                             SearchFunc="(q, t) => SearchBaseCategories(q, t)"
+                             ToStringFunc="x => x.Name"
+                             MinCharacters="0"
+                             MaxItems="100"
+                             Immediate="true"
+                             @bind-Value="SelectedBaseCategory"
+                             Dense="true"
+                             Class="mt-2"/>
+
+            <MudAutocomplete T="WbCategoryDto"
+                             Label="Дочерняя категория"
+                             SearchFunc="(q, t) => SearchChildCategories(q, t)"
+                             ToStringFunc="x => x.Name"
+                             MaxItems="50"
+                             MinCharacters="0"
+                             Immediate="true"
+                             @Value="SelectedChildCategory"
+                             Dense="true"
+                             Disabled="@(SelectedBaseCategory is null)"
+                             Class="mt-2"
+                             ValueChanged="@OnCategorySelected"/>
+
+            <MudDivider Class="my-6"/>
+            <MudText Typo="Typo.h6">Информация о товаре</MudText>
+
+            <MudTextField Label="Наименование товара" @bind-Value="Title" FullWidth/>
+            <MudTextField Label="Описание" @bind-Value="Description" FullWidth/>
+            <MudTextField Label="Бренд" @bind-Value="Brand" FullWidth/>
+
+            <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Габариты (в см / кг)</MudText>
+            <MudNumericField T="int" Label="Длина" @bind-Value="Dimensions.Length"/>
+            <MudNumericField T="int" Label="Ширина" @bind-Value="Dimensions.Width"/>
+            <MudNumericField T="int" Label="Высота" @bind-Value="Dimensions.Height"/>
+            <MudNumericField T="decimal" Label="Вес брутто (кг)" @bind-Value="Dimensions.WeightBrutto"/>
+
+            <MudDivider Class="my-6"/>
+            @if (Characteristics?.Any() == true){
+                <MudText Typo="Typo.h6" Class="mt-4">Характеристики</MudText>
+                <MudTable Items="Characteristics" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Название</MudTh>
+                        <MudTh>Значение</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>
+                            <MudText>
+                                @context.Name
+                                @if (IsRequired(context.Id)){
+                                    <span class="text-error ml-1">*</span>
+                                }
+                            </MudText>
+                        </MudTd>
+
+                        <MudTd>
+                            @if (context.Value is List<string>){
+                                <MudTextField T="string"
+                                              Label="Список строк"
+                                              Value="@BindListAsString(context)"
+                                              ValueChanged="val => UpdateStringList(context, val)"
+                                              Immediate="true"/>
+                            }
+                            else if (context.Value is List<int>){
+                                <MudTextField T="string"
+                                              Label="Список чисел"
+                                              Value="@BindListAsString(context)"
+                                              ValueChanged="val => UpdateIntList(context, val)"
+                                              Immediate="true"/>
+                            }
+                            else if (context.Value is string strVal){
+                                <MudTextField T="string"
+                                              Value="@strVal"
+                                              ValueChanged="val => context.Value = val"
+                                              Immediate="true"/>
+                            }
+                            else if (context.Value is int intVal){
+                                <MudNumericField T="decimal"
+                                                 Value="@Convert.ToDecimal(intVal)"
+                                                 ValueChanged="val => context.Value = (int)val"
+                                                 Immediate="true"/>
+                            }
+                            else if (context.Value is decimal decVal){
+                                <MudNumericField T="decimal"
+                                                 Value="@decVal"
+                                                 ValueChanged="val => context.Value = val"
+                                                 Immediate="true"/>
+                            }
+                            else{
+                                <MudTextField T="string"
+                                              Value="@context.Value?.ToString()"
+                                              ValueChanged="val => context.Value = val"
+                                              Immediate="true"/>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(GetUnit(context.Id))){
+                                <MudText Class="ml-2">@GetUnit(context.Id)</MudText>
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+
+            <MudButton OnClick="SendToBackend" Variant="Variant.Filled" Color="Color.Success" Class="mt-4">
+                Сохранить товар
+            </MudButton>
+        }
+    }
+</MudPaper>
+
+@code {
+    private string VendorCode = string.Empty;
+    private ExternalAccount? SelectedWbAccount;
+    private ExternalAccount? SelectedSimaAccount;
+
+    private List<ExternalAccount> _accounts = new();
+    private bool _checkPerformed = false;
+    private bool _isNullFromWb = false;
+    private bool _isSearchAvailable = false;
+
+    private string Title = string.Empty;
+    private string Description = string.Empty;
+    private string Brand = string.Empty;
+    private WbDimensionsDto Dimensions = new();
+
+    private WbCategoryDto? SelectedBaseCategory;
+    private WbCategoryDto? SelectedChildCategory;
+
+    private SimalandProductDto simalandProduct = new();
+    private List<WbCharacteristicDto> Characteristics = new();
+    private List<WbAdditionalCharacteristicDto> _characteristicInfos = new();
+
+    private bool CanSearch =>
+        !string.IsNullOrWhiteSpace(VendorCode) &&
+        SelectedWbAccount != null &&
+        SelectedSimaAccount != null;
+
+    protected override async Task OnInitializedAsync(){
+        if (OperatingSystem.IsBrowser()){
+            _accounts = await ProductService.LoadAccountsAsync();
+        }
+    }
+
+    private async Task CheckProduct(){
+        _checkPerformed = false;
+
+        var result = await ProductService.CheckSimalandAndWbProductAsync(VendorCode, SelectedWbAccount, SelectedSimaAccount);
+
+        _isNullFromWb = result.IsNullFromWb;
+        simalandProduct = result.SimalandProduct;
+
+        _checkPerformed = true;
+    }
+
+    private async Task<IEnumerable<WbCategoryDto>> SearchBaseCategories(string value, CancellationToken token){
+        var result = await Client.GetFromJsonAsync<List<WbCategoryDto>>(
+            $"api/wildberries/parentCategories?query={value}", token);
+
+        return result ?? Enumerable.Empty<WbCategoryDto>();
+    }
+
+    private async Task<IEnumerable<WbCategoryDto>> SearchChildCategories(string value, CancellationToken token){
+        if (SelectedBaseCategory == null)
+            return Enumerable.Empty<WbCategoryDto>();
+
+        var baseId = SelectedBaseCategory.Id;
+
+        var result = await Client.GetFromJsonAsync<List<WbCategoryDto>>(
+            $"api/wildberries/childCategories?query={value}&parentId={baseId}", token);
+
+        return result ?? Enumerable.Empty<WbCategoryDto>();
+    }
+
+    private async Task OnCategorySelected(WbCategoryDto? value){
+        SelectedChildCategory = value;
+
+        if (SelectedChildCategory == null)
+            return;
+
+        if (SelectedWbAccount != null){
+            try{
+                _characteristicInfos = await Client.GetFromJsonAsync<List<WbAdditionalCharacteristicDto>>(
+                    $"api/Wildberries/characteristics/{SelectedChildCategory.Id}/{SelectedWbAccount.Id}");
+
+                Characteristics = _characteristicInfos?.Select(c => new WbCharacteristicDto{
+                    Id = c.CharcID,
+                    Name = c.Name,
+                    Value = CreateDefaultCharValue(c.CharcType, c.MaxCount)
+                }).ToList() ?? new();
+            }
+            catch (Exception ex){
+                Snackbar.Add($"Ошибка загрузки характеристик: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task SendToBackend(){
+        if (SelectedChildCategory == null || SelectedWbAccount == null){
+            Snackbar.Add("Выберите категорию и аккаунт Wildberries", Severity.Warning);
+            return;
+        }
+
+        var product = new WbProductCardDto{
+            VendorCode = VendorCode,
+            Title = Title,
+            Description = Description,
+            Brand = Brand,
+            Dimensions = Dimensions,
+            SubjectID = SelectedChildCategory.Id,
+            SubjectName = SelectedChildCategory.Name,
+            Characteristics = Characteristics,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            Sizes = new List<WbsizeDto>() // пока пусто, добавим позже
+        };
+
+        try{
+            await ProductService.CreateItemsAsync(new List<WbProductCardDto>{ product }, SelectedWbAccount.Id);
+            Snackbar.Add("Товар успешно создан", Severity.Success);
+            
+            Reset();
+        }
+        catch (Exception ex){
+            Snackbar.Add($"Ошибка при отправке товара: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Reset(){
+        _checkPerformed = false;
+        VendorCode = "";
+        Title = "";
+        Description = "";
+        Brand = "";
+        Dimensions = new();
+        Characteristics = new();
+        SelectedBaseCategory = null;
+        SelectedChildCategory = null;
+    }
+
+    private object CreateDefaultCharValue(int charcType, int maxCount){
+        bool isList = maxCount != 1;
+
+        return charcType switch{
+            0 or 1 => isList ? new List<string>() : "", // строки
+            4 => isList ? new List<int>() : 0, // числа
+            _ => "" // fallback
+        };
+    }
+
+    private string GetUnit(int charcId){
+        var info = _characteristicInfos.FirstOrDefault(x => x.CharcID == charcId);
+        return info?.UnitName ?? "";
+    }
+
+    private bool IsRequired(int charcId){
+        return _characteristicInfos.FirstOrDefault(x => x.CharcID == charcId)?.Required == true;
+    }
+
+    private string BindListAsString(WbCharacteristicDto dto){
+        if (dto.Value is List<string> list)
+            return string.Join(", ", list);
+        return string.Empty;
+    }
+
+    private void UpdateStringList(WbCharacteristicDto dto, string input){
+        dto.Value = input
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .ToList();
+    }
+
+    private void UpdateIntList(WbCharacteristicDto dto, string input){
+        dto.Value = input
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => int.TryParse(x.Trim(), out var n) ? n : 0)
+            .ToList();
+    }
+
+}

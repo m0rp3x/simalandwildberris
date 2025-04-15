@@ -9,7 +9,6 @@ namespace WBSL.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-
 public class WildberriesController : ControllerBase
 {
     private static DateTime _lastCategoriesSyncTime = DateTime.MinValue;
@@ -50,6 +49,25 @@ public class WildberriesController : ControllerBase
         });
     }
 
+    [HttpGet("checkWbAndSimaland/{vendorCode}/{accountId:int}/{wbAccountId:int}")]
+    public async Task<IActionResult> CheckWbAndProduct(string vendorCode, int accountId, int wbAccountId){
+        List<long> vendorCodes = new List<long>();
+        vendorCodes.Add(long.Parse(vendorCode));
+
+        var wbTask = _wildberriesService.GetProductWithOutCharacteristics(vendorCode, wbAccountId);
+        var simaTask = _simalandFetchService.FetchProductsWithMergedAttributesAsync(accountId, vendorCodes);
+
+        await Task.WhenAll(wbTask, simaTask);
+
+        var product = wbTask.Result;
+        var simalandProducts = simaTask.Result;
+        
+        return Ok(new ProductCheckResponse(){
+            IsNullFromWb = product == null,
+            SimalandProduct = simalandProducts.FirstOrDefault(),
+        });
+    }
+
     [HttpPost("updateWbItem/{wbAccountId:int}")]
     public async Task<IActionResult> UpdateProduct([FromBody] List<WbProductCardDto> products, int wbAccountId){
         var result = await _wildberriesService.UpdateWbItemsAsync(products, wbAccountId);
@@ -65,8 +83,7 @@ public class WildberriesController : ControllerBase
     }
 
     [HttpGet("characteristics/{subjectId}/{accountId}")]
-    public async Task<IActionResult> GetCharacteristics(int subjectId, int? accountId)
-    {
+    public async Task<IActionResult> GetCharacteristics(int subjectId, int? accountId){
         if (accountId == null || subjectId <= 0)
             return BadRequest("Некорректный subjectId или accountId");
 
@@ -76,16 +93,33 @@ public class WildberriesController : ControllerBase
 
         return Ok(characteristics);
     }
+
     
     [HttpGet("categories")]
-    public async Task<IActionResult> GetCategories([FromQuery] string? query, [FromQuery] int? baseSubjectId)
-    {
+    public async Task<IActionResult> GetCategories([FromQuery] string? query, [FromQuery] int? baseSubjectId){
         if (baseSubjectId == null)
             return BadRequest("baseSubjectId обязателен");
 
         var results = await _wildberriesService.SearchCategoriesAsync(query, baseSubjectId.Value);
         return Ok(results);
     }
+    
+    [HttpGet("childCategories")]
+    public async Task<IActionResult> GetChildCategories([FromQuery] string? query, [FromQuery] int? parentId){
+        if (parentId == null)
+            return BadRequest("parentId обязателен");
+
+        var results = await _wildberriesService.SearchCategoriesByParentIdAsync(query, parentId.Value);
+        return Ok(results);
+    }
+
+    [HttpGet("parentCategories")]
+    public async Task<IActionResult> GetParentCategories([FromQuery] string? query){
+        var results = await _wildberriesService.SearchParentCategoriesAsync(query);
+        
+        return Ok(results);
+    }
+
 
     [HttpGet("sync/categories")]
     public async Task<IActionResult> SyncCategories(){
@@ -94,7 +128,7 @@ public class WildberriesController : ControllerBase
             if (timeSinceLastSync < TimeSpan.FromMinutes(30)){
                 return StatusCode(429, "Синхронизация категорий возможна только раз в 30 минут.");
             }
-        
+
             _lastCategoriesSyncTime = DateTime.UtcNow;
         }
 

@@ -1,4 +1,4 @@
-﻿@page "/wb-product"
+﻿@page "/wb-product-update"
 @using System.ComponentModel.DataAnnotations
 @using System.Reflection
 @using System.Text.Json
@@ -11,8 +11,7 @@
 @inject HttpClient Client
 @inject ISnackbar Snackbar
 @inject ProductMappingService MappingService
-@inject WbProductService ProductService 
-@inject IJSRuntime JS
+@inject WbProductService ProductService
 
 <MudPaper Class="pa-6 mx-auto mt-8" Style="" Elevation="4">
     <MudText Typo="Typo.h5" Class="mb-4">Поиск товара Wildberries</MudText>
@@ -90,7 +89,7 @@
                                              Value="@context.SimaLandValue"
                                              ValueChanged="v => OnCategoryChanged(context: context, value: v)"
                                              SearchFunc="@((q, t) => SearchSimaLandCategories(q, context.SubjectId, t))"
-                                             Disabled="IsCharacteristicsLoading"
+                                             Disabled="true"  @* тут короче убрать при обновление нельзя этого делать*@
                                              ShowProgressIndicator="true"
                                              ToStringFunc="v => v"
                                              Immediate="true"

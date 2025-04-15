@@ -61,6 +61,27 @@ public class WildberriesService : WildberriesBaseService
         }
     }
 
+    public async Task<WbProductCardDto?> GetProductWithOutCharacteristics(string vendorCode, int accountId){
+
+        try{
+            var response = await GetProductByVendorCode(vendorCode, accountId);
+
+            var apiResponse = await response.Content.ReadFromJsonAsync<WbApiResponse>();
+            var apiProduct = apiResponse?.Cards?.FirstOrDefault();
+
+            if (apiProduct == null) return null;
+
+            return apiResponse.Cards.FirstOrDefault();
+        }
+        catch (HttpRequestException ex){
+            Console.WriteLine($"Ошибка при запросе продукта: {ex.Message}");
+            return null;
+        }
+        catch (JsonException ex){
+            Console.WriteLine($"Ошибка парсинга ответа: {ex.Message}");
+            return null;
+        }
+    }
     public async Task<WbApiResult> CreteWbItemsAsync(List<WbProductCardDto> itemsToCreate, int accountId){
         var wbClient = await GetWbClientAsync(accountId);
         
@@ -112,6 +133,35 @@ public class WildberriesService : WildberriesBaseService
 
         return relatedCategories;
     }
+    
+    public async Task<List<WbCategoryDto>> SearchCategoriesByParentIdAsync(string? query, int parentId){
+        var relatedCategories = await _db.wildberries_categories
+            .Where(c => c.parent_id == parentId &&
+                        EF.Functions.ILike(c.name, $"%{query}%"))
+            .Select(c => new WbCategoryDto
+            {
+                Id = c.id,
+                Name = c.name
+            })
+            .Take(50).ToListAsync();
+
+        return relatedCategories;
+    }
+
+    
+    public async Task<List<WbCategoryDto>> SearchParentCategoriesAsync(string? query){
+        var relatedCategories = await _db.wildberries_parrent_categories
+            .Where(c => EF.Functions.ILike(c.name, $"%{query}%"))
+            .Select(c => new WbCategoryDto
+            {
+                Id = c.id,
+                Name = c.name
+            })
+            .ToListAsync();
+
+        return relatedCategories;
+    }
+    
     public async Task<WbApiResult> UpdateWbItemsAsync(List<WbProductCardDto> itemsToUpdate, int accountId){
         var WbClient = await GetWbClientAsync(accountId);
         var response = await SendUpdateRequestAsync(itemsToUpdate, WbClient, accountId);
