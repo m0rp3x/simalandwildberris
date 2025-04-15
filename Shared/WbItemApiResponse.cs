@@ -29,8 +29,6 @@ public class SimalandProductDto
     public decimal box_height{ get; set; }
     [Display(Name = "Ширина коробки")]
     public decimal box_width{ get; set; }
-    [Display(Name = "Базовый URL фото")]
-    public string base_photo_url{ get; set; } = "";
     public int category_id{ get; set; }
     [Display(Name = "Остаток")]
     public int? balance{ get; set; }
@@ -42,8 +40,6 @@ public class SimalandProductDto
     public decimal price{ get; set; }
     [Display(Name = "Название категории")]
     public string category_name{ get; set; } = "";
-    [Display(Name = "Фото")]
-    public List<string> photo_urls{ get; set; } = new();
     [Display(Name = "Штрихкоды")]
     public string? barcodes{ get; set; }
     [Display(Name = "НДС")]

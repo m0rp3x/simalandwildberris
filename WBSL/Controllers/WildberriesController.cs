@@ -64,6 +64,19 @@ public class WildberriesController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("characteristics/{subjectId}/{accountId}")]
+    public async Task<IActionResult> GetCharacteristics(int subjectId, int? accountId)
+    {
+        if (accountId == null || subjectId <= 0)
+            return BadRequest("Некорректный subjectId или accountId");
+
+        var characteristics = await _wildberriesService.GetProductChars(subjectId, accountId.Value);
+        if (characteristics == null)
+            return NotFound("Характеристики не найдены");
+
+        return Ok(characteristics);
+    }
+    
     [HttpGet("categories")]
     public async Task<IActionResult> GetCategories([FromQuery] string? query, [FromQuery] int? baseSubjectId)
     {

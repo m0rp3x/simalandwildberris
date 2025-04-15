@@ -13,7 +13,7 @@ public partial class WbDimension
 
     public int? Length { get; set; }
 
-    public double? WeightBrutto { get; set; }
+    public decimal? WeightBrutto { get; set; }
 
     public bool? IsValid { get; set; }
 

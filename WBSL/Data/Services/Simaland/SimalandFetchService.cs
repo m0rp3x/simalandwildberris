@@ -147,8 +147,8 @@ public class SimalandFetchService
         }
 
         // Фотографии
-        dto.photo_urls = GetPhotoUrls(product);
-        dto.base_photo_url = product.TryGetProperty("base_photo_url", out var baseUrl) ? baseUrl.GetString() : null;
+        // dto.photo_urls = GetPhotoUrls(product);
+        // dto.base_photo_url = product.TryGetProperty("base_photo_url", out var baseUrl) ? baseUrl.GetString() : null;
 
         // Штрихкоды
         if (product.TryGetProperty("barcodes", out var barcodes)){

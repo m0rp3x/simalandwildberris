@@ -11,6 +11,7 @@ builder.Services.AddMudServices();
 
 builder.Services.AddScoped<AuthHandler>();
 builder.Services.AddScoped<ProductMappingService>();
+builder.Services.AddScoped<WbProductService>();
 
 builder.Services.AddScoped(sp =>
 {

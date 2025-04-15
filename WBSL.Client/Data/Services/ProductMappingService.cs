@@ -20,7 +20,7 @@ public class ProductMappingService
         return attr?.value_text;
     }
 
-    public List<PropertyMapping> GenerateMappings(WbProductCardDto wbProduct, SimalandProductDto? simaProduct = null,
+    public List<PropertyMapping>? GenerateMappings(WbProductCardDto wbProduct, SimalandProductDto? simaProduct = null,
         List<WbAdditionalCharacteristicDto>? additionalCharacteristics = null,
         List<PropertyMappingTemplate> savedTemplates = null){
         var mappings = new List<PropertyMapping>();
@@ -83,8 +83,7 @@ public class ProductMappingService
                 IsSelectable = true
             }
         };
-        baseMappings.Add(new PropertyMapping
-        {
+        baseMappings.Add(new PropertyMapping{
             PropertyName = "Категория",
             WbValue = $"{wbProduct.SubjectName} ({wbProduct.SubjectID})",
             SimaLandFieldName = null,
@@ -136,12 +135,17 @@ public class ProductMappingService
         return dimensionMappings;
     }
 
-    private List<PropertyMapping> GenerateCharacteristicsMappings(WbProductCardDto wbProduct,
-        SimalandProductDto? simaProduct, List<WbAdditionalCharacteristicDto>? additionalCharacteristics){
+    public List<PropertyMapping> GenerateCharacteristicsMappings(WbProductCardDto wbProduct,
+        SimalandProductDto? simaProduct, List<WbAdditionalCharacteristicDto>? additionalCharacteristics,
+        List<PropertyMapping>? previousMappings = null){
         var charMap = new Dictionary<int, PropertyMapping>();
         var characteristicMappings = new List<PropertyMapping>();
 
-        // Обработка дополнительных характеристик
+        var previousMapById = previousMappings?
+            .Where(m => m.CharcID.HasValue)
+            .ToDictionary(m => m.CharcID!.Value, m => m) ?? new();
+
+        // 1. База — из AdditionalCharacteristics
         if (additionalCharacteristics != null){
             foreach (var add in additionalCharacteristics){
                 var mapping = new PropertyMapping{
@@ -157,12 +161,18 @@ public class ProductMappingService
                     CharcID = add.CharcID
                 };
 
+                if (previousMapById.TryGetValue(add.CharcID, out var prev)){
+                    mapping.SimaLandFieldName = prev.SimaLandFieldName;
+                    mapping.SimaLandValue = prev.SimaLandValue;
+                    mapping.IsFromAttribute = prev.IsFromAttribute;
+                }
+
                 charMap[add.CharcID] = mapping;
                 characteristicMappings.Add(mapping);
             }
         }
 
-        // Обработка характеристик из wbProduct
+        // 2. Значения — из WB
         if (wbProduct.Characteristics != null){
             foreach (var charact in wbProduct.Characteristics){
                 string value = charact.Value switch{
@@ -172,28 +182,35 @@ public class ProductMappingService
                     _ => charact.Value?.ToString() ?? ""
                 };
 
-                // если есть — обновим существующий
                 if (charMap.TryGetValue(charact.Id, out var existing)){
                     existing.WbValue = value;
-                    existing.IsFromAttribute = true; // если хотим отметить, что пришло из WB
                 }
                 else{
-                    // если нет — создадим новую маппу
                     var simaAttr = simaProduct?.Attributes?
                         .FirstOrDefault(a => a.attr_name.Equals(charact.Name, StringComparison.OrdinalIgnoreCase));
 
-                    characteristicMappings.Add(new PropertyMapping{
+                    var mapping = new PropertyMapping{
                         PropertyName = charact.Name,
                         WbValue = value,
                         WbFieldName = $"Characteristics:{charact.Id}",
                         SimaLandFieldName = simaAttr?.attr_name,
                         SimaLandValue = simaAttr?.value_text,
                         IsSelectable = true,
-                        IsFromAttribute = true
-                    });
+                        IsFromAttribute = true,
+                        CharcID = charact.Id
+                    };
+
+                    if (previousMapById.TryGetValue(charact.Id, out var prev)){
+                        mapping.SimaLandFieldName = prev.SimaLandFieldName;
+                        mapping.SimaLandValue = prev.SimaLandValue;
+                        mapping.IsFromAttribute = prev.IsFromAttribute;
+                    }
+
+                    characteristicMappings.Add(mapping);
                 }
             }
         }
+
 
         return characteristicMappings;
     }
