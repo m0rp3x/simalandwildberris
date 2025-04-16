@@ -82,7 +82,7 @@ public class WildberriesService : WildberriesBaseService
             return null;
         }
     }
-    public async Task<WbApiResult> CreteWbItemsAsync(List<WbProductCardDto> itemsToCreate, int accountId){
+    public async Task<WbApiResult> CreteWbItemsAsync(List<WbCreateVariantInternalDto> itemsToCreate, int accountId){
         var wbClient = await GetWbClientAsync(accountId);
         
         var Limit = await GetWbLimitsAsync(wbClient);
@@ -91,7 +91,7 @@ public class WildberriesService : WildberriesBaseService
             return new WbApiResult
             {
                 Error = true,
-                ErrorText = $"Превышен лимит создания карточек: доступно {Limit}, запрошено {itemsToCreate.Count}"
+                ErrorText = $"Превышен лимит создания карточек: доступно для загрузки {Limit}"
             };
         }
         var batches = SplitIntoCreateBatches(itemsToCreate);
@@ -372,7 +372,7 @@ public class WildberriesService : WildberriesBaseService
         };
     }
 
-    private List<List<WbProductGroup>> SplitIntoCreateBatches(List<WbProductCardDto> allItems){
+    private List<List<WbProductGroup>> SplitIntoCreateBatches(List<WbCreateVariantInternalDto> allItems){
         const int maxGroupsPerRequest = 100;
         const int maxVariantsPerGroup = 30;
         const int maxSizeInBytes = 10 * 1024 * 1024;

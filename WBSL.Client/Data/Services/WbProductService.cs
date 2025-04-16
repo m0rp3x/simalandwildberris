@@ -105,6 +105,31 @@ public class WbProductService
         _snackbar.Add("Товары успешно обновлены", Severity.Success);
         return true;
     }
+    
+    public async Task<bool> CreateItemsAsync(List<WbCreateVariantInternalDto> products, int wbAccountId){
+        var response = await _client.PostAsJsonAsync($"api/Wildberries/createWbItem/{wbAccountId}", products);
+        var result = await response.Content.ReadFromJsonAsync<WbApiResult>();
+
+        if (result is null){
+            _snackbar.Add("Не удалось получить ответ от сервера", Severity.Error);
+            return false;
+        }
+
+        if (result.Error){
+            _snackbar.Add(result.ErrorText ?? "Произошла ошибка", Severity.Error);
+
+            if (result.AdditionalErrors is JsonElement json && json.ValueKind == JsonValueKind.Object){
+                foreach (var prop in json.EnumerateObject()){
+                    _snackbar.Add($"{prop.Name}: {prop.Value}", Severity.Warning);
+                }
+            }
+
+            return false;
+        }
+
+        _snackbar.Add("Товары успешно обновлены", Severity.Success);
+        return true;
+    }
 
     public async Task<bool> UpdateItemsAsync(List<WbProductCardDto> products, Guid wbAccountId){
         var response = await _client.PostAsJsonAsync($"api/Wildberries/updateWbItem/{wbAccountId}", products);

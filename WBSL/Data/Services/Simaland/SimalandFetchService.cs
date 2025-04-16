@@ -66,11 +66,12 @@ public class SimalandFetchService
     private List<ProductAttribute> MergeDuplicateAttributes(List<ProductAttribute> attributes, long sid)
     {
         return attributes
-            .GroupBy(attr => attr.attr_name)
+            .GroupBy(attr => attr.id)
             .Select(group => new ProductAttribute
             {
                 product_sid = sid,
-                attr_name = group.Key,
+                id = group.Key,
+                attr_name = group.First().attr_name,
                 value_text = string.Join("; ", group
                     .Select(a => a.value_text)
                     .Where(v => !string.IsNullOrWhiteSpace(v))
@@ -163,11 +164,13 @@ public class SimalandFetchService
         // Атрибуты
         if (product.TryGetProperty("attrs", out var attrs)){
             foreach (var attr in attrs.EnumerateArray()){
+                var attrId = attr.TryGetProperty("attr_id", out var id) ? id.GetInt32() : 0;
                 var attrName = attr.TryGetProperty("attr_name", out var an) ? an.GetString() : null;
                 var attrValue = attr.TryGetProperty("value", out var av) ? av.ToString() : null;
 
                 if (!string.IsNullOrEmpty(attrName)){
                     dto.Attributes.Add(new ProductAttribute{
+                        id = attrId,
                         product_sid = sid,
                         attr_name = attrName,
                         value_text = attrValue

@@ -2,6 +2,7 @@
 using System.Text.Json;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
+using Shared;
 using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Models;
 
@@ -38,6 +39,46 @@ public class WildberriesCategoryService : WildberriesBaseService
             SubCategoriesCount: categories.Count,
             ErrorsCount: 0 
         );
+    }
+
+    public async Task<List<WbCategoryDto>> GetParentCategoriesAsync(string query){
+        var relatedCategories = await _db.wildberries_parrent_categories
+            .Where(c => EF.Functions.ILike(c.name, $"%{query}%"))
+            .Select(c => new WbCategoryDto
+            {
+                Id = c.id,
+                Name = c.name
+            })
+            .ToListAsync();
+
+        return relatedCategories;
+    }
+    
+    public async Task<WbCategoryDto?> GetParentCategoryByIdAsync(int id){
+        var relatedCategories = await _db.wildberries_parrent_categories
+            .Where(c => c.id == id)
+            .Select(c => new WbCategoryDto
+            {
+                Id = c.id,
+                Name = c.name
+            })
+            .FirstOrDefaultAsync();
+
+        return relatedCategories;
+    }
+    
+    public async Task<List<WbCategoryDtoExt>> GetChildCategoriesAsync(string query){
+        var relatedCategories = await _db.wildberries_categories
+            .Where(c => EF.Functions.ILike(c.name, $"%{query}%"))
+            .Select(c => new WbCategoryDtoExt
+            {
+                Id = c.id,
+                Name = c.name,
+                ParentId = c.parent_id
+            })
+            .ToListAsync();
+
+        return relatedCategories;
     }
 
     private async Task<List<wildberries_category>> FetchAllCategoriesAsync(int accountId, CancellationToken ct){

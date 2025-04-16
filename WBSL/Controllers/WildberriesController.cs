@@ -56,15 +56,41 @@ public class WildberriesController : ControllerBase
 
         var wbTask = _wildberriesService.GetProductWithOutCharacteristics(vendorCode, wbAccountId);
         var simaTask = _simalandFetchService.FetchProductsWithMergedAttributesAsync(accountId, vendorCodes);
-
-        await Task.WhenAll(wbTask, simaTask);
-
-        var product = wbTask.Result;
-        var simalandProducts = simaTask.Result;
         
-        return Ok(new ProductCheckResponse(){
+        await Task.WhenAll(wbTask, simaTask);
+        
+        var product = wbTask.Result;
+        var simalandProduct = simaTask.Result.FirstOrDefault();
+                
+        T? FindBestMatch<T>(List<T> list, string target, Func<T, string> getName)
+        {
+            return list.FirstOrDefault(x => string.Equals(getName(x).Trim(), target.Trim(), StringComparison.OrdinalIgnoreCase))
+                   ?? list.FirstOrDefault(x => getName(x).Contains(target, StringComparison.OrdinalIgnoreCase))
+                   ?? list.FirstOrDefault();
+        }
+
+        var baseCategories = await _categoryService.GetParentCategoriesAsync(simalandProduct.category_name);
+        
+        var baseCategory = FindBestMatch(baseCategories, simalandProduct.category_name, x=>x.Name);
+        WbCategoryDtoExt? childCategory = null;
+
+        if (baseCategory == null)
+        {
+            var childCategories = await _categoryService.GetChildCategoriesAsync(simalandProduct.category_name);
+            childCategory = FindBestMatch(childCategories, simalandProduct.category_name, x=>x.Name);
+            
+            if (childCategory.ParentId != null)
+            {
+                baseCategory = await _categoryService.GetParentCategoryByIdAsync(childCategory.ParentId);
+            }
+        }
+
+        return Ok(new ProductCheckResponse()
+        {
             IsNullFromWb = product == null,
-            SimalandProduct = simalandProducts.FirstOrDefault(),
+            SimalandProduct = simalandProduct,
+            BaseCategory = baseCategory,
+            ChildCategory = childCategory
         });
     }
 
@@ -76,7 +102,7 @@ public class WildberriesController : ControllerBase
     }
 
     [HttpPost("createWbItem/{wbAccountId:int}")]
-    public async Task<IActionResult> CreateProduct([FromBody] List<WbProductCardDto> products, int wbAccountId){
+    public async Task<IActionResult> CreateProduct([FromBody] List<WbCreateVariantInternalDto> products, int wbAccountId){
         var result = await _wildberriesService.CreteWbItemsAsync(products, wbAccountId);
 
         return Ok(result);
