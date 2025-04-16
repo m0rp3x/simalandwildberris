@@ -31,22 +31,49 @@ public class SimaLandController : ControllerBase
    private Guid GetUserId() =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-[HttpPost("store")]
-public async Task<IActionResult> StoreProductsAndAttributes([FromBody] StoreRequest request)
-{
-    foreach (var p in request.Products)
-    {
-        if (p.width == 0) p.width = 1;
-        if (p.height == 0) p.height = 1;
-        if (p.depth == 0) p.depth = 1;
-    }
+   [HttpPost("store")]
+   public async Task<IActionResult> StoreProductsAndAttributes([FromBody] StoreRequest request)
+   {
+       var existingSids = await _db.products
+           .Where(p => request.Products.Select(x => x.sid).Contains(p.sid))
+           .Select(p => p.sid)
+           .ToListAsync();
 
-    await _db.products.AddRangeAsync(request.Products);
-    await _db.product_attributes.AddRangeAsync(request.Attributes);
-    await _db.SaveChangesAsync();
+       // Оставляем только новые продукты
+       var newProducts = request.Products
+           .Where(p => !existingSids.Contains(p.sid))
+           .ToList();
 
-    return Ok(new { success = true, products = request.Products.Count, attributes = request.Attributes.Count });
-}
+       // Фильтруем атрибуты только тех товаров, которых ещё нет
+       var newAttributes = request.Attributes
+           .Where(attr => !existingSids.Contains(attr.product_sid))
+           .ToList();
+
+       // Подчищаем габариты
+       foreach (var p in newProducts)
+       {
+           if (p.width == 0) p.width = 1;
+           if (p.height == 0) p.height = 1;
+           if (p.depth == 0) p.depth = 1;
+       }
+
+       if (newProducts.Any())
+           await _db.products.AddRangeAsync(newProducts);
+
+       if (newAttributes.Any())
+           await _db.product_attributes.AddRangeAsync(newAttributes);
+
+       await _db.SaveChangesAsync();
+
+       return Ok(new
+       {
+           success = true,
+           added_products = newProducts.Count,
+           skipped_products = existingSids.Count,
+           added_attributes = newAttributes.Count
+       });
+   }
+
 
 [HttpPost("fetch")]
 public async Task<IActionResult> FetchProducts([FromBody] SimaRequest request)
@@ -143,20 +170,32 @@ public async Task<IActionResult> FetchProducts([FromBody] SimaRequest request)
                     var catId = catIdElem.GetInt32();
                     try
                     {
-                        var catResponse = await client.GetAsync($"category/{catId}/");
+                        var catResponse = await client.GetAsync($"category/{catId}/?expand=sub_categories,active_sub_categories");
                         if (catResponse.IsSuccessStatusCode)
                         {
                             var catJson = await catResponse.Content.ReadAsStringAsync();
                             var catDoc = JsonDocument.Parse(catJson);
+
                             if (catDoc.RootElement.TryGetProperty("name", out var catName))
                                 productDict["category_name"] = catName;
+
+                            if (catDoc.RootElement.TryGetProperty("sub_categories", out var subCats))
+                                productDict["sub_categories"] = subCats;
+
+                            if (catDoc.RootElement.TryGetProperty("active_sub_categories", out var activeSubCats))
+                                productDict["active_sub_categories"] = activeSubCats;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"⚠️ Ошибка получения категории {catId}: {catResponse.StatusCode}");
                         }
                     }
                     catch (Exception catEx)
                     {
-                        Console.WriteLine($"Ошибка при загрузке категории {catId} для товара {sid}: {catEx.Message}");
+                        Console.WriteLine($"❌ Ошибка при загрузке категории {catId} для товара {sid}: {catEx.Message}");
                     }
                 }
+
 
                 if (product.TryGetProperty("trademark", out var trademarkObj) &&
                     trademarkObj.ValueKind == JsonValueKind.Object &&
