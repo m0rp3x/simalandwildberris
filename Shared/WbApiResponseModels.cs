@@ -57,7 +57,7 @@ public class WbCreateVariantDto
     public string Title { get; set; }
     public string Description { get; set; }
     public string Brand { get; set; }
-    public WbDimensionsDto Dimensions { get; set; }
+    public WbDimensionsDtoToApi Dimensions { get; set; }
     public List<WbCharacteristicDto> Characteristics { get; set; } = new();
     public List<WbsizeDto> Sizes { get; set; } = new();
     
@@ -68,12 +68,95 @@ public class WbCreateVariantDto
         Title = dto.Title;
         Description = dto.Description;
         Brand = dto.Brand;
-        Dimensions = dto.Dimensions ?? new WbDimensionsDto();
+        Dimensions = dto.Dimensions != null
+            ? new WbDimensionsDtoToApi {
+                Length = FixDimension(dto.Dimensions.Length),
+                Width = FixDimension(dto.Dimensions.Width),
+                Height = FixDimension(dto.Dimensions.Height),
+                WeightBrutto = Math.Round(dto.Dimensions.WeightBrutto, 3),
+            }
+            : new WbDimensionsDtoToApi();
         Characteristics = dto.Characteristics ?? new List<WbCharacteristicDto>();
         Sizes = dto.Sizes ?? new List<WbsizeDto>();
         
     }
+    public WbCreateVariantDto(WbCreateVariantInternalDto dto){
+        VendorCode = dto.VendorCode;
+        Title = dto.Title;
+        Description = dto.Description;
+        Brand = dto.Brand;
+        Dimensions = dto.Dimensions != null
+            ? new WbDimensionsDtoToApi {
+                Length = FixDimension(dto.Dimensions.Length),
+                Width = FixDimension(dto.Dimensions.Width),
+                Height = FixDimension(dto.Dimensions.Height),
+                WeightBrutto = Math.Round(dto.Dimensions.WeightBrutto, 3),
+            }
+            : new WbDimensionsDtoToApi();
+        Characteristics = dto.Characteristics ?? new List<WbCharacteristicDto>();
+        Sizes = dto.Sizes ?? new List<WbsizeDto>();
+    }
+    private int FixDimension(int? value)
+    {
+        return value.HasValue && value.Value > 0 ? value.Value : 1;
+    }
 }
+
+public class WbCreateVariantInternalDto : WbCreateVariantDto
+{
+    public int SubjectID { get; set; }
+    public WbCreateVariantInternalDto() : base(){}
+    
+    public WbCreateVariantInternalDto(
+        string vendorCode,
+        string title,
+        string description,
+        string brand,
+        WbDimensionsDto dimensions,
+        List<WbCharacteristicDto> characteristics,
+        List<WbsizeDto> sizes,
+        int subjectId)
+    {
+        VendorCode = vendorCode;
+        Title = title;
+        Description = description;
+        Brand = brand;
+        SubjectID = subjectId;
+        Sizes = sizes;
+        Dimensions = dimensions != null
+            ? new WbDimensionsDtoToApi
+            {
+                Length = FixDimension(dimensions.Length),
+                Width = FixDimension(dimensions.Width),
+                Height = FixDimension(dimensions.Height),
+                WeightBrutto = Math.Round(dimensions.WeightBrutto, 3)
+            }
+            : new WbDimensionsDtoToApi();
+        
+        Characteristics = (characteristics ?? new())
+            .Where(c => IsValidCharValue(c.Value))
+            .ToList();
+    }
+    private bool IsValidCharValue(object? val)
+    {
+        if (val == null) return false;
+
+        return val switch
+        {
+            string s => !string.IsNullOrWhiteSpace(s),
+            int i => i != 0,
+            decimal d => d != 0,
+            List<string> sl => sl.Any(x => !string.IsNullOrWhiteSpace(x)),
+            List<int> il => il.Any(x => x != 0),
+            _ => true // всё остальное считаем валидным
+        };
+    }
+    private int FixDimension(int? value)
+    {
+        return value.HasValue && value.Value > 0 ? value.Value : 1;
+    }
+}
+
 public class WbPhotoDto
 {
     public string Big{ get; set; }
@@ -84,12 +167,20 @@ public class WbPhotoDto
     public string Tm{ get; set; }
 }
 
+public class WbDimensionsDtoToApi
+{
+    public int Width{ get; set; }
+    public int Height{ get; set; }
+    public int Length{ get; set; }
+    public decimal WeightBrutto{ get; set; }
+}
+
 public class WbDimensionsDto
 {
     public int Width{ get; set; }
     public int Height{ get; set; }
     public int Length{ get; set; }
-    public double WeightBrutto{ get; set; }
+    public decimal WeightBrutto{ get; set; }
     public bool IsValid{ get; set; }
 }
 

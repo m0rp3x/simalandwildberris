@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Shared;
 using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Data.Services.Wildberries.Models;
@@ -36,7 +37,6 @@ public class WildberriesService : WildberriesBaseService
 
         try{
             var response = await GetProductByVendorCode(vendorCode, accountId);
-            response.EnsureSuccessStatusCode();
 
             var apiResponse = await response.Content.ReadFromJsonAsync<WbApiResponse>();
             var apiProduct = apiResponse?.Cards?.FirstOrDefault();
@@ -61,7 +61,28 @@ public class WildberriesService : WildberriesBaseService
         }
     }
 
-    public async Task<WbApiResult> CreteWbItemsAsync(List<WbProductCardDto> itemsToCreate, int accountId){
+    public async Task<WbProductCardDto?> GetProductWithOutCharacteristics(string vendorCode, int accountId){
+
+        try{
+            var response = await GetProductByVendorCode(vendorCode, accountId);
+
+            var apiResponse = await response.Content.ReadFromJsonAsync<WbApiResponse>();
+            var apiProduct = apiResponse?.Cards?.FirstOrDefault();
+
+            if (apiProduct == null) return null;
+
+            return apiResponse.Cards.FirstOrDefault();
+        }
+        catch (HttpRequestException ex){
+            Console.WriteLine($"Ошибка при запросе продукта: {ex.Message}");
+            return null;
+        }
+        catch (JsonException ex){
+            Console.WriteLine($"Ошибка парсинга ответа: {ex.Message}");
+            return null;
+        }
+    }
+    public async Task<WbApiResult> CreteWbItemsAsync(List<WbCreateVariantInternalDto> itemsToCreate, int accountId){
         var wbClient = await GetWbClientAsync(accountId);
         
         var Limit = await GetWbLimitsAsync(wbClient);
@@ -70,7 +91,7 @@ public class WildberriesService : WildberriesBaseService
             return new WbApiResult
             {
                 Error = true,
-                ErrorText = $"Превышен лимит создания карточек: доступно {Limit}, запрошено {itemsToCreate.Count}"
+                ErrorText = $"Превышен лимит создания карточек: доступно для загрузки {Limit}"
             };
         }
         var batches = SplitIntoCreateBatches(itemsToCreate);
@@ -78,7 +99,7 @@ public class WildberriesService : WildberriesBaseService
         var allResults = new List<WbApiResult>();
 
         foreach (var batch in batches){
-            var response = await SendCreateRequestAsync(batch, wbClient, accountId);
+            var response = await SendCreateRequestAsync(batch, wbClient);
             await Task.Delay(TimeSpan.FromSeconds(2));
 
             var vendorCodes = batch.SelectMany(x => x.Variants).Select(y => y.VendorCode).ToList();
@@ -89,6 +110,58 @@ public class WildberriesService : WildberriesBaseService
         return MergeResults(allResults);
     }
 
+
+    public async Task<List<WbCategoryDto>> SearchCategoriesAsync(string? query, int baseSubjectId){
+        var baseCategory = await _db.wildberries_categories
+            .FirstOrDefaultAsync(c => c.id == baseSubjectId);
+
+        if (baseCategory == null)
+            return new List<WbCategoryDto>();
+
+        var parentId = baseCategory.parent_id;
+
+        // 2. Ищем все категории с тем же parent_id и по совпадению в названии
+        var relatedCategories = await _db.wildberries_categories
+            .Where(c => c.parent_id == parentId &&
+                        EF.Functions.ILike(c.name, $"%{query}%"))
+            .Select(c => new WbCategoryDto
+            {
+                Id = c.id,
+                Name = c.name
+            })
+            .ToListAsync();
+
+        return relatedCategories;
+    }
+    
+    public async Task<List<WbCategoryDto>> SearchCategoriesByParentIdAsync(string? query, int parentId){
+        var relatedCategories = await _db.wildberries_categories
+            .Where(c => c.parent_id == parentId &&
+                        EF.Functions.ILike(c.name, $"%{query}%"))
+            .Select(c => new WbCategoryDto
+            {
+                Id = c.id,
+                Name = c.name
+            })
+            .Take(50).ToListAsync();
+
+        return relatedCategories;
+    }
+
+    
+    public async Task<List<WbCategoryDto>> SearchParentCategoriesAsync(string? query){
+        var relatedCategories = await _db.wildberries_parrent_categories
+            .Where(c => EF.Functions.ILike(c.name, $"%{query}%"))
+            .Select(c => new WbCategoryDto
+            {
+                Id = c.id,
+                Name = c.name
+            })
+            .ToListAsync();
+
+        return relatedCategories;
+    }
+    
     public async Task<WbApiResult> UpdateWbItemsAsync(List<WbProductCardDto> itemsToUpdate, int accountId){
         var WbClient = await GetWbClientAsync(accountId);
         var response = await SendUpdateRequestAsync(itemsToUpdate, WbClient, accountId);
@@ -96,7 +169,7 @@ public class WildberriesService : WildberriesBaseService
         return await ParseWbErrorsAsync(response, itemsToUpdate.Select(x => x.VendorCode).ToList(), WbClient);
     }
 
-    private async Task<List<WbAdditionalCharacteristicDto>?> GetProductChars(int? subjectId, int accountId){
+    public async Task<List<WbAdditionalCharacteristicDto>?> GetProductChars(int? subjectId, int accountId){
         var WbClient = await GetWbClientAsync(accountId);
         var response = await WbClient.GetAsync($"/content/v2/object/charcs/{subjectId}");
         response.EnsureSuccessStatusCode();
@@ -108,7 +181,7 @@ public class WildberriesService : WildberriesBaseService
             jsonDocument.RootElement.GetProperty("data").GetRawText(), options);
     }
 
-    private async Task<HttpResponseMessage> GetProductByVendorCode(string vendorCode, int accountId){
+    private async Task<HttpResponseMessage> GetProductByVendorCode(string vendorCode, int accountId, int maxRetries = 3, int delayMs = 3000){
         var requestData = new{
             settings = new{
                 cursor = new{
@@ -123,7 +196,7 @@ public class WildberriesService : WildberriesBaseService
 
         var json = JsonSerializer.Serialize(requestData, new JsonSerializerOptions{
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true // Для красивого форматирования (можно убрать в production)
+            WriteIndented = true 
         });
 
         // 3. Создаем контент запроса
@@ -132,8 +205,30 @@ public class WildberriesService : WildberriesBaseService
             Encoding.UTF8,
             "application/json"
         );
-        var WbClient = await GetWbClientAsync(accountId);
-        return await WbClient.PostAsync("/content/v2/get/cards/list", content);
+        int attempt = 0;
+        while (attempt < maxRetries)
+        {
+            var WbClient = await GetWbClientAsync(accountId);
+            var response = await WbClient.PostAsync("/content/v2/get/cards/list", content);
+
+            if (response.IsSuccessStatusCode)
+                return response;
+
+            var body = await response.Content.ReadAsStringAsync();
+
+            if ((int)response.StatusCode == 500 && body.Contains("\"error\": true"))
+            {
+                Console.WriteLine($"[WB Retry] Попытка {attempt + 1} — 500 с ошибкой: {body}");
+                await Task.Delay(delayMs);
+                attempt++;
+            }
+            else
+            {
+                // Не 500 или без error — сразу бросаем
+                response.EnsureSuccessStatusCode();
+            }
+        }
+        throw new HttpRequestException($"WB API: не удалось получить ответ после {maxRetries} попыток");
     }
     public class WbLimitResponse
     {
@@ -163,6 +258,19 @@ public class WildberriesService : WildberriesBaseService
         var responseContent = await response.Response.Content.ReadAsStringAsync();
 
         try{
+            
+            var inlineResult = JsonSerializer.Deserialize<WbErrorListResponse>(responseContent, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+            if (inlineResult != null && inlineResult.Error){
+                return new WbApiResult
+                {
+                    Error = true,
+                    ErrorText = inlineResult.ErrorText
+                };
+            }
+            
             var errorListResponse = await wbClient.GetAsync("/content/v2/cards/error/list");
 
             if (!errorListResponse.IsSuccessStatusCode){
@@ -239,8 +347,7 @@ public class WildberriesService : WildberriesBaseService
         };
     }
 
-    private async Task<WbUpdateResponse> SendCreateRequestAsync(List<WbProductGroup> batch, HttpClient wbClient,
-        int? accountId){
+    private async Task<WbUpdateResponse> SendCreateRequestAsync(List<WbProductGroup> batch, HttpClient wbClient){
         var json = JsonSerializer.Serialize(batch, new JsonSerializerOptions{
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = false
@@ -249,7 +356,6 @@ public class WildberriesService : WildberriesBaseService
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         var response = await wbClient.PostAsync("/content/v2/cards/upload", content);
-        response.EnsureSuccessStatusCode();
 
         return new WbUpdateResponse{
             Response = response,
@@ -266,7 +372,7 @@ public class WildberriesService : WildberriesBaseService
         };
     }
 
-    private List<List<WbProductGroup>> SplitIntoCreateBatches(List<WbProductCardDto> allItems){
+    private List<List<WbProductGroup>> SplitIntoCreateBatches(List<WbCreateVariantInternalDto> allItems){
         const int maxGroupsPerRequest = 100;
         const int maxVariantsPerGroup = 30;
         const int maxSizeInBytes = 10 * 1024 * 1024;

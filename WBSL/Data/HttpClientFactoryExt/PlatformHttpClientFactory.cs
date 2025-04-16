@@ -22,15 +22,15 @@ public class PlatformHttpClientFactory
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task<HttpClient> CreateClientAsync(ExternalAccountType platform, int accountId)
+    public async Task<HttpClient> CreateClientAsync(ExternalAccountType platform, int accountId, bool sync = false)
     {
         Guid userId = Guid.Empty;
         var user = _httpContextAccessor.HttpContext?.User;
-        if (user != null){
+        if (user != null && !sync){
             userId = Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty);
         }
 
-        var account = await _accountService.GetAccountAsync(platform, accountId: accountId, userId: userId);
+        var account = await _accountService.GetAccountAsync(platform, accountId: accountId, userId: userId, isSync: sync);
         
         var client = _httpClientFactory.CreateClient(platform.ToString());
         if (platform == ExternalAccountType.Wildberries){

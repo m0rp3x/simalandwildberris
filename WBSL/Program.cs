@@ -68,13 +68,14 @@ builder.Services.AddScoped<PlatformHttpClientFactory>(sp =>
         sp.GetRequiredService<IHttpContextAccessor>()));
 
 
-builder.Services.AddTransient<AccountTokenService>();
+builder.Services.AddScoped<AccountTokenService>();
 builder.Services.AddScoped<WildberriesService>();
 builder.Services.AddScoped<WildberriesCategoryService>();
 builder.Services.AddScoped<WildberriesProductsService>();
 builder.Services.AddScoped<WildberriesCharacteristicsService>();
 builder.Services.AddScoped<SimalandFetchService>();
 builder.Services.AddScoped<ProductMappingService>();
+builder.Services.AddScoped<WbProductService>();
 
 builder.Services.AddHttpClient("SimaLand", client => {
         client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/");

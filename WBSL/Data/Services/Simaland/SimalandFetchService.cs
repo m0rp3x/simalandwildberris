@@ -66,11 +66,12 @@ public class SimalandFetchService
     private List<ProductAttribute> MergeDuplicateAttributes(List<ProductAttribute> attributes, long sid)
     {
         return attributes
-            .GroupBy(attr => attr.attr_name)
+            .GroupBy(attr => attr.id)
             .Select(group => new ProductAttribute
             {
                 product_sid = sid,
-                attr_name = group.Key,
+                id = group.Key,
+                attr_name = group.First().attr_name,
                 value_text = string.Join("; ", group
                     .Select(a => a.value_text)
                     .Where(v => !string.IsNullOrWhiteSpace(v))
@@ -80,7 +81,7 @@ public class SimalandFetchService
     }
     private async Task<SimalandProductDto?> ProcessProductResponse(HttpClient client,
         string json, long sid){
-        var root = JsonSerializer.Deserialize<JsonElement>(json);
+        var root = JsonDocument.Parse(json).RootElement;
         var items = root.GetProperty("items");
         if (items.GetArrayLength() == 0) return null;
 
@@ -97,6 +98,39 @@ public class SimalandFetchService
         dto.balance = product.TryGetProperty("stocks", out var stocks) && stocks.GetArrayLength() > 0
             ? stocks[0].GetProperty("balance").GetInt32()
             : 0;
+        
+        dto.width = product.TryGetProperty("width", out var widthProp) && widthProp.TryGetDecimal(out var width)
+            ? Math.Round(width, 3)
+            : 0;
+
+        dto.height = product.TryGetProperty("height", out var heightProp) && heightProp.TryGetDecimal(out var height)
+            ? Math.Round(height, 3)
+            : 0;
+
+        dto.depth = product.TryGetProperty("depth", out var depthProp) && depthProp.TryGetDecimal(out var depth)
+            ? Math.Round(depth, 3)
+            : 0;
+
+        dto.weight = product.TryGetProperty("weight", out var weightProp) && weightProp.TryGetDecimal(out var weight)
+            ? Math.Round(weight / 1000m, 3)
+            : 0;
+
+        dto.box_width = product.TryGetProperty("box_width", out var boxWidthProp) && boxWidthProp.TryGetDecimal(out var boxWidth)
+            ? Math.Round(boxWidth, 3)
+            : 0;
+
+        dto.box_height = product.TryGetProperty("box_height", out var boxHeightProp) && boxHeightProp.TryGetDecimal(out var boxHeight)
+            ? Math.Round(boxHeight, 3)
+            : 0;
+
+        dto.box_depth = product.TryGetProperty("box_depth", out var boxDepthProp) && boxDepthProp.TryGetDecimal(out var boxDepth)
+            ? Math.Round(boxDepth, 3)
+            : 0;
+
+        dto.wholesale_price = product.TryGetProperty("wholesale_price", out var wsPriceProp) && wsPriceProp.TryGetDecimal(out var wsPrice)
+            ? Math.Round(wsPrice, 3)
+            : 0;
+        dto.vat = product.TryGetProperty("vat", out var vatProp) && vatProp.TryGetInt32(out var vat) ? vat : null;
 
         // Категория
         if (product.TryGetProperty("category_id", out var categoryId)){
@@ -114,8 +148,8 @@ public class SimalandFetchService
         }
 
         // Фотографии
-        dto.photo_urls = GetPhotoUrls(product);
-        dto.base_photo_url = product.TryGetProperty("base_photo_url", out var baseUrl) ? baseUrl.GetString() : null;
+        // dto.photo_urls = GetPhotoUrls(product);
+        // dto.base_photo_url = product.TryGetProperty("base_photo_url", out var baseUrl) ? baseUrl.GetString() : null;
 
         // Штрихкоды
         if (product.TryGetProperty("barcodes", out var barcodes)){
@@ -130,11 +164,13 @@ public class SimalandFetchService
         // Атрибуты
         if (product.TryGetProperty("attrs", out var attrs)){
             foreach (var attr in attrs.EnumerateArray()){
+                var attrId = attr.TryGetProperty("attr_id", out var id) ? id.GetInt32() : 0;
                 var attrName = attr.TryGetProperty("attr_name", out var an) ? an.GetString() : null;
                 var attrValue = attr.TryGetProperty("value", out var av) ? av.ToString() : null;
 
                 if (!string.IsNullOrEmpty(attrName)){
                     dto.Attributes.Add(new ProductAttribute{
+                        id = attrId,
                         product_sid = sid,
                         attr_name = attrName,
                         value_text = attrValue
