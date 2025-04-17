@@ -87,62 +87,80 @@
         _accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
     }
 
-         private async Task Fetch()
+private async Task Fetch()
+{
+    if (_selectedAccount == null) return;
+
+    // Парсинг артикулов
+    var articles = _rawArticles
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(long.Parse)
+        .ToList();
+
+    _loadingProgress = 1;
+    await InvokeAsync(StateHasChanged);
+
+    // Запрос на сервер для получения данных
+    var res = await Http.PostAsJsonAsync("api/simaland/fetch", new
     {
-        if (_selectedAccount == null) return;
-        var articles = _rawArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(long.Parse).ToList();
+        AccountId = _selectedAccount.Id,
+        Articles = articles
+    });
 
-        _loadingProgress = 1;
-        StateHasChanged();
+    if (!res.IsSuccessStatusCode)
+    {
+        _resultJson = $"Ошибка: {res.StatusCode}";
+        _loadingProgress = 0;
+        await InvokeAsync(StateHasChanged);
+        return;
+    }
 
-        var res = await Http.PostAsJsonAsync("api/simaland/fetch", new
-        {
-            AccountId = _selectedAccount.Id,
-            Articles = articles
-        });
+    // Чтение и разбор JSON-ответа
+    var json = await res.Content.ReadAsStringAsync();
+    using var doc = JsonDocument.Parse(json);
+    var root = doc.RootElement;
+    if (!root.TryGetProperty("products", out var productArray))
+    {
+        _resultJson = "Ответ не содержит секции products";
+        _loadingProgress = 0;
+        await InvokeAsync(StateHasChanged);
+        return;
+    }
 
-        if (!res.IsSuccessStatusCode)
-        {
-            _resultJson = $"Ошибка: {res.StatusCode}";
-            _loadingProgress = 0;
-            StateHasChanged();
-            return;
-        }
+    _products.Clear();
+    var attrSet = new HashSet<string>();
+    var total = productArray.GetArrayLength();
+    int index = 0;
 
-        var json = await res.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-        if (!root.TryGetProperty("products", out var productArray))
-        {
-            _resultJson = "Ответ не содержит секции products";
-            _loadingProgress = 0;
-            StateHasChanged();
-            return;
-        }
+    // Создание объекта для уведомления об изменениях прогресса
+    var progress = new Progress<int>(p =>
+    {
+        _loadingProgress = p;
+        // Гарантирует, что StateHasChanged вызывается в UI-потоке
+        InvokeAsync(StateHasChanged);
+    });
 
-        _products.Clear();
-        var attrSet = new HashSet<string>();
-        var total = productArray.GetArrayLength();
-        int index = 0;
-
+    // Обработка товаров в фоновом потоке
+    await Task.Run(async () =>
+    {
         foreach (var prodElem in productArray.EnumerateArray())
         {
-            var product = JsonSerializer.Deserialize<Product>(prodElem.GetRawText(), new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            var product = JsonSerializer.Deserialize<Product>(
+                prodElem.GetRawText(), 
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+            );
+            if (product == null)
+                continue;
 
-            if (product == null) continue;
             product.Attributes ??= new List<ProductAttribute>();
 
-            if (prodElem.TryGetProperty("attrs", out var attrsArray) && attrsArray.ValueKind == JsonValueKind.Array)
+            if (prodElem.TryGetProperty("attrs", out var attrsArray) &&
+                attrsArray.ValueKind == JsonValueKind.Array)
             {
                 foreach (var attr in attrsArray.EnumerateArray())
                 {
                     var attrName = attr.TryGetProperty("attr_name", out var an) ? an.GetString() ?? "" : "";
                     var value = attr.TryGetProperty("value", out var v) ? v.ToString() ?? "" : "";
-
                     if (!string.IsNullOrWhiteSpace(attrName))
                     {
                         product.Attributes.Add(new ProductAttribute
@@ -158,17 +176,25 @@
             }
 
             _products.Add(product);
-
             index++;
-            _loadingProgress = Math.Min(99, (int)((index / (double)total) * 100));
-            if (index % 10 == 0) StateHasChanged();
-        }
 
-        _allAttrNames = attrSet.OrderBy(x => x).ToList();
-        _resultJson = $"Загружено товаров: {_products.Count}, атрибутов: {_allAttrNames.Count}";
-        _loadingProgress = 100;
-        StateHasChanged();
-    }
+            // Расчёт прогресса
+            int newProgress = Math.Min(99, (int)((index / (double)total) * 100));
+            ((IProgress<int>)progress).Report(newProgress);
+            
+            // Искусственная задержка для лучшей видимости прогресса
+            await Task.Delay(3);
+        }
+    });
+
+    _allAttrNames = attrSet.OrderBy(x => x).ToList();
+    _resultJson = $"Загружено товаров: {_products.Count}, атрибутов: {_allAttrNames.Count}";
+    _loadingProgress = 100;
+    await InvokeAsync(StateHasChanged);
+}
+
+
+
 
 
     private async Task DownloadPhotosForProduct(long sid){
