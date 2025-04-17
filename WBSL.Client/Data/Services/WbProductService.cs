@@ -49,9 +49,10 @@ public class WbProductService
             return null;
         }
     }
-    
-    
-    public async Task<ProductCheckResponse?> CheckSimalandAndWbProductAsync(string vendorCode, ExternalAccount wbAccount,
+
+
+    public async Task<ProductCheckResponse?> CheckSimalandAndWbProductAsync(string vendorCode,
+        ExternalAccount wbAccount,
         ExternalAccount simaAccount){
         if (string.IsNullOrWhiteSpace(vendorCode)){
             _snackbar.Add("Введите артикул товара", Severity.Warning);
@@ -93,10 +94,11 @@ public class WbProductService
         if (result.Error){
             _snackbar.Add(result.ErrorText ?? "Произошла ошибка", Severity.Error);
 
-            if (result.AdditionalErrors is JsonElement json && json.ValueKind == JsonValueKind.Object){
-                foreach (var prop in json.EnumerateObject()){
-                    _snackbar.Add($"{prop.Name}: {prop.Value}", Severity.Warning);
-                }
+            if (result.AdditionalErrors != null && result.AdditionalErrors.Any()){
+                var failedVendorCodes = result.AdditionalErrors.Keys;
+                var message = $"❌ Не удалось обработать карточки: {string.Join(", ", failedVendorCodes)}";
+
+                _snackbar.Add(message, Severity.Warning);
             }
 
             return false;
@@ -105,7 +107,7 @@ public class WbProductService
         _snackbar.Add("Товары успешно обновлены", Severity.Success);
         return true;
     }
-    
+
     public async Task<bool> CreateItemsAsync(List<WbCreateVariantInternalDto> products, int wbAccountId){
         var response = await _client.PostAsJsonAsync($"api/Wildberries/createWbItem/{wbAccountId}", products);
         var result = await response.Content.ReadFromJsonAsync<WbApiResult>();
@@ -118,10 +120,11 @@ public class WbProductService
         if (result.Error){
             _snackbar.Add(result.ErrorText ?? "Произошла ошибка", Severity.Error);
 
-            if (result.AdditionalErrors is JsonElement json && json.ValueKind == JsonValueKind.Object){
-                foreach (var prop in json.EnumerateObject()){
-                    _snackbar.Add($"{prop.Name}: {prop.Value}", Severity.Warning);
-                }
+            if (result.AdditionalErrors != null && result.AdditionalErrors.Any()){
+                var failedVendorCodes = result.AdditionalErrors.Keys;
+                var message = $"❌ Не удалось обработать карточки: {string.Join(", ", failedVendorCodes)}";
+
+                _snackbar.Add(message, Severity.Warning);
             }
 
             return false;
@@ -143,10 +146,11 @@ public class WbProductService
         if (result.Error){
             _snackbar.Add(result.ErrorText ?? "Произошла ошибка", Severity.Error);
 
-            if (result.AdditionalErrors is JsonElement json && json.ValueKind == JsonValueKind.Object){
-                foreach (var prop in json.EnumerateObject()){
-                    _snackbar.Add($"{prop.Name}: {prop.Value}", Severity.Warning);
-                }
+            if (result.AdditionalErrors != null && result.AdditionalErrors.Any()){
+                var failedVendorCodes = result.AdditionalErrors.Keys;
+                var message = $"❌ Не удалось обработать карточки: {string.Join(", ", failedVendorCodes)}";
+
+                _snackbar.Add(message, Severity.Warning);
             }
 
             return false;

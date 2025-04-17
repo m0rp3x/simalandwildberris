@@ -14,8 +14,6 @@ public partial class QPlannerDbContext : DbContext
 
     public virtual DbSet<WbCharacteristic> WbCharacteristics { get; set; }
 
-    public virtual DbSet<WbCursor> WbCursors { get; set; }
-
     public virtual DbSet<WbDimension> WbDimensions { get; set; }
 
     public virtual DbSet<WbPhoto> WbPhotos { get; set; }

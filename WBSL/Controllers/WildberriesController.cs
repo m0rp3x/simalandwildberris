@@ -8,6 +8,7 @@ using WBSL.Data.Services.Wildberries;
 namespace WBSL.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class WildberriesController : ControllerBase
 {
@@ -54,7 +55,7 @@ public class WildberriesController : ControllerBase
         List<long> vendorCodes = new List<long>();
         vendorCodes.Add(long.Parse(vendorCode));
 
-        var wbTask = _wildberriesService.GetProductWithOutCharacteristics(vendorCode, wbAccountId);
+        var wbTask = _wildberriesService.GetProductWithOutCharacteristics(vendorCode);
         var simaTask = _simalandFetchService.FetchProductsWithMergedAttributesAsync(accountId, vendorCodes);
         
         await Task.WhenAll(wbTask, simaTask);

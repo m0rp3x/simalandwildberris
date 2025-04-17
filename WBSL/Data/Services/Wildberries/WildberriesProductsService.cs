@@ -2,15 +2,12 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Shared;
+using WBSL.Data.Exceptions;
 using WBSL.Data.HttpClientFactoryExt;
+using WBSL.Data.Mappers;
 using WBSL.Models;
 
 namespace WBSL.Data.Services.Wildberries;
-
-public record ProductsSyncResult(
-    int ProductsCount,
-    int ErrorsCount
-);
 
 public class WildberriesProductsService : WildberriesBaseService
 {
@@ -27,90 +24,72 @@ public class WildberriesProductsService : WildberriesBaseService
     public async Task<ProductsSyncResult> SyncProductsAsync(){
         int totalRequests = 0;
         int totalCards = 0;
+        int fetchErrorCount = 0;
+        int saveErrorCount = 0;
         int accountId = 1;
         string updatedAt = string.Empty;
         long? nmID = null;
-        var exceptions = new List<Exception>();
-
+        int totalAvailable = 1;
+            
         do{
             try{
                 var (response, cardsCount) = await FetchProductsBatchAsync(updatedAt, nmID, accountId);
                 totalRequests++;
                 totalCards += cardsCount;
 
-                var batch = response.Cards.Select(card => new WbProductCard{
-                    NmID = card.NmID,
-                    ImtID = card.ImtID,
-                    NmUUID = card.NmUUID,
-                    SubjectID = card.SubjectID,
-                    SubjectName = card.SubjectName,
-                    VendorCode = card.VendorCode,
-                    Brand = card.Brand,
-                    Title = card.Title,
-                    Description = card.Description,
-                    NeedKiz = card.NeedKiz,
-                    CreatedAt = NormalizeDateTime(card.CreatedAt),
-                    UpdatedAt = NormalizeDateTime(card.UpdatedAt),
-                    WbPhotos = card.Photos.Select(p => new WbPhoto{
-                        Big = p.Big,
-                        C246x328 = p.C246x328,
-                        C516x688 = p.C516x688,
-                        Hq = p.Hq,
-                        Square = p.Square,
-                        Tm = p.Tm
-                    }).ToList(),
-                    SizeChrts = card.Sizes.Select(x => new WbSize{
-                        ChrtID = x.ChrtID, TechSize = x.TechSize, WbSize1 = x.WbSize, Value = string.Join(", ", x.Skus),
-                    }).ToList(),
-                    WbProductCardCharacteristics = card.Characteristics.Select(ch => new WbProductCardCharacteristic{
-                        ProductNmID = card.NmID,
-                        CharacteristicId = ch.Id,
-                        Characteristic = new WbCharacteristic(){
-                            Name = ch.Name,
-                            Id = ch.Id
-                        },
-                        Value = ch.Value.ToString(),
-                    }).ToList(),
-                    Dimensions = new List<WbDimension>{
-                        new WbDimension{
-                            Width = card.Dimensions.Width,
-                            Height = card.Dimensions.Height,
-                            Length = card.Dimensions.Length,
-                            WeightBrutto = card.Dimensions.WeightBrutto,
-                            IsValid = card.Dimensions.IsValid
-                        }
-                    }
-                });
 
-                await SaveProductsToDatabaseAsync(batch.ToList());
+                try{
+                    var batch = response.Cards.Select(card => WbProductCardMapToDomain.MapToDomain(card)).ToList();
+
+                    await SaveProductsToDatabaseAsync(batch.ToList());
+                }
+                catch (Exception saveEx){
+                    saveErrorCount++;
+                    if (saveErrorCount >= 3){
+                        return new ProductsSyncResult(
+                            ProductsCount: totalCards,
+                            RequestsCount: totalRequests,
+                            FetchErrorsCount: fetchErrorCount,
+                            SaveErrorsCount: saveErrorCount,
+                            IsFatalError: true,
+                            FatalErrorMessage: $"Failed to save batches. Error: {saveEx.Message}"
+                        );
+                    }
+
+                    await Task.Delay(1000);
+                    continue; 
+                }
 
                 updatedAt = response.Cursor.UpdatedAt.ToString("o");
                 nmID = response.Cursor.NmID;
+                totalAvailable = response.Cursor.Total;
+            }
+            catch (FetchFailedException fetchEx){
+                return new ProductsSyncResult(
+                    ProductsCount: totalCards,
+                    RequestsCount: totalRequests,
+                    FetchErrorsCount: fetchErrorCount + 1,
+                    SaveErrorsCount: saveErrorCount,
+                    IsFatalError: true,
+                    FatalErrorMessage: $"Failed to fetch batch: {fetchEx.Message}"
+                );
             }
             catch (Exception ex){
-                exceptions.Add(ex);
-                if (exceptions.Count >= 3) // Максимум 3 ошибки подряд
-                {
-                    throw new AggregateException("Failed after multiple retries", exceptions);
-                }
-
-                await Task.Delay(1000);
+                return new ProductsSyncResult(
+                    ProductsCount: totalCards,
+                    RequestsCount: totalRequests,
+                    FetchErrorsCount: fetchErrorCount,
+                    SaveErrorsCount: saveErrorCount,
+                    IsFatalError: true,
+                    FatalErrorMessage: $"Unhandled exception: {ex.Message}"
+                );
             }
-        } while (ShouldFetchNextBatch(1));
+        } while (ShouldFetchNextBatch(totalAvailable));
 
         return new ProductsSyncResult(totalCards, totalRequests);
     }
 
-    private static DateTime NormalizeDateTime(DateTime dateTime){
-        if (dateTime.Kind == DateTimeKind.Unspecified)
-            return DateTime.SpecifyKind(dateTime, DateTimeKind.Local);
-
-        return dateTime.Kind == DateTimeKind.Utc
-            ? dateTime.ToLocalTime()
-            : dateTime;
-    }
-
-    private async Task SaveProductsToDatabaseAsync(List<WbProductCard> productsToSave){
+    public async Task SaveProductsToDatabaseAsync(List<WbProductCard> productsToSave){
         if (!productsToSave.Any())
             return;
 
@@ -179,13 +158,12 @@ public class WildberriesProductsService : WildberriesBaseService
             .Where(s => allChrtIds.Contains(s.ChrtID))
             .ToListAsync();
 
-        foreach (var size in products.SelectMany(p => p.SizeChrts))
-        {
+        foreach (var size in products.SelectMany(p => p.SizeChrts)){
             var existingSize = existingSizes.FirstOrDefault(s => s.ChrtID == size.ChrtID);
             if (existingSize == null) continue;
 
             existingSize.Value = size.Value;
-            
+
             size.ChrtID = 0;
         }
 
@@ -226,7 +204,8 @@ public class WildberriesProductsService : WildberriesBaseService
         return Math.Abs(totalCardsFetched) % 100 == 0;
     }
 
-    private async Task<(WbApiResponse Response, int CardsCount)> FetchProductsBatchAsync(string updatedAt, long? nmID, int accountId){
+    private async Task<(WbApiResponse Response, int CardsCount)> FetchProductsBatchAsync(string updatedAt, long? nmID,
+        int accountId){
         int attempt = 0;
         Exception lastException = null;
 
@@ -239,10 +218,11 @@ public class WildberriesProductsService : WildberriesBaseService
                 response.EnsureSuccessStatusCode();
 
                 var apiResponse = await response.Content.ReadFromJsonAsync<WbApiResponse>();
+                if (apiResponse == null)
+                    throw new Exception("API response is null");
 
-                if (apiResponse?.Cards != null){
-                    Cards.AddRange(apiResponse.Cards);
-                }
+                if (apiResponse.Cards == null)
+                    throw new Exception("API response cards is null");
 
                 return (apiResponse, apiResponse?.Cards?.Count ?? 0);
             }
@@ -252,11 +232,14 @@ public class WildberriesProductsService : WildberriesBaseService
             }
             catch (Exception ex){
                 lastException = ex;
-                break;
+                if (attempt >= maxRetries)
+                    break;
+
+                await Task.Delay(CalculateDelay(attempt));
             }
         }
 
-        throw new Exception($"Failed after {maxRetries} attempts", lastException);
+        throw new FetchFailedException($"Failed after {maxRetries} attempts", lastException);
     }
 
     private TimeSpan CalculateDelay(int attempt){

@@ -33,6 +33,9 @@
     <MudButton OnClick="CheckProduct" Disabled="@(!CanSearch)" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
         Проверить товар
     </MudButton>
+    @* <MudButton OnClick="SyncPrdoucts" Disabled="@(!CanSearch)" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4"> *@
+    @*     Синк продуктов *@
+    @* </MudButton> *@
 
     @if (_checkPerformed){
         @if (!_isNullFromWb){
@@ -207,6 +210,34 @@
         }
     }
 
+    private async void SyncPrdoucts(MouseEventArgs obj){
+        try{
+            var response = await Client.GetAsync("api/Wildberries/sync/productCards");
+
+            if (response.IsSuccessStatusCode){
+                var result = await response.Content.ReadFromJsonAsync<ProductsSyncResult>();
+
+                if (result is not null){
+                    if (result.IsFatalError){
+                        Snackbar.Add($"❌ Sync failed: {result.FatalErrorMessage}", Severity.Error);
+                    }
+                    else{
+                        Snackbar.Add($"✅ Sync completed: {result.ProductsCount} products, {result.SaveErrorsCount} save errors", Severity.Success);
+                    }
+                }
+                else{
+                    Snackbar.Add("⚠️ Sync completed but response is empty", Severity.Warning);
+                }
+            }
+            else{
+                Snackbar.Add($"❌ Server error: {response.ReasonPhrase}", Severity.Error);
+            }
+        }
+        catch (Exception ex){
+            Snackbar.Add($"❌ Exception during sync: {ex.Message}", Severity.Error);
+        }
+    }
+
     private async Task CheckProduct(){
         _checkPerformed = false;
 
@@ -221,9 +252,9 @@
 
         if (result.ChildCategory != null){
             await OnCategorySelected(result.ChildCategory);
-            
+
             _checkPerformed = true;
-            
+
             return;
         }
 

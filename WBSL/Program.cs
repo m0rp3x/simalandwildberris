@@ -21,11 +21,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add MudBlazor services
 builder.Services.AddMudServices();
-builder.Services.AddDbContext<QPlannerDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<QPlannerDbContext>(options => {
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
 // Hangfire
 builder.Services.AddHangfireWithJobs(builder.Configuration);
-
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents();
@@ -33,17 +33,14 @@ builder.Services.AddRazorComponents()
 var jwtKey = builder.Configuration["Jwt:Key"];
 var key = Encoding.ASCII.GetBytes(jwtKey);
 
-builder.Services.AddAuthentication(options =>
-    {
+builder.Services.AddAuthentication(options => {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
-    .AddJwtBearer(options =>
-    {
+    .AddJwtBearer(options => {
         options.RequireHttpsMetadata = false;
         options.SaveToken = true;
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
+        options.TokenValidationParameters = new TokenValidationParameters{
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(key),
             ValidateIssuer = false,
@@ -61,7 +58,7 @@ builder.Services.Configure<RateLimitConfig>("SimaLand",
 builder.Services.Configure<RateLimitConfig>("WildBerries",
     builder.Configuration.GetSection("RateLimits:WildBerries"));
 
-builder.Services.AddScoped<PlatformHttpClientFactory>(sp => 
+builder.Services.AddScoped<PlatformHttpClientFactory>(sp =>
     new PlatformHttpClientFactory(
         sp.GetRequiredService<IHttpClientFactory>(),
         sp.GetRequiredService<AccountTokenService>(),
@@ -76,10 +73,10 @@ builder.Services.AddScoped<WildberriesCharacteristicsService>();
 builder.Services.AddScoped<SimalandFetchService>();
 builder.Services.AddScoped<ProductMappingService>();
 builder.Services.AddScoped<WbProductService>();
+builder.Services.AddScoped<IDbContextFactory<QPlannerDbContext>, ManualDbContextFactory>();
 
-builder.Services.AddHttpClient("SimaLand", client => {
-        client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/");
-    })
+builder.Services
+    .AddHttpClient("SimaLand", client => { client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/"); })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("SimaLand"))
     .AddHttpMessageHandler(sp => {
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("SimaLand");
@@ -87,25 +84,21 @@ builder.Services.AddHttpClient("SimaLand", client => {
     });
 
 
-builder.Services.AddHttpClient("Wildberries", client =>
-    {
-        client.BaseAddress = new Uri("https://content-api.wildberries.ru");
-    })
+builder.Services.AddHttpClient("Wildberries",
+        client => { client.BaseAddress = new Uri("https://content-api.wildberries.ru"); })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerries"))
     .AddHttpMessageHandler(sp => {
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerries");
         return new RateLimitedAuthHandler(a, "WildBerries");
     });
-        
+
 var app = builder.Build();
 app.MapControllers(); // <-- обязательно!
 app.UseHangfireDashboard();
-if (app.Environment.IsDevelopment())
-{   
+if (app.Environment.IsDevelopment()){
     app.UseWebAssemblyDebugging();
 }
-else
-{
+else{
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();

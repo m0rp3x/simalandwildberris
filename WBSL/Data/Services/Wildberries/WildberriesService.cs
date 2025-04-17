@@ -3,16 +3,23 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Shared;
 using WBSL.Data.HttpClientFactoryExt;
+using WBSL.Data.Mappers;
 using WBSL.Data.Services.Wildberries.Models;
+using WBSL.Models;
 
 namespace WBSL.Data.Services.Wildberries;
 
 public class WildberriesService : WildberriesBaseService
 {
     private readonly QPlannerDbContext _db;
+    private readonly IDbContextFactory<QPlannerDbContext> _contextFactory;
+    private readonly WildberriesProductsService _productService;
 
-    public WildberriesService(PlatformHttpClientFactory httpFactory, QPlannerDbContext db) : base(httpFactory){
+    public WildberriesService(PlatformHttpClientFactory httpFactory, WildberriesProductsService productService,
+         QPlannerDbContext db, IDbContextFactory<QPlannerDbContext> contextFactory) : base(httpFactory){
         _db = db;
+        _contextFactory = contextFactory;
+        _productService = productService;
     }
 
     public async Task<WbProductFullInfoDto?> GetProduct(string vendorCode, int accountId){
@@ -61,17 +68,19 @@ public class WildberriesService : WildberriesBaseService
         }
     }
 
-    public async Task<WbProductCardDto?> GetProductWithOutCharacteristics(string vendorCode, int accountId){
-
+    public async Task<WbProductCardDto?> GetProductWithOutCharacteristics(string vendorCode){
         try{
-            var response = await GetProductByVendorCode(vendorCode, accountId);
+            using var db = _contextFactory.CreateDbContext();
+            var productFromDb = await db.WbProductCards
+                .FirstOrDefaultAsync(p => p.VendorCode == vendorCode);
+            
+            if (productFromDb != null){
+                var productDto = WbProductCardMapper.MapToDto(productFromDb);
 
-            var apiResponse = await response.Content.ReadFromJsonAsync<WbApiResponse>();
-            var apiProduct = apiResponse?.Cards?.FirstOrDefault();
+                return productDto;
+            }
 
-            if (apiProduct == null) return null;
-
-            return apiResponse.Cards.FirstOrDefault();
+            return null;
         }
         catch (HttpRequestException ex){
             Console.WriteLine($"Ошибка при запросе продукта: {ex.Message}");
@@ -82,20 +91,22 @@ public class WildberriesService : WildberriesBaseService
             return null;
         }
     }
+
     public async Task<WbApiResult> CreteWbItemsAsync(List<WbCreateVariantInternalDto> itemsToCreate, int accountId){
         var wbClient = await GetWbClientAsync(accountId);
-        
-        var Limit = await GetWbLimitsAsync(wbClient);
-        if (itemsToCreate.Count > Limit)
-        {
-            return new WbApiResult
-            {
+        var maxLimit = await GetWbLimitsAsync(wbClient);
+
+        var wbItemsCount = _db.WbProductCards.Count();
+
+        if (wbItemsCount > maxLimit){
+            var Limit = maxLimit - wbItemsCount;
+            return new WbApiResult{
                 Error = true,
                 ErrorText = $"Превышен лимит создания карточек: доступно для загрузки {Limit}"
             };
         }
-        var batches = SplitIntoCreateBatches(itemsToCreate);
 
+        var batches = SplitIntoCreateBatches(itemsToCreate);
         var allResults = new List<WbApiResult>();
 
         foreach (var batch in batches){
@@ -105,11 +116,75 @@ public class WildberriesService : WildberriesBaseService
             var vendorCodes = batch.SelectMany(x => x.Variants).Select(y => y.VendorCode).ToList();
             var result = await ParseWbErrorsAsync(response, vendorCodes, wbClient);
             allResults.Add(result);
+
+            if (!result.Error){
+                var successVendorCodes = vendorCodes;
+                var saveResult = await SearchAndAddSuccessfulAsync(successVendorCodes, accountId);
+                if (saveResult.Error){
+                    allResults.Add(saveResult);
+                }
+            }
+            else{
+                if (result.AdditionalErrors != null && result.AdditionalErrors.Any()){
+                    var failedVendorCodes = result.AdditionalErrors.Keys.ToHashSet();
+                    var successVendorCodes = vendorCodes
+                        .Where(v => !failedVendorCodes.Contains(v))
+                        .ToList();
+
+                    if (successVendorCodes.Any()){
+                        var saveResult = await SearchAndAddSuccessfulAsync(successVendorCodes, accountId);
+                        if (saveResult.Error){
+                            allResults.Add(saveResult);
+                        }
+                    }
+                }
+            }
         }
 
         return MergeResults(allResults);
     }
 
+    private async Task<WbApiResult> SearchAndAddSuccessfulAsync(List<string> vendorCodes, int accountId){
+        var wbClient = await GetWbClientAsync(accountId);
+        var errors = new Dictionary<string, List<string>>();
+
+        foreach (var vendorCode in vendorCodes){
+            try{
+                var content = await CreateSearchRequestContentByVendorCode(textSearch: vendorCode);
+                var response = await wbClient.PostAsync("/content/v2/get/cards/list", content);
+                response.EnsureSuccessStatusCode();
+
+                var apiResponse = await response.Content.ReadFromJsonAsync<WbApiResponse>();
+                var card = apiResponse?.Cards?.FirstOrDefault();
+
+                if (card != null){
+                    var entity = WbProductCardMapToDomain.MapToDomain(card);
+                    await _productService.SaveProductsToDatabaseAsync(new List<WbProductCard>{ entity });
+                }
+                else{
+                    errors[vendorCode] = new List<string> { "Card not found in response" };
+                }
+            }
+            catch (Exception ex){
+                errors[vendorCode] = new List<string> { $"Exception: {ex.Message}" };
+            }
+
+            await Task.Delay(300); // слегка притормозим чтобы не задосить WB
+        }
+
+        if (errors.Any()){
+            return new WbApiResult
+            {
+                Error = true,
+                ErrorText = "Ошибки при добавлении успешных карточек в БД",
+                AdditionalErrors = errors
+            };
+        }
+
+        return new WbApiResult{
+            Error = false
+        };
+    }
 
     public async Task<List<WbCategoryDto>> SearchCategoriesAsync(string? query, int baseSubjectId){
         var baseCategory = await _db.wildberries_categories
@@ -124,8 +199,7 @@ public class WildberriesService : WildberriesBaseService
         var relatedCategories = await _db.wildberries_categories
             .Where(c => c.parent_id == parentId &&
                         EF.Functions.ILike(c.name, $"%{query}%"))
-            .Select(c => new WbCategoryDto
-            {
+            .Select(c => new WbCategoryDto{
                 Id = c.id,
                 Name = c.name
             })
@@ -133,13 +207,12 @@ public class WildberriesService : WildberriesBaseService
 
         return relatedCategories;
     }
-    
+
     public async Task<List<WbCategoryDto>> SearchCategoriesByParentIdAsync(string? query, int parentId){
         var relatedCategories = await _db.wildberries_categories
             .Where(c => c.parent_id == parentId &&
                         EF.Functions.ILike(c.name, $"%{query}%"))
-            .Select(c => new WbCategoryDto
-            {
+            .Select(c => new WbCategoryDto{
                 Id = c.id,
                 Name = c.name
             })
@@ -148,12 +221,11 @@ public class WildberriesService : WildberriesBaseService
         return relatedCategories;
     }
 
-    
+
     public async Task<List<WbCategoryDto>> SearchParentCategoriesAsync(string? query){
         var relatedCategories = await _db.wildberries_parrent_categories
             .Where(c => EF.Functions.ILike(c.name, $"%{query}%"))
-            .Select(c => new WbCategoryDto
-            {
+            .Select(c => new WbCategoryDto{
                 Id = c.id,
                 Name = c.name
             })
@@ -161,7 +233,7 @@ public class WildberriesService : WildberriesBaseService
 
         return relatedCategories;
     }
-    
+
     public async Task<WbApiResult> UpdateWbItemsAsync(List<WbProductCardDto> itemsToUpdate, int accountId){
         var WbClient = await GetWbClientAsync(accountId);
         var response = await SendUpdateRequestAsync(itemsToUpdate, WbClient, accountId);
@@ -181,7 +253,8 @@ public class WildberriesService : WildberriesBaseService
             jsonDocument.RootElement.GetProperty("data").GetRawText(), options);
     }
 
-    private async Task<HttpResponseMessage> GetProductByVendorCode(string vendorCode, int accountId, int maxRetries = 3, int delayMs = 3000){
+    private async Task<HttpResponseMessage> GetProductByVendorCode(string vendorCode, int accountId, int maxRetries = 3,
+        int delayMs = 3000){
         var requestData = new{
             settings = new{
                 cursor = new{
@@ -196,7 +269,7 @@ public class WildberriesService : WildberriesBaseService
 
         var json = JsonSerializer.Serialize(requestData, new JsonSerializerOptions{
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true 
+            WriteIndented = true
         });
 
         // 3. Создаем контент запроса
@@ -206,8 +279,7 @@ public class WildberriesService : WildberriesBaseService
             "application/json"
         );
         int attempt = 0;
-        while (attempt < maxRetries)
-        {
+        while (attempt < maxRetries){
             var WbClient = await GetWbClientAsync(accountId);
             var response = await WbClient.PostAsync("/content/v2/get/cards/list", content);
 
@@ -216,68 +288,73 @@ public class WildberriesService : WildberriesBaseService
 
             var body = await response.Content.ReadAsStringAsync();
 
-            if ((int)response.StatusCode == 500 && body.Contains("\"error\": true"))
-            {
+            if ((int)response.StatusCode == 500 && body.Contains("\"error\": true")){
                 Console.WriteLine($"[WB Retry] Попытка {attempt + 1} — 500 с ошибкой: {body}");
                 await Task.Delay(delayMs);
                 attempt++;
             }
-            else
-            {
+            else{
                 // Не 500 или без error — сразу бросаем
                 response.EnsureSuccessStatusCode();
             }
         }
+
         throw new HttpRequestException($"WB API: не удалось получить ответ после {maxRetries} попыток");
     }
+
     public class WbLimitResponse
     {
-        public WbLimitData Data { get; set; }
+        public WbLimitData Data{ get; set; }
     }
 
     public class WbLimitData
     {
-        public int FreeLimits { get; set; }
-        public int PaidLimits { get; set; }
+        public int FreeLimits{ get; set; }
+        public int PaidLimits{ get; set; }
     }
-    private async Task<int> GetWbLimitsAsync(HttpClient wbClient)
-    {
+
+    private async Task<int> GetWbLimitsAsync(HttpClient wbClient){
         var response = await wbClient.GetAsync("/content/v2/cards/limits");
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
-        var limitResponse = JsonSerializer.Deserialize<WbLimitResponse>(content, new JsonSerializerOptions
-        {
+        var limitResponse = JsonSerializer.Deserialize<WbLimitResponse>(content, new JsonSerializerOptions{
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         });
 
         return limitResponse?.Data?.FreeLimits ?? 0 + limitResponse?.Data?.PaidLimits ?? 0;
     }
+
     private async Task<WbApiResult> ParseWbErrorsAsync(WbUpdateResponse response, List<string> vendorCodes,
         HttpClient wbClient){
         var responseContent = await response.Response.Content.ReadAsStringAsync();
 
         try{
-            
-            var inlineResult = JsonSerializer.Deserialize<WbErrorListResponse>(responseContent, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-            if (inlineResult != null && inlineResult.Error){
-                return new WbApiResult
-                {
+            var inlineResult = JsonSerializer.Deserialize<WbErrorListResponse>(responseContent,
+                new JsonSerializerOptions{ PropertyNameCaseInsensitive = true });
+
+            if (inlineResult?.Error == true){
+                var globalErrorDict = vendorCodes.ToDictionary(
+                    v => v,
+                    v => new List<string> { inlineResult.ErrorText ?? "Unknown global error from WB" }
+                );
+                
+                return new WbApiResult{
                     Error = true,
-                    ErrorText = inlineResult.ErrorText
+                    ErrorText = inlineResult.ErrorText,
+                    AdditionalErrors = globalErrorDict
                 };
             }
-            
+
             var errorListResponse = await wbClient.GetAsync("/content/v2/cards/error/list");
 
             if (!errorListResponse.IsSuccessStatusCode){
                 return new WbApiResult{
-                    Error = true,
+                    Error = false,
                     ErrorText = $"Не удалось получить ошибки из WB (StatusCode: {errorListResponse.StatusCode})",
-                    AdditionalErrors = await errorListResponse.Content.ReadAsStringAsync()
+                    AdditionalErrors = new Dictionary<string, List<string>>{
+                        { "Global", new List<string>{ await errorListResponse.Content.ReadAsStringAsync() } }
+                    }
                 };
             }
 
@@ -294,27 +371,31 @@ public class WildberriesService : WildberriesBaseService
             if (matchedErrors != null && matchedErrors.Any()){
                 var errorsDict = matchedErrors.ToDictionary(
                     e => e.VendorCode,
-                    e => (object)e.Errors // каст к object для универсальности WbApiResult
+                    e => e.Errors ?? new List<string>()
                 );
 
-                return new WbApiResult{
+                return new WbApiResult
+                {
                     Error = true,
                     ErrorText = "Ошибка при обновлении товаров",
                     AdditionalErrors = errorsDict
                 };
             }
 
-            return new WbApiResult{
-                Error = false,
-                ErrorText = "",
-                AdditionalErrors = null
+            return new WbApiResult
+            {
+                Error = false
             };
         }
-        catch{
-            return new WbApiResult{
+        catch (Exception ex){
+            return new WbApiResult
+            {
                 Error = true,
                 ErrorText = "Ошибка при разборе ответа от WB",
-                AdditionalErrors = responseContent
+                AdditionalErrors = new Dictionary<string, List<string>>
+                {
+                    { "Exception", new List<string> { ex.Message, responseContent } }
+                }
             };
         }
     }
@@ -365,10 +446,24 @@ public class WildberriesService : WildberriesBaseService
 
 
     private WbApiResult MergeResults(List<WbApiResult> results){
-        return new WbApiResult{
+        var mergedErrors = new Dictionary<string, List<string>>();
+
+        foreach (var result in results){
+            if (result.AdditionalErrors == null) continue;
+
+            foreach (var pair in result.AdditionalErrors)
+            {
+                if (!mergedErrors.ContainsKey(pair.Key))
+                    mergedErrors[pair.Key] = new List<string>();
+
+                mergedErrors[pair.Key].AddRange(pair.Value);
+            }
+        }
+        return new WbApiResult
+        {
             Error = results.Any(r => r.Error),
             ErrorText = string.Join("; ", results.Where(r => r.Error).Select(r => r.ErrorText)),
-            AdditionalErrors = results.Select(r => r.AdditionalErrors).ToList()
+            AdditionalErrors = mergedErrors.Any() ? mergedErrors : null
         };
     }
 
@@ -418,5 +513,37 @@ public class WildberriesService : WildberriesBaseService
             result.Add(currentBatch);
 
         return result;
+    }
+
+    private async Task<StringContent>
+        CreateSearchRequestContentByVendorCode(string updatedAt = "", long? nmID = null, string? textSearch = null){
+        var cursor = new Dictionary<string, object>{
+            ["limit"] = 100
+        };
+
+        if (!string.IsNullOrEmpty(updatedAt)){
+            cursor["updatedAt"] = updatedAt;
+        }
+
+        if (nmID.HasValue){
+            cursor["nmID"] = nmID.Value;
+        }
+
+        var filter = new Dictionary<string, object>{
+            ["withPhoto"] = -1
+        };
+        if (!string.IsNullOrWhiteSpace(textSearch)){
+            filter["textSearch"] = textSearch;
+        }
+
+        var requestData = new Dictionary<string, object>{
+            ["settings"] = new{
+                cursor = cursor,
+                filter = filter
+            }
+        };
+
+        var json = JsonSerializer.Serialize(requestData);
+        return new StringContent(json, Encoding.UTF8, "application/json");
     }
 }
