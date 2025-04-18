@@ -80,6 +80,33 @@ public class WildberriesCategoryService : WildberriesBaseService
 
         return relatedCategories;
     }
+    
+    public async Task<string> SuggestCategoryAsync(int categoryId){
+        var wbCategory = await _db.wildberries_categories
+            .AsNoTracking()
+            .Where(c => c.id == categoryId)
+            .Select(c => c.name)
+            .FirstOrDefaultAsync();
+        
+        if (string.IsNullOrWhiteSpace(wbCategory))
+            return "";
+        
+        var simaCategories = await _db.products
+            .Select(p => p.category_name)
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct()
+            .ToListAsync();
+        
+        string? FindBestMatch(List<string> list, string target)
+        {
+            return list.FirstOrDefault(x => string.Equals(x.Trim(), target.Trim(), StringComparison.OrdinalIgnoreCase))
+                   ?? list.FirstOrDefault(x => x.Contains(target, StringComparison.OrdinalIgnoreCase))
+                   ?? list.FirstOrDefault();
+        }
+
+        var bestMatch = FindBestMatch(simaCategories, wbCategory);
+        return bestMatch ?? "";
+    }
 
     private async Task<List<wildberries_category>> FetchAllCategoriesAsync(int accountId, CancellationToken ct){
         var wbClient = await GetWbClientAsync(accountId, true);

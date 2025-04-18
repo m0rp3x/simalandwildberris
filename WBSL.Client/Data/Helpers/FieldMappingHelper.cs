@@ -1,4 +1,6 @@
-﻿using Shared;
+﻿using System.Text.Json;
+using Microsoft.JSInterop;
+using Shared;
 using Shared.FieldInfos;
 
 namespace WBSL.Client.Data.Helpers;
@@ -7,6 +9,21 @@ namespace WBSL.Client.Data.Helpers;
 /// </summary>
 public static class FieldMappingHelper
 {
+    public static List<FieldMapping> Create(){
+        
+        var Mappings = new List<FieldMapping>
+        {
+            new() { WbFieldName = "VendorCode", DisplayName = "Артикуль", Type = FieldMappingType.Text },
+            new() { WbFieldName = "Title", DisplayName = "Название", Type = FieldMappingType.Text },
+            new() { WbFieldName = "Description", DisplayName = "Описание", Type = FieldMappingType.Text },
+            new() { WbFieldName = "Brand", DisplayName = "Бренд", Type = FieldMappingType.Text },
+            new() { WbFieldName = "Length", DisplayName = "Длина, см", Type = FieldMappingType.Dimension },
+            new() { WbFieldName = "Width", DisplayName = "Ширина, см", Type = FieldMappingType.Dimension },
+            new() { WbFieldName = "Height", DisplayName = "Высота, см", Type = FieldMappingType.Dimension },
+            new() { WbFieldName = "Weight", DisplayName = "Вес, кг", Type = FieldMappingType.Dimension },
+        };
+        return Mappings;
+    }
     /// <summary>
     /// Назначает или обновляет маппинг поля WB с соответствующим полем или атрибутом из SimaLand.
     /// При наличии fieldInfo — сразу применяет значение.
@@ -17,41 +34,41 @@ public static class FieldMappingHelper
     /// <param name="simalandProduct">Объект продукта SimaLand, из которого берётся значение.</param>
     /// <param name="characteristicInfos">Список всех характеристик WB для правильного разбора значений.</param>
     /// <param name="fieldInfo">Поле WB, которому нужно установить значение (если передано).</param>
-    public static void SetMapping(string fieldName, string simaFieldName, List<FieldMapping> Mappings, SimalandProductDto simalandProduct ,List<WbAdditionalCharacteristicDto> characteristicInfos, WbFieldInfo? fieldInfo = null){
-        if (simaFieldName == "Attr_0" || simaFieldName == "0" || string.IsNullOrWhiteSpace(simaFieldName))
-        {
-            Mappings.RemoveAll(m => m.FieldName == fieldName);
-            return;
-        }
-        var mapping = Mappings.FirstOrDefault(m => m.FieldName == fieldName);
-        if (mapping != null)
-            mapping.SourceProperty = simaFieldName;
-        else
-            Mappings.Add(new FieldMapping{ FieldName = fieldName, SourceProperty = simaFieldName });
-
-        if (fieldInfo != null){
-            object? val = null;
-
-            if (simaFieldName.StartsWith("Attr_")){
-                if (int.TryParse(simaFieldName.Replace("Attr_", ""), out var attrId)){
-                    var attr = simalandProduct.Attributes.FirstOrDefault(a => a.id == attrId);
-                    if (attr != null){
-                        val = ParseAttribute(attr.value_text, fieldInfo, characteristicInfos);
-                    }
-                }
-            }
-            else{
-                var simaProp = typeof(SimalandProductDto).GetProperty(simaFieldName);
-                if (simaProp != null){
-                    val = simaProp.GetValue(simalandProduct);
-                }
-            }
-
-            if (val != null){
-                fieldInfo.Setter(val);
-            }
-        }
-    }
+    // public static void SetMapping(string fieldName, string simaFieldName, List<FieldMapping> Mappings, SimalandProductDto simalandProduct ,List<WbAdditionalCharacteristicDto> characteristicInfos, WbFieldInfo? fieldInfo = null){
+    //     if (simaFieldName == "Attr_0" || simaFieldName == "0" || string.IsNullOrWhiteSpace(simaFieldName))
+    //     {
+    //         Mappings.RemoveAll(m => m.FieldName == fieldName);
+    //         return;
+    //     }
+    //     var mapping = Mappings.FirstOrDefault(m => m.FieldName == fieldName);
+    //     if (mapping != null)
+    //         mapping.SourceProperty = simaFieldName;
+    //     else
+    //         Mappings.Add(new FieldMapping{ FieldName = fieldName, SourceProperty = simaFieldName });
+    //
+    //     if (fieldInfo != null){
+    //         object? val = null;
+    //
+    //         if (simaFieldName.StartsWith("Attr_")){
+    //             if (int.TryParse(simaFieldName.Replace("Attr_", ""), out var attrId)){
+    //                 var attr = simalandProduct.Attributes.FirstOrDefault(a => a.id == attrId);
+    //                 if (attr != null){
+    //                     val = ParseAttribute(attr.value_text, fieldInfo, characteristicInfos);
+    //                 }
+    //             }
+    //         }
+    //         else{
+    //             var simaProp = typeof(SimalandProductDto).GetProperty(simaFieldName);
+    //             if (simaProp != null){
+    //                 val = simaProp.GetValue(simalandProduct);
+    //             }
+    //         }
+    //
+    //         if (val != null){
+    //             fieldInfo.Setter(val);
+    //         }
+    //     }
+    // }
     
     /// <summary>
     /// Применяет все маппинги к полям Wildberries на основе значений из SimaLand.
@@ -60,32 +77,32 @@ public static class FieldMappingHelper
     /// <param name="wbFields">Список полей WB (в том числе характеристик), в которые будет установлено значение.</param>
     /// <param name="sima">Объект продукта SimaLand, содержащий поля и атрибуты.</param>
     /// <param name="charcInfo">Список характеристик WB для корректного разбора типов и ограничений.</param>
-    public static void ApplyMappings(List<FieldMapping> mappings, List<WbFieldInfo> wbFields, SimalandProductDto sima,
-        List<WbAdditionalCharacteristicDto> charcInfo){
-        foreach (var map in mappings){
-            var field = wbFields.FirstOrDefault(f => f.FieldName == map.FieldName);
-            if (field == null) continue;
-
-            object? value = null;
-
-            if (map.SourceProperty.StartsWith("Attr_") &&
-                int.TryParse(map.SourceProperty.Replace("Attr_", ""), out var attrId)){
-                var attr = sima.Attributes.FirstOrDefault(a => a.id == attrId);
-                if (attr != null){
-                    value = ParseAttribute(attr.value_text, field, charcInfo);
-                }
-            }
-            else{
-                var prop = typeof(SimalandProductDto).GetProperty(map.SourceProperty);
-                if (prop != null){
-                    value = prop.GetValue(sima);
-                }
-            }
-
-            if (value != null)
-                field.Setter(value);
-        }
-    }
+    // public static void ApplyMappings(List<FieldMapping> mappings, List<WbFieldInfo> wbFields, SimalandProductDto sima,
+    //     List<WbAdditionalCharacteristicDto> charcInfo){
+    //     foreach (var map in mappings){
+    //         var field = wbFields.FirstOrDefault(f => f.FieldName == map.FieldName);
+    //         if (field == null) continue;
+    //
+    //         object? value = null;
+    //
+    //         if (map.SourceProperty.StartsWith("Attr_") &&
+    //             int.TryParse(map.SourceProperty.Replace("Attr_", ""), out var attrId)){
+    //             var attr = sima.Attributes.FirstOrDefault(a => a.id == attrId);
+    //             if (attr != null){
+    //                 value = ParseAttribute(attr.value_text, field, charcInfo);
+    //             }
+    //         }
+    //         else{
+    //             var prop = typeof(SimalandProductDto).GetProperty(map.SourceProperty);
+    //             if (prop != null){
+    //                 value = prop.GetValue(sima);
+    //             }
+    //         }
+    //
+    //         if (value != null)
+    //             field.Setter(value);
+    //     }
+    // }
 
     /// <summary>
     /// Добавляет в список полей характеристики Wildberries как WbFieldInfo.
@@ -94,119 +111,98 @@ public static class FieldMappingHelper
     /// <param name="wbFields">Целевой список полей, в который будут добавлены характеристики.</param>
     /// <param name="characteristics">Значения характеристик WB (id, name, value).</param>
     /// <param name="characteristicInfos">Метаданные характеристик (MaxCount, CharcType и др).</param>
-    public static void AppendCharacteristicFields(
-        List<WbFieldInfo> wbFields,
-        List<WbCharacteristicDto> characteristics,
-        List<WbAdditionalCharacteristicDto> characteristicInfos){
-        wbFields.RemoveAll(f => f.IsCharacteristic);
+    public static void MergeCharacteristicMappings(
+        List<FieldMapping> mappings,
+        List<WbAdditionalCharacteristicDto> currentCharacteristics)
+    {
+        var existingFieldNames = mappings.Select(m => m.WbFieldName).ToHashSet();
 
-        var fields = characteristics.Select(charac => {
-            var charcInfo = characteristicInfos.FirstOrDefault(x => x.CharcID == charac.Id);
-            var displayName = charac.Name;
-            if (charcInfo?.Required == true)
-                displayName += " *";
-
-            return new WbFieldInfo{
-                FieldName = GetCharacteristicFieldName(charac.Id),
-                DisplayName = displayName,
-                GroupName = "Характеристики",
-                Getter = () => charac.Value,
-                Setter = val => charac.Value = ConvertCharacValue(val, charac, characteristicInfos),
-                IsCharacteristic = true
-            };
-        }).ToList();
-
-        wbFields.AddRange(fields);
-    }
-    
-    /// <summary>
-    /// Форматирует значение поля в строку для отображения.
-    /// </summary>
-    /// <param name="value">Значение любого типа (строка, число, список).</param>
-    /// <returns>Отформатированная строка.</returns>
-    public static string FormatFieldValue(object? value){
-        if (value == null) return "";
-
-        return value switch{
-            List<string> strList => string.Join(", ", strList),
-            List<int> intList => string.Join(", ", intList),
-            _ => value.ToString() ?? ""
-        };
-    }
-    
-    /// <summary>
-    /// Парсит строковое значение из атрибута SimaLand в нужный формат (список или значение).
-    /// </summary>
-    /// <param name="rawValue">Сырое строковое значение из SimaLand (value_text).</param>
-    /// <param name="field">Поле WB, для которого применяется значение.</param>
-    /// <param name="charcInfo">Метаданные характеристик для определения типа и ограничения.</param>
-    /// <returns>Результат в виде int, string, List&lt;int&gt;, List&lt;string&gt; и т.п.</returns>
-    public static object ParseAttribute(string? rawValue, WbFieldInfo field, List<WbAdditionalCharacteristicDto> charcInfo){
-        if (rawValue == null) return "";
-
-        var parts = rawValue.Split(';', StringSplitOptions.RemoveEmptyEntries)
-            .Select(x => x.Trim())
-            .ToList();
-
-        var charId = ExtractCharId(field.FieldName);
-        var charInfo = charcInfo.FirstOrDefault(x => x.CharcID == charId);
-        bool isList = charInfo?.MaxCount != 1;
-
-        if (charInfo?.CharcType == 4){
-            var nums = parts.Select(x => int.TryParse(x, out var i) ? i : 0).ToList();
-            return isList ? LimitList(nums, charInfo.MaxCount) : nums.FirstOrDefault();
-        }
-
-        return isList ? LimitList(parts, charInfo?.MaxCount ?? 0) : parts.FirstOrDefault() ?? "";
-    }
-    
-    /// <summary>
-    /// Проверяет, можно ли редактировать поле вручную.
-    /// </summary>
-    /// <param name="field">Поле WB.</param>
-    /// <returns>true, если поле read-only (например, список характеристик), иначе false.</returns>
-    public static bool IsFieldReadOnly(WbFieldInfo field){
-        var value = field.Getter();
-
-        switch (field.IsCharacteristic){
-            case true when value is List<string>:
-            case true when value is List<int>:
-                return true;
-            default:
-                return false;
-        }
-    }
-    
-    private static string GetCharacteristicFieldName(int charId) => $"Char_{charId}";
-    
-    private static object ConvertCharacValue(object? val, WbCharacteristicDto charac, List<WbAdditionalCharacteristicDto> characteristicInfos){
-        var info = characteristicInfos.FirstOrDefault(x => x.CharcID == charac.Id);
-        if (info == null || val == null)
-            return "";
-
-        bool isList = info.MaxCount != 1;
-
-        if (info.CharcType == 4) // число
+        foreach (var charInfo in currentCharacteristics)
         {
-            if (isList)
-                return val is List<int> ints ? LimitList(ints, info.MaxCount) : new List<int>();
-            return int.TryParse(val?.ToString(), out var n) ? n : 0;
+            var fieldName = $"Char_{charInfo.CharcID}";
+            
+            if (existingFieldNames.Contains(fieldName))
+                continue;
+            
+            mappings.Add(new FieldMapping
+            {
+                WbFieldName = fieldName,
+                DisplayName = charInfo.Name,
+                Type = FieldMappingType.Characteristic,
+                SourceProperty = ""
+            });
         }
-
-        // строки
-        if (isList)
-            return val is List<string> strings ? LimitList(strings, info.MaxCount) : new List<string>();
-
-        return val?.ToString() ?? "";
-    }
-    private static int ExtractCharId(string fieldName){
-        if (fieldName.StartsWith("Char_") && int.TryParse(fieldName.Replace("Char_", ""), out var id))
-            return id;
-        return 0;
     }
     
-    private static List<T> LimitList<T>(List<T> list, int max){
-        return max > 0 ? list.Take(max).ToList() : list;
+    public static void SanitizeMappings(
+        List<FieldMapping> mappings,
+        List<SimalandAttributeDto> currentSimalandAttrs)
+    {
+        var validAttrNames = new HashSet<string>(
+            currentSimalandAttrs.Select(a => a.Name)
+        );
+        foreach (var m in mappings)
+        {
+            if (m.Type == FieldMappingType.Characteristic &&
+                m.SourceProperty.StartsWith("Attr_"))
+            {
+                var attrName = m.SourceProperty.Substring("Attr_".Length);
+
+                if (!validAttrNames.Contains(attrName))
+                {
+                    m.SourceProperty = ""; // ✂️ затираем, если такого атрибута уже нет
+                }
+            }
+        }
     }
 
+    public static async Task SaveOrUpdateMappingsAsync(IJSRuntime js, List<FieldMapping> currentCategoryMappings)
+    {
+        var allJson = await js.InvokeAsync<string>("localStorage.getItem", "fieldMappings");
+
+        var allMappings = !string.IsNullOrWhiteSpace(allJson)
+            ? JsonSerializer.Deserialize<List<FieldMapping>>(allJson) ?? new()
+            : new List<FieldMapping>();
+
+        foreach (var current in currentCategoryMappings)
+        {
+            var existing = allMappings.FirstOrDefault(m => m.WbFieldName == current.WbFieldName);
+            if (existing != null)
+                existing.SourceProperty = current.SourceProperty;
+            else
+                allMappings.Add(current);
+        }
+
+        var updatedJson = JsonSerializer.Serialize(allMappings);
+        await js.InvokeVoidAsync("localStorage.setItem", "fieldMappings", updatedJson);
+    }
+    
+    public static async Task<List<FieldMapping>> LoadFromLocalStorageAsync(IJSRuntime js)
+    {
+        var json = await js.InvokeAsync<string>("localStorage.getItem", "fieldMappings");
+
+        var defaultMappings = Create();
+
+        if (string.IsNullOrWhiteSpace(json))
+            return defaultMappings;
+
+        var loaded = JsonSerializer.Deserialize<List<FieldMapping>>(json) ?? new();
+
+        // Сопоставляем значения, но оставляем DisplayName и Type из дефолтных
+        foreach (var def in defaultMappings)
+        {
+            var saved = loaded.FirstOrDefault(x => x.WbFieldName == def.WbFieldName);
+            if (saved != null)
+            {
+                def.SourceProperty = saved.SourceProperty;
+            }
+        }
+        var additional = loaded
+            .Where(l => defaultMappings.All(d => d.WbFieldName != l.WbFieldName))
+            .ToList();
+        
+        defaultMappings.AddRange(additional);
+        
+        return defaultMappings;
+    }
 }

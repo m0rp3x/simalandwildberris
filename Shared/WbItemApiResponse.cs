@@ -9,6 +9,7 @@ public class WbItemApiResponse
 }
 public class SimalandProductDto
 {
+    [Display(Name = "Артикул продавца")]
     public long sid{ get; set; }
     [Display(Name = "Название")]
     public string name{ get; set; } = "";
