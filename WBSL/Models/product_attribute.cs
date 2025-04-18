@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
 
 namespace WBSL.Models;
 
@@ -15,7 +14,6 @@ public partial class product_attribute
     public string? value_text { get; set; }
 
     public DateTime? created_at { get; set; }
-    
-    [JsonIgnore]
-    public virtual product? product_s { get; set; } = null!;
+
+    public virtual product product_s { get; set; } = null!;
 }

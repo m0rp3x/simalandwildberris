@@ -1,6 +1,7 @@
 @page "/simaland-import"
 @using System.Text
 @using System.Text.Json
+@using System.Text.Json.Serialization
 @using Shared
 @inject HttpClient Http
 @inject IJSRuntime JS
@@ -17,7 +18,7 @@
         <MudTextField T="string" @bind-Value="_rawArticles" Label="Артикулы (через запятую)" Variant="Variant.Outlined" Lines="3" FullWidth/>
 
         <MudStack Row="true" Spacing="2">
-            <MudButton OnClick="Fetch" Variant="Variant.Filled" Color="Color.Primary" Disabled="_selectedAccount == null">
+            <MudButton OnClick="StartFetch" Variant="Variant.Filled" Color="Color.Primary" Disabled="_selectedAccount == null">
                 Загрузить товары
             </MudButton>
             <MudButton OnClick="StoreToDatabase" Variant="Variant.Filled" Color="Color.Secondary">
@@ -27,6 +28,7 @@
                 📦 Скачать все фото
             </MudButton>
         </MudStack>
+
         <MudDivider/>
         <MudText Typo="Typo.h6">📎 Экспорт</MudText>
         <MudStack Row="true" Spacing="2">
@@ -41,18 +43,27 @@
         </MudStack>
         <MudDivider Class="my-4"/>
 
-        @if (_loadingProgress > 0 && _loadingProgress < 100)
+        @if (_currentJob != null)
         {
-        <MudProgressLinear Color="Color.Primary" Value="@_loadingProgress" BufferValue="100" Height="20" Rounded="true" Class="my-4"/>
+        <MudProgressLinear Value="@((_total>0) ? (_processed/(double)_total*100) : 0)"
+        BufferValue="100" Height="20" Rounded="true" Class="my-4"/>
+        <MudText Typo="Typo.subtitle1">@_processed / @_total</MudText>
+        }
+      
+
+                else if (_currentJob == null && _loadingProgress > 0 && _loadingProgress < 100)
+        {
+        <MudProgressLinear Color="Color.Primary" Value="@_loadingProgress"
+        BufferValue="100" Height="20" Rounded="true" Class="my-4"/>
         <MudText Typo="Typo.subtitle1">Загрузка... @_loadingProgress%</MudText>
         }
         else if (_products.Any())
         {
         <MudText Typo="Typo.h6">📋 Найдено товаров: @_products.Count</MudText>
         }
+
     </MudStack>
 </MudPaper>
-
 <style>
     .line-clamp-2 {
         overflow: hidden;
@@ -73,7 +84,12 @@
     public List<ProductAttribute> Attributes{ get; set; } = new();
     private HashSet<string> _dynamicAttrNames = new();
     private List<string> _allAttrNames = new();
-    private int _loadingProgress = 0;
+    private int _loadingProgress = 0;   
+    Guid? _currentJob;
+    int _total, _processed;
+    string _status = "";
+    private List<ProductAttribute> _attributes = new();
+
 
     protected override async Task OnAfterRenderAsync(bool firstRender){
         if (firstRender && !_initialized){
@@ -371,6 +387,48 @@ private async Task Fetch()
             _resultJson = $"Ошибка загрузки: {res.StatusCode}";
         }
     }
+    
+    async Task StartFetch()
+    {
+        var req = new { AccountId = _selectedAccount!.Id, Articles = _rawArticles.Split(',').Select(long.Parse).ToList() };
+        var resp = await Http.PostAsJsonAsync("api/simaland/fetch-job", req);
+        resp.EnsureSuccessStatusCode();
+        var data = await resp.Content.ReadFromJsonAsync<FetchJobDto>();
+        _currentJob = data?.jobid;
+        _ = PollProgress();
+    }
+
+    async Task PollProgress()
+    {
+        if (_currentJob == null) return;
+        while (true)
+        {
+            var prog = await Http.GetFromJsonAsync<ProgressDto>($"api/simaland/fetch-progress/{_currentJob}");
+            if (prog == null) break;
+
+            _total     = prog.total;
+            _processed = prog.processed;
+            _status    = prog.status;
+
+            await InvokeAsync(StateHasChanged);
+
+            // корректно проверяем статус, игнорируя регистр
+            if (!string.Equals(_status, "Running", StringComparison.OrdinalIgnoreCase))
+                break;
+
+            await Task.Delay(500);
+        }
+
+        if (string.Equals(_status, "Completed", StringComparison.OrdinalIgnoreCase))
+        {
+            var res = await Http.GetFromJsonAsync<ResultDto>($"api/simaland/fetch-result/{_currentJob}");
+            _products   = res?.products ?? new();
+            _attributes = res?.attributes ?? new();
+            _loadingProgress = 100;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
 
     public class FetchResponse
     {
@@ -406,6 +464,17 @@ private async Task Fetch()
         public string? unit_name{ get; set; }
         public List<ProductAttribute> Attributes{ get; set; } = new();
     }
+    
+    public class FetchJobDto { public Guid jobid { get; set; } }
+    public class ProgressDto
+    {
+        public int total { get; set; }
+
+        public int processed { get; set; }
+
+        public string status { get; set; } = "";
+    }    
+    public class ResultDto { public List<Product> products { get; set; } = new(); public List<ProductAttribute> attributes { get; set; } = new(); }
 
     public class ProductAttribute
     {
