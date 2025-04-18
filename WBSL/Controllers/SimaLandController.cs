@@ -83,11 +83,17 @@ public class SimaLandController : ControllerBase
    public IActionResult GetResult(Guid jobId)
    {
        var info = ProgressStore.GetJob(jobId);
-       if (info == null) return NotFound();
+       if (info == null)
+           return NotFound();
        if (info.Status != ProgressStore.JobStatus.Completed)
            return BadRequest(new { message = "Job not completed yet" });
 
-       return Ok(new { products = info.Products, attributes = info.Attributes });
+       var result = new FetchResultDto
+       {
+           Products = info.Products ?? new List<JsonElement>(),
+           Attributes = info.Attributes ?? new List<product_attribute>()
+       };
+       return Ok(result);
    }
 
 
@@ -106,7 +112,11 @@ public class SimaLandController : ControllerBase
 
        // Фильтруем атрибуты только тех товаров, которых ещё нет
        var newAttributes = request.Attributes
-           .Where(attr => !existingSids.Contains(attr.product_sid))
+           .Select(a => new product_attribute {
+               product_sid = a.product_sid,
+               attr_name   = a.attr_name,
+               value_text  = a.value_text
+           })
            .ToList();
 
        // Подчищаем габариты
@@ -257,7 +267,11 @@ public async Task<IActionResult> DownloadPhotos([FromBody] List<product> product
     return Ok(new { success = true });
 }
 
-
+public class FetchResultDto
+{
+    public List<JsonElement> Products { get; set; }
+    public List<product_attribute> Attributes { get; set; }
+}
     public class SimaRequest
     {
         public int AccountId { get; set; }
