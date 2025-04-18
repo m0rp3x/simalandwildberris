@@ -16,6 +16,7 @@ using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Data.Services;
 using WBSL.Data.Services.Simaland;
 using WBSL.Data.Services.Wildberries;
+using WBSL.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,6 +75,7 @@ builder.Services.AddScoped<SimalandFetchService>();
 builder.Services.AddScoped<ProductMappingService>();
 builder.Services.AddScoped<WbProductService>();
 builder.Services.AddScoped<IDbContextFactory<QPlannerDbContext>, ManualDbContextFactory>();
+builder.Services.AddScoped<ISimaLandService, SimaLandService>();
 
 builder.Services
     .AddHttpClient("SimaLand", client => { client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/"); })

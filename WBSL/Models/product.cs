@@ -45,5 +45,7 @@ public partial class product
 
     public int? vat { get; set; }
 
+    public string? trademark { get; set; }
+
     public virtual ICollection<product_attribute> product_attributes { get; set; } = new List<product_attribute>();
 }

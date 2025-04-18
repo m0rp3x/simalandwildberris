@@ -23,6 +23,7 @@ public class PropertyMapping
     // Динамические поля:
     public List<string> SimaLandFieldNames { get; set; } = new();
     public List<string> SimaLandValues { get; set; } = new();
+    
 }
 
 public class PropertyMappingTemplate
