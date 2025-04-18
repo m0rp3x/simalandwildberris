@@ -46,7 +46,7 @@ public class SimalandProductDto
     [Display(Name = "НДС")]
     public int? vat{ get; set; }
     [Display(Name = "Торговая марка")]
-    public string? trademark{ get; set; }
+    public string? trademark_name{ get; set; }
     [Display(Name = "Страна")]
     public string? country_name{ get; set; }
     public string? unit_name{ get; set; }

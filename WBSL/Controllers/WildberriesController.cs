@@ -69,10 +69,30 @@ public class WildberriesController : ControllerBase
 
     [HttpPost("createWbItem/{wbAccountId:int}")]
     public async Task<IActionResult> CreateProduct([FromBody] CategoryMappingRequest mappingRequest, int wbAccountId){
+        var simaSidsInCategory = await _db.products
+            .AsNoTracking()
+            .Where(x => x.category_name.ToLower() == mappingRequest.SimalandCategoryName.ToLower())
+            .Select(x => x.sid.ToString())
+            .ToListAsync();
+        
+        var existingWbSids = await _db.WbProductCards
+            .AsNoTracking()
+            .Where(x => simaSidsInCategory.Contains(x.VendorCode))
+            .Select(x => x.VendorCode)
+            .ToListAsync();
+        
+        var filteredSids = simaSidsInCategory
+            .Except(existingWbSids)
+            .Take(1000)
+            .Select(s => long.TryParse(s, out var id) ? id : (long?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToList();
+        
         var simaProducts = await _db.products
             .AsNoTracking()
-            .Include(x=>x.product_attributes)
-            .Where(x=>x.category_name.ToLower() == mappingRequest.SimalandCategoryName.ToLower())
+            .Include(x => x.product_attributes)
+            .Where(x => filteredSids.Contains(x.sid))
             .ToListAsync();
         
         List<WbCreateVariantInternalDto> products = _wildberriesMappingService.BuildProductsFromMapping(mappingRequest, simaProducts);

@@ -62,8 +62,8 @@ public class ProductMappingService
                 PropertyName = "Бренд",
                 WbValue = wbProduct.Brand,
                 WbFieldName = nameof(WbProductCardDto.Brand),
-                SimaLandFieldName = nameof(SimalandProductDto.trademark),
-                SimaLandValue = simaProduct?.trademark,
+                SimaLandFieldName = nameof(SimalandProductDto.trademark_name),
+                SimaLandValue = simaProduct?.trademark_name,
                 IsSelectable = true
             },
             new PropertyMapping{

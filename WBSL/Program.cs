@@ -27,6 +27,7 @@ builder.Services.AddDbContext<QPlannerDbContext>(options => {
 });
 // Hangfire
 builder.Services.AddHangfireWithJobs(builder.Configuration);
+builder.Services.AddCoreAdmin();
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents();
@@ -97,6 +98,10 @@ builder.Services.AddHttpClient("Wildberries",
 var app = builder.Build();
 app.MapControllers(); // <-- обязательно!
 app.UseHangfireDashboard();
+
+app.UseStaticFiles();
+app.MapDefaultControllerRoute();
+app.UseCoreAdminCustomAuth(_ => Task.FromResult(true));
 if (app.Environment.IsDevelopment()){
     app.UseWebAssemblyDebugging();
 }
