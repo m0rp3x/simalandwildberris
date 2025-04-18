@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Shared;
 using WBSL.Data;
 using WBSL.Data.Services.Simaland;
@@ -18,6 +19,7 @@ public class WildberriesController : ControllerBase
     private static readonly object _productsLock = new object();
 
     private readonly QPlannerDbContext _db;
+    private readonly WildberriesMappingService _wildberriesMappingService;
     private readonly WildberriesService _wildberriesService;
     private readonly WildberriesCategoryService _categoryService;
     private readonly WildberriesProductsService _productsService;
@@ -34,6 +36,7 @@ public class WildberriesController : ControllerBase
         _categoryService = categoryService;
         _characteristicsService = characteristicsService;
         _simalandFetchService = simalandFetchService;
+        _wildberriesMappingService = new WildberriesMappingService();
     }
 
     [HttpGet("wbItem/{vendorCode}/{accountId:int}/{wbAccountId:int}")]
@@ -50,49 +53,11 @@ public class WildberriesController : ControllerBase
         });
     }
 
-    [HttpGet("checkWbAndSimaland/{vendorCode}/{accountId:int}/{wbAccountId:int}")]
-    public async Task<IActionResult> CheckWbAndProduct(string vendorCode, int accountId, int wbAccountId){
-        List<long> vendorCodes = new List<long>();
-        vendorCodes.Add(long.Parse(vendorCode));
+    [HttpGet($"suggest-simaland-category")]
+    public async Task<IActionResult> SuggestCategory([FromQuery]int categoryId){
+        var simaCategories = await _categoryService.SuggestCategoryAsync(categoryId);
 
-        var wbTask = _wildberriesService.GetProductWithOutCharacteristics(vendorCode);
-        var simaTask = _simalandFetchService.FetchProductsWithMergedAttributesAsync(accountId, vendorCodes);
-        
-        await Task.WhenAll(wbTask, simaTask);
-        
-        var product = wbTask.Result;
-        var simalandProduct = simaTask.Result.FirstOrDefault();
-                
-        T? FindBestMatch<T>(List<T> list, string target, Func<T, string> getName)
-        {
-            return list.FirstOrDefault(x => string.Equals(getName(x).Trim(), target.Trim(), StringComparison.OrdinalIgnoreCase))
-                   ?? list.FirstOrDefault(x => getName(x).Contains(target, StringComparison.OrdinalIgnoreCase))
-                   ?? list.FirstOrDefault();
-        }
-
-        var baseCategories = await _categoryService.GetParentCategoriesAsync(simalandProduct.category_name);
-        
-        var baseCategory = FindBestMatch(baseCategories, simalandProduct.category_name, x=>x.Name);
-        WbCategoryDtoExt? childCategory = null;
-
-        if (baseCategory == null)
-        {
-            var childCategories = await _categoryService.GetChildCategoriesAsync(simalandProduct.category_name);
-            childCategory = FindBestMatch(childCategories, simalandProduct.category_name, x=>x.Name);
-            
-            if (childCategory.ParentId != null)
-            {
-                baseCategory = await _categoryService.GetParentCategoryByIdAsync(childCategory.ParentId);
-            }
-        }
-
-        return Ok(new ProductCheckResponse()
-        {
-            IsNullFromWb = product == null,
-            SimalandProduct = simalandProduct,
-            BaseCategory = baseCategory,
-            ChildCategory = childCategory
-        });
+        return Ok(simaCategories);
     }
 
     [HttpPost("updateWbItem/{wbAccountId:int}")]
@@ -103,7 +68,15 @@ public class WildberriesController : ControllerBase
     }
 
     [HttpPost("createWbItem/{wbAccountId:int}")]
-    public async Task<IActionResult> CreateProduct([FromBody] List<WbCreateVariantInternalDto> products, int wbAccountId){
+    public async Task<IActionResult> CreateProduct([FromBody] CategoryMappingRequest mappingRequest, int wbAccountId){
+        var simaProducts = await _db.products
+            .AsNoTracking()
+            .Include(x=>x.product_attributes)
+            .Where(x=>x.category_name.ToLower() == mappingRequest.SimalandCategoryName.ToLower())
+            .ToListAsync();
+        
+        List<WbCreateVariantInternalDto> products = _wildberriesMappingService.BuildProductsFromMapping(mappingRequest, simaProducts);
+
         var result = await _wildberriesService.CreteWbItemsAsync(products, wbAccountId);
 
         return Ok(result);

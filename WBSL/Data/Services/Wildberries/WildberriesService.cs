@@ -93,19 +93,12 @@ public class WildberriesService : WildberriesBaseService
     }
 
     public async Task<WbApiResult> CreteWbItemsAsync(List<WbCreateVariantInternalDto> itemsToCreate, int accountId){
+        if(itemsToCreate.Count == 0) return new WbApiResult();
         var wbClient = await GetWbClientAsync(accountId);
-        var maxLimit = await GetWbLimitsAsync(wbClient);
-
-        var wbItemsCount = _db.WbProductCards.Count();
-
-        if (wbItemsCount > maxLimit){
-            var Limit = maxLimit - wbItemsCount;
-            return new WbApiResult{
-                Error = true,
-                ErrorText = $"Превышен лимит создания карточек: доступно для загрузки {Limit}"
-            };
-        }
-
+        
+        var wbApiResult = await CheckLimits(wbClient, accountId);
+        if(wbApiResult != null) return wbApiResult;
+        
         var batches = SplitIntoCreateBatches(itemsToCreate);
         var allResults = new List<WbApiResult>();
 
@@ -142,6 +135,24 @@ public class WildberriesService : WildberriesBaseService
         }
 
         return MergeResults(allResults);
+    }
+
+    private async Task<WbApiResult?> CheckLimits(HttpClient wbClient, int accountId){
+        WbApiResult wbApiResult;
+        
+        var maxLimit = await GetWbLimitsAsync(wbClient);
+
+        var wbItemsCount = _db.WbProductCards.Count();
+
+        if (wbItemsCount < maxLimit) return null;
+        var Limit = maxLimit - wbItemsCount;
+        {
+            return (new WbApiResult{
+                Error = true,
+                ErrorText = $"Превышен лимит создания карточек: доступно для загрузки {Limit}"
+            });
+        }
+
     }
 
     private async Task<WbApiResult> SearchAndAddSuccessfulAsync(List<string> vendorCodes, int accountId){

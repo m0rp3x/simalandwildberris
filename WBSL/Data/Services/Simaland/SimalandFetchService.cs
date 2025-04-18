@@ -157,7 +157,7 @@ public class SimalandFetchService
         }
 
         // Дополнительные поля
-        dto.trademark_name = GetNestedProperty(product, "trademark", "name");
+        dto.trademark = GetNestedProperty(product, "trademark", "name");
         dto.country_name = GetNestedProperty(product, "country", "name");
         dto.unit_name = GetNestedProperty(product, "unit", "name");
 

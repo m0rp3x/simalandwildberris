@@ -9,6 +9,7 @@ public class WbItemApiResponse
 }
 public class SimalandProductDto
 {
+    [Display(Name = "Артикул продавца")]
     public long sid{ get; set; }
     [Display(Name = "Название")]
     public string name{ get; set; } = "";
@@ -45,7 +46,7 @@ public class SimalandProductDto
     [Display(Name = "НДС")]
     public int? vat{ get; set; }
     [Display(Name = "Торговая марка")]
-    public string? trademark_name{ get; set; }
+    public string? trademark{ get; set; }
     [Display(Name = "Страна")]
     public string? country_name{ get; set; }
     public string? unit_name{ get; set; }

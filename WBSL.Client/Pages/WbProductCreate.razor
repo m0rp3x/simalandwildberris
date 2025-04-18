@@ -14,9 +14,22 @@
 
 <MudPaper Class="pa-6 mx-auto mt-8" Elevation="4">
 
-    <MudText Typo="Typo.h5" Class="mb-4">Создание товара Wildberries</MudText>
+    <MudText Typo="Typo.h5" Class="mb-4">Создание товаров Wildberries</MudText>
+    @if (LastWbResult?.AdditionalErrors != null){
+        <MudButton OnClick="CopyErrorToClipboard" Variant="Variant.Outlined" Color="Color.Secondary" Class="mb-2">
+            Скопировать JSON ошибки
+        </MudButton>
 
-    <MudTextField Label="Артикул" @bind-Value="VendorCode" FullWidth/>
+        <MudExpansionPanels>
+            <MudExpansionPanel Text="Детали ошибок">
+                @foreach (var err in LastWbResult.AdditionalErrors){
+                    <MudText Color="Color.Error">
+                        <b>@err.Key:</b> @string.Join(", ", err.Value)
+                    </MudText>
+                }
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    }
 
     <MudSelect T="ExternalAccount" Label="Аккаунт Wildberries" @bind-Value="SelectedWbAccount" FullWidth>
         @foreach (var acc in _accounts.Where(x => x.Platform == ExternalAccountType.Wildberries.ToString())){
@@ -30,112 +43,117 @@
         }
     </MudSelect>
 
-    <MudButton OnClick="CheckProduct" Disabled="@(!CanSearch)" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
-        Проверить товар
+    <MudDivider Class="my-6"/>
+    <MudText Typo="Typo.h6">Выбор категории</MudText>
+
+    <MudAutocomplete T="WbCategoryDto"
+                     Label="Родительская категория"
+                     SearchFunc="(q, t) => SearchBaseCategories(q, t)"
+                     ToStringFunc="x => x?.Name"
+                     MinCharacters="0"
+                     MaxItems="100"
+                     Immediate="true"
+                     @bind-Value="SelectedBaseCategory"
+                     Dense="true"
+                     Class="mt-2"/>
+
+    <MudAutocomplete T="WbCategoryDto"
+                     Label="Дочерняя категория"
+                     SearchFunc="(q, t) => SearchChildCategories(q, t)"
+                     ToStringFunc="x => x?.Name"
+                     MaxItems="50"
+                     MinCharacters="0"
+                     Immediate="true"
+                     Value="SelectedChildCategory"
+                     Dense="true"
+                     Disabled="@(SelectedBaseCategory is null)"
+                     ValueChanged="OnCategorySelected"
+                     Class="mt-2"/>
+
+    <MudButton OnClick="CheckCategoryMapping" Disabled="@(!CanSearch)" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
+        Проверить
     </MudButton>
-    @* <MudButton OnClick="SyncPrdoucts" Disabled="@(!CanSearch)" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4"> *@
-    @*     Синк продуктов *@
-    @* </MudButton> *@
 
     @if (_checkPerformed){
-        @if (!_isNullFromWb){
-            <MudAlert Severity="Severity.Warning" Elevation="2" Class="mt-4">
-                Товар с таким артикулом уже существует на Wildberries
-            </MudAlert>
-        }
-        else{
-            <MudDivider Class="my-6"/>
-            <MudText Typo="Typo.h6">Выбор категории</MudText>
+        <MudDivider Class="my-6"/>
+        <MudText Typo="Typo.h6">Предложенная характеристика из SimaLand</MudText>
 
-            <MudAutocomplete T="WbCategoryDto"
-                             Label="Родительская категория"
-                             SearchFunc="(q, t) => SearchBaseCategories(q, t)"
-                             ToStringFunc="x => x.Name"
-                             MinCharacters="0"
-                             MaxItems="100"
-                             Immediate="true"
-                             @bind-Value="SelectedBaseCategory"
-                             Dense="true"
-                             Class="mt-2"/>
+        <MudAutocomplete T="string"
+                         Label="Характеристика SimaLand"
+                         Value="SelectedSimalandAttribute"
+                         ValueChanged="val => SelectedSimalandAttribute = val"
+                         SearchFunc="SearchSimalandCategories"
+                         ToStringFunc="x => x"
+                         MinCharacters="1"
+                         Class="mt-2"
+                         FullWidth="true"/>
 
-            <MudAutocomplete T="WbCategoryDto"
-                             Label="Дочерняя категория"
-                             SearchFunc="(q, t) => SearchChildCategories(q, t)"
-                             ToStringFunc="x => x.Name"
-                             MaxItems="50"
-                             MinCharacters="0"
-                             Immediate="true"
-                             Value="SelectedChildCategory"
-                             Dense="true"
-                             Disabled="@(SelectedBaseCategory is null)"
-                             Class="mt-2"
-                             ValueChanged="@OnCategorySelected"/>
+        <MudDivider Class="my-6"/>
+        <MudText Typo="Typo.h6">Информация о товаре</MudText>
 
-            <MudDivider Class="my-6"/>
-            <MudText Typo="Typo.h6">Информация о товаре</MudText>
-            <MudTextField T="string" Disabled="true" Text="@($"Артикул продавца {VendorCode}")"/>
+        <MudSimpleTable>
+            <MudTh>Поле Wildberries</MudTh>
+            <MudTh>Источник SimaLand</MudTh>
 
-            @foreach (var group in WbFields.GroupBy(f => f.GroupName)){
-                @if (!string.IsNullOrWhiteSpace(group.Key)){
-                    <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">@group.Key</MudText>
-                }
+            @foreach (var group in Mappings.GroupBy(m => m.Type)){
+                <MudTr>
+                    <MudTd ColSpan="2">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+                            @GetGroupHeader(group.Key)
+                        </MudText>
+                    </MudTd>
+                </MudTr>
 
-                @foreach (var field in group){
-                    <MudGrid Class="mt-0">
-                        <MudItem xs="6" Class="compact-field">
-                            @if (field.Getter().GetType() == typeof(int)){
-                                <MudNumericField T="int"
-                                                 Value="(int)field.Getter()"
-                                                 ValueChanged="val => { field.Setter(val); StateHasChanged(); }"
-                                                 Label="@field.DisplayName"
-                                                 FullWidth/>
-                            }
-                            else if (field.Getter().GetType() == typeof(decimal)){
-                                <MudNumericField T="decimal"
-                                                 Value="(decimal)field.Getter()"
-                                                 ValueChanged="val => { field.Setter(val); StateHasChanged(); }"
-                                                 Label="@field.DisplayName"
-                                                 FullWidth/>
-                            }
-                            else{
-                                <MudTextField T="string"
-                                              Value="FieldMappingHelper.FormatFieldValue(field.Getter())"
-                                              ValueChanged="val => { if (!FieldMappingHelper.IsFieldReadOnly(field)) field.Setter(val); StateHasChanged(); }"
-                                              Label="@field.DisplayName"
-                                              Disabled="@FieldMappingHelper.IsFieldReadOnly(field)"
-                                              HelperText="@GetHelperText(field)"
-                                              FullWidth/>
-                            }
-                        </MudItem>
-                        <MudItem xs="6" Class="compact-field">
+                @foreach (var context in group){
+                    <MudTr>
+                        <MudTd>@context.DisplayName</MudTd>
+                        <MudTd>
                             <MudSelect T="string"
-                                       Label="Источник из SimaLand"
-                                       Class="compact-input"
-                                       Value="GetMapping(field.FieldName)"
-                                       ValueChanged="val => SetMapping(field.FieldName, val, field)">
-                                @if (field.IsCharacteristic){
-                                    <MudSelectItem Value="@("Attr_0")">– не выбрано –</MudSelectItem>
-                                    @foreach (var attr in simalandProduct.Attributes){
-                                        <MudSelectItem Value="@($"Attr_{attr.id}")">@attr.attr_name</MudSelectItem>
+                                       Value="@context.SourceProperty"
+                                       ValueChanged="val => OnMappingChanged(context, val)">
+                                <MudSelectItem Value="@("__null__")">– не выбрано –</MudSelectItem>
+                                @if (context.Type == FieldMappingType.Characteristic){
+                                    @foreach (var attr in SimalandAttributes){
+                                        <MudSelectItem Value="@($"Attr_{attr.Name}")">@attr.Name</MudSelectItem>
                                     }
                                 }
                                 else{
-                                    <MudSelectItem Value="@("0")">– не выбрано –</MudSelectItem>
-                                    @foreach (var sima in SimalandFields){
-                                        <MudSelectItem Value="@sima.PropertyName">@sima.DisplayName</MudSelectItem>
+                                    @foreach (var prop in SimalandFields){
+                                        <MudSelectItem Value="@prop.PropertyName">@prop.DisplayName</MudSelectItem>
                                     }
                                 }
                             </MudSelect>
-                        </MudItem>
-                    </MudGrid>
+                        </MudTd>
+                    </MudTr>
                 }
             }
+        </MudSimpleTable>
 
-            <MudButton OnClick="SendToBackend" Variant="Variant.Filled" Color="Color.Success" Class="mt-4">
-                Создать товар в вб
-            </MudButton>
-        }
+        <MudDivider Class="my-6"/>
+        <MudText Typo="Typo.h6">Мапинг значений характеристик</MudText>
+
+        <MudTable Items="CharacteristicValueMappings">
+            <HeaderContent>
+                <MudTh>Характеристика</MudTh>
+                <MudTh>Значение из SimaLand</MudTh>
+                <MudTh>Значение для Wildberries</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.CharacteristicName</MudTd>
+                <MudTd>
+                    <MudTextField @bind-Value="context.SimalandValue" Placeholder="значение из SimaLand"/>
+                </MudTd>
+                <MudTd>
+                    <MudTextField @bind-Value="context.WildberriesValue" Placeholder="значение для WB"/>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+
+        <MudButton OnClick="SendToBackend" Variant="Variant.Filled" Color="Color.Success" Class="mt-4">
+            Создать товар в вб
+        </MudButton>
     }
+
 </MudPaper>
 <style>
     .compact-field {
@@ -175,90 +193,60 @@
 
     private List<ExternalAccount> _accounts = new();
     private bool _checkPerformed = false;
-    private bool _isNullFromWb = false;
     private bool _isSearchAvailable = false;
-
-    private string Title = string.Empty;
-    private string Description = string.Empty;
-    private string Brand = string.Empty;
-    private WbDimensionsDto Dimensions = new();
+    private string? SelectedSimalandAttribute;
 
     private WbCategoryDto? SelectedBaseCategory;
     private WbCategoryDto? SelectedChildCategory;
 
-    private SimalandProductDto simalandProduct = new();
-    private List<WbCharacteristicDto> Characteristics = new();
     private List<WbAdditionalCharacteristicDto> _characteristicInfos = new();
     private List<FieldMapping> Mappings = new();
-    private List<WbFieldInfo> WbFields = new();
+    private List<SimalandAttributeDto> SimalandAttributes = new();
+    private List<CharacteristicValueMapping> CharacteristicValueMappings = new();
+    private WbApiResult? LastWbResult;
+    private string? LastWbSummary;
 
     private bool CanSearch =>
-        !string.IsNullOrWhiteSpace(VendorCode) &&
+        SelectedChildCategory != null &&
         SelectedWbAccount != null &&
         SelectedSimaAccount != null;
 
     protected override async Task OnInitializedAsync(){
         if (OperatingSystem.IsBrowser()){
             _accounts = await ProductService.LoadAccountsAsync();
-            WbFields = WbFieldInfoHelper.Create(
-                () => Title, val => Title = val?.ToString() ?? "",
-                () => Description, val => Description = val?.ToString() ?? "",
-                () => Brand, val => Brand = val?.ToString() ?? "",
-                Dimensions
-            );
-            await LoadMappingsFromLocalStorage();
+            Mappings = await FieldMappingHelper.LoadFromLocalStorageAsync(JS);
         }
     }
 
-    private async void SyncPrdoucts(MouseEventArgs obj){
-        try{
-            var response = await Client.GetAsync("api/Wildberries/sync/productCards");
-
-            if (response.IsSuccessStatusCode){
-                var result = await response.Content.ReadFromJsonAsync<ProductsSyncResult>();
-
-                if (result is not null){
-                    if (result.IsFatalError){
-                        Snackbar.Add($"❌ Sync failed: {result.FatalErrorMessage}", Severity.Error);
-                    }
-                    else{
-                        Snackbar.Add($"✅ Sync completed: {result.ProductsCount} products, {result.SaveErrorsCount} save errors", Severity.Success);
-                    }
-                }
-                else{
-                    Snackbar.Add("⚠️ Sync completed but response is empty", Severity.Warning);
-                }
-            }
-            else{
-                Snackbar.Add($"❌ Server error: {response.ReasonPhrase}", Severity.Error);
-            }
-        }
-        catch (Exception ex){
-            Snackbar.Add($"❌ Exception during sync: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task CheckProduct(){
+    private async Task CheckCategoryMapping(){
         _checkPerformed = false;
 
-        SelectedChildCategory = null;
-        SelectedBaseCategory = null;
-        var result = await ProductService.CheckSimalandAndWbProductAsync(VendorCode, SelectedWbAccount, SelectedSimaAccount);
-
-        _isNullFromWb = result.IsNullFromWb;
-        simalandProduct = result.SimalandProduct;
-        if (result.BaseCategory != null)
-            SelectedBaseCategory = result.BaseCategory;
-
-        if (result.ChildCategory != null){
-            await OnCategorySelected(result.ChildCategory);
-
-            _checkPerformed = true;
-
+        if (SelectedChildCategory == null){
+            Snackbar.Add("Выберите дочернюю категорию Wildberries", Severity.Warning);
             return;
         }
 
-        FieldMappingHelper.ApplyMappings(Mappings, WbFields, simalandProduct, _characteristicInfos);
+        var categoryId = SelectedChildCategory.Id;
+
+        try{
+            var simalandAttrName = await Client.GetStringAsync($"api/wildberries/suggest-simaland-category?categoryId={categoryId}");
+            SelectedSimalandAttribute = simalandAttrName;
+            SimalandAttributes = await Client.GetFromJsonAsync<List<SimalandAttributeDto>>($"api/simaland/attributes?categoryName={SelectedSimalandAttribute}") ?? new();
+
+            _characteristicInfos = await Client.GetFromJsonAsync<List<WbAdditionalCharacteristicDto>>(
+                $"api/Wildberries/characteristics/{SelectedChildCategory.Id}/{SelectedWbAccount.Id}") ?? new();
+
+            CharacteristicValueMappings = GenerateValueMappings(SimalandAttributes);
+
+
+            FieldMappingHelper.MergeCharacteristicMappings(Mappings, _characteristicInfos);
+            FieldMappingHelper.SanitizeMappings(Mappings, SimalandAttributes);
+
+            _checkPerformed = true;
+        }
+        catch (Exception ex){
+            Snackbar.Add($"Ошибка при получении рекомендации: {ex.Message}", Severity.Error);
+        }
 
         _checkPerformed = true;
     }
@@ -269,6 +257,14 @@
 
         return result ?? Enumerable.Empty<WbCategoryDto>();
     }
+
+    private async Task<IEnumerable<string>> SearchSimalandCategories(string value, CancellationToken token){
+        var response = await Client.GetFromJsonAsync<List<string>>(
+            $"api/simaland/search-categories?query={value}", token);
+
+        return response ?? new();
+    }
+
 
     private async Task<IEnumerable<WbCategoryDto>> SearchChildCategories(string value, CancellationToken token){
         if (SelectedBaseCategory == null)
@@ -282,56 +278,43 @@
         return result ?? Enumerable.Empty<WbCategoryDto>();
     }
 
-    private async Task OnCategorySelected(WbCategoryDto? value){
-        SelectedChildCategory = value;
-
-        if (SelectedChildCategory == null)
-            return;
-
-        if (SelectedWbAccount != null){
-            try{
-                _characteristicInfos = await Client.GetFromJsonAsync<List<WbAdditionalCharacteristicDto>>(
-                    $"api/Wildberries/characteristics/{SelectedChildCategory.Id}/{SelectedWbAccount.Id}");
-
-                Characteristics = _characteristicInfos?.Select(c => new WbCharacteristicDto{
-                    Id = c.CharcID,
-                    Name = c.Name,
-                    Value = CreateDefaultCharValue(c.CharcType, c.MaxCount)
-                }).ToList() ?? new();
-
-                FieldMappingHelper.AppendCharacteristicFields(WbFields, Characteristics, _characteristicInfos);
-                FieldMappingHelper.ApplyMappings(Mappings, WbFields, simalandProduct, _characteristicInfos);
-            }
-            catch (Exception ex){
-                Snackbar.Add($"Ошибка загрузки характеристик: {ex.Message}", Severity.Error);
-            }
-        }
-    }
-
     private async Task SendToBackend(){
-        if (SelectedChildCategory == null || SelectedWbAccount == null){
-            Snackbar.Add("Выберите категорию и аккаунт Wildberries", Severity.Warning);
+        if (SelectedChildCategory == null || string.IsNullOrWhiteSpace(SelectedSimalandAttribute)){
+            Snackbar.Add("Выберите категории и маппинг", Severity.Warning);
             return;
         }
 
-        var product = new WbCreateVariantInternalDto(
-            vendorCode: VendorCode,
-            title: Title,
-            description: Description,
-            brand: Brand,
-            dimensions: Dimensions,
-            characteristics: Characteristics,
-            sizes: new List<WbsizeDto>(), // пока пусто
-            subjectId: SelectedChildCategory.Id
-        );
+        var dto = new CategoryMappingRequest{
+            WildberriesCategoryId = SelectedChildCategory.Id,
+            SimalandCategoryName = SelectedSimalandAttribute,
+            Mappings = Mappings,
+            CharacteristicValueMappings = CharacteristicValueMappings
+        };
 
         try{
-            await ProductService.CreateItemsAsync(new List<WbCreateVariantInternalDto>{ product }, SelectedWbAccount.Id);
+            var response = await Client.PostAsJsonAsync($"api/Wildberries/createWbItem/{SelectedWbAccount.Id}", dto);
 
-            Reset();
+            var result = await response.Content.ReadFromJsonAsync<WbApiResult>();
+            LastWbResult = result;
+
+            if (response.IsSuccessStatusCode && result is{ Error: false }){
+                LastWbSummary = "✅ Товар успешно создан";
+                Snackbar.Add(LastWbSummary, Severity.Success);
+            }
+            else{
+                LastWbSummary = $"❌ Ошибка: {result?.ErrorText ?? "Неизвестная ошибка"}";
+                Snackbar.Add(LastWbSummary, Severity.Error);
+
+                if (result?.AdditionalErrors != null){
+                    foreach (var kvp in result.AdditionalErrors){
+                        Snackbar.Add($"{kvp.Key}: {string.Join(", ", kvp.Value)}", Severity.Warning);
+                    }
+                }
+            }
         }
         catch (Exception ex){
-            Snackbar.Add($"Ошибка при отправке товара: {ex.Message}", Severity.Error);
+            LastWbSummary = $"❌ Ошибка при отправке: {ex.Message}";
+            Snackbar.Add(LastWbSummary, Severity.Error);
         }
     }
 
@@ -344,55 +327,65 @@
         })
         .ToList();
 
-    private string GetMapping(string fieldName){
-        return Mappings.FirstOrDefault(m => m.FieldName == fieldName)?.SourceProperty ?? "";
+    private async void OnMappingChanged(FieldMapping mapping, string newValue){
+        mapping.SourceProperty = newValue == "__null__" ? "" : newValue;
+        await FieldMappingHelper.SaveOrUpdateMappingsAsync(JS, Mappings);
     }
 
-    private void SetMapping(string fieldName, string simaFieldName, WbFieldInfo? fieldInfo = null){
-        FieldMappingHelper.SetMapping(fieldName, simaFieldName, Mappings, simalandProduct, _characteristicInfos, fieldInfo);
-        SaveMappingsToLocalStorage();
-        StateHasChanged();
-    }
-
-
-    private async void SaveMappingsToLocalStorage(){
-        await JS.InvokeVoidAsync("localStorage.setItem", "fieldMappings",
-            JsonSerializer.Serialize(Mappings));
-    }
-
-    private async Task LoadMappingsFromLocalStorage(){
-        var json = await JS.InvokeAsync<string>("localStorage.getItem", "fieldMappings");
-        if (!string.IsNullOrWhiteSpace(json)){
-            Mappings = JsonSerializer.Deserialize<List<FieldMapping>>(json) ?? new();
+    private async Task CopyErrorToClipboard(){
+        if (LastWbResult != null){
+            var json = JsonSerializer.Serialize(LastWbResult, new JsonSerializerOptions{ WriteIndented = true });
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", json);
+            Snackbar.Add("✅ JSON ошибки скопирован в буфер", Severity.Info);
         }
     }
 
-    private void Reset(){
-        _checkPerformed = false;
-        VendorCode = "";
-        Title = "";
-        Description = "";
-        Brand = "";
-        Dimensions = new();
-        Characteristics = new();
-        SelectedBaseCategory = null;
-        SelectedChildCategory = null;
-    }
+    private List<CharacteristicValueMapping> GenerateValueMappings(List<SimalandAttributeDto> attributes){
+        var result = new List<CharacteristicValueMapping>();
 
-    private object CreateDefaultCharValue(int charcType, int maxCount){
-        bool isList = maxCount != 1;
-
-        return charcType switch{
-            0 or 1 => isList ? new List<string>() : "", // строки
-            4 => isList ? new List<int>() : 0, // числа
-            _ => "" // fallback
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase){
+            "Цвет",
+            "Пол",
+            "Страна производства"
         };
+
+        foreach (var attr in attributes){
+            if (string.IsNullOrWhiteSpace(attr.Name) || string.IsNullOrWhiteSpace(attr.Value))
+                continue;
+            
+            if (!allowed.Contains(attr.Name))
+                continue;
+
+            var values = attr.Value.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                .Select(v => v.Trim())
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .Distinct();
+
+            foreach (var val in values){
+                result.Add(new CharacteristicValueMapping{
+                    CharacteristicName = attr.Name,
+                    SimalandValue = val,
+                    WildberriesValue = ""
+                });
+            }
+        }
+
+        return result;
     }
 
-    private string? GetHelperText(WbFieldInfo field){
-        return FieldMappingHelper.IsFieldReadOnly(field)
-            ? "Редактирование вручную недоступно. Используйте маппинг."
-            : null;
+    private void OnCategorySelected(WbCategoryDto obj){
+        SelectedChildCategory = obj;
+        _checkPerformed = false;
+
+        if (SelectedChildCategory == null)
+            return;
     }
+
+    private string GetGroupHeader(FieldMappingType type) => type switch{
+        FieldMappingType.Text => "Основные поля",
+        FieldMappingType.Dimension => "Габариты",
+        FieldMappingType.Characteristic => "Характеристики",
+        _ => "Прочее"
+    };
 
 }

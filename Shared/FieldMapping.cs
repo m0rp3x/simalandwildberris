@@ -2,6 +2,15 @@
 
 public class FieldMapping
 {
-    public string FieldName { get; set; } = ""; // Например: "Title", "Description"
-    public string SourceProperty { get; set; } = ""; // Например: "name", "description"
+    public string WbFieldName { get; set; } = "";          // "Title", "Height", "Char_123"
+    public string DisplayName { get; set; } = "";          // UI name
+    public string SourceProperty { get; set; } = "";       // "name", "Attr_456"
+    public FieldMappingType Type { get; set; }             // enum: Text / Dimension / Characteristic
+}
+
+public enum FieldMappingType
+{
+    Text,
+    Dimension,
+    Characteristic
 }
