@@ -5,7 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
+using Shared;
 using WBSL.Client.Pages;
 using WBSL.Data;
 using WBSL.Models;
@@ -95,7 +97,72 @@ public class SimaLandController : ControllerBase
        };
        return Ok(result);
    }
+   
+   [HttpGet("Categories")]
+   public async Task<IActionResult> GetCategories(int accountId)
+   {
+       var userId = GetUserId();
+       // проверяем владельца аккаунта и получаем токен
+       var account = await _db.external_accounts
+           .FirstOrDefaultAsync(a => a.id == accountId && a.user_id == userId && a.platform == "SimaLand");
+       if (account == null)
+           return BadRequest("Аккаунт не найден или не принадлежит вам.");
 
+       var categories = await _simaLandService.GetCategoriesAsync(account.token);
+       return Ok(categories);
+   }
+   
+   [HttpGet("categories/export-excel/{accountId}")]
+   public async Task<IActionResult> ExportCategoriesExcel(int accountId)
+   {
+       var userId = GetUserId();
+       var account = await _db.external_accounts
+           .FirstOrDefaultAsync(a => a.id == accountId && a.user_id == userId && a.platform == "SimaLand");
+       if (account == null)
+           return BadRequest("Аккаунт не найден или не принадлежит вам.");
+
+       // получаем и иерархически «расплющиваем» категории в одну плоскую коллекцию
+       var categories = await _simaLandService.GetCategoriesAsync(account.token);
+       var flat = new List<(CategoryDto Cat, int Level)>();
+       void Walk(CategoryDto c, int lvl)
+       {
+           flat.Add((c, lvl));
+           foreach (var sub in c.SubCategories)
+               Walk(sub, lvl + 1);
+       }
+       foreach (var root in categories) Walk(root, 0);
+
+       // создаём Excel
+       using var wb = new XLWorkbook();
+       var ws = wb.Worksheets.Add("Категории");
+       // заголовки
+       ws.Cell(1, 1).Value = "Id";
+       ws.Cell(1, 2).Value = "Название";
+       ws.Cell(1, 3).Value = "URI (slug)";
+       ws.Cell(1, 4).Value = "URL";
+       ws.Cell(1, 5).Value = "Товаров";
+       // заполняем
+       for (int i = 0; i < flat.Count; i++)
+       {
+           var (c, lvl) = flat[i];
+           var row = i + 2;
+           ws.Cell(row, 1).Value = c.Id;
+           // для читабельности в самой ячейке делаем отступ с помощью пробелов
+           ws.Cell(row, 2).Value = new string(' ', lvl * 4) + c.Name;
+           ws.Cell(row, 3).Value = c.NameAlias;
+           ws.Cell(row, 4).Value = $"https://www.sima‑land.ru/{c.NameAlias}/";
+           ws.Cell(row, 5).Value = c.ItemsCount;
+       }
+       // подгоняем ширину столбцов
+       ws.Columns().AdjustToContents();
+
+       using var ms = new MemoryStream();
+       wb.SaveAs(ms);
+       var bytes = ms.ToArray();
+       return File(bytes,
+           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+           "categories.xlsx");
+   }
 
    [HttpPost("store")]
    public async Task<IActionResult> StoreProductsAndAttributes([FromBody] StoreRequest request)

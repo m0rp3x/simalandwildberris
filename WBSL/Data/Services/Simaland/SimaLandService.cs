@@ -21,6 +21,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.Logging;
+using Shared;
 using WBSL.Models;
 
 
@@ -28,8 +29,12 @@ namespace WBSL.Services
 {
     public interface ISimaLandService
     {
-        Task<(List<JsonElement> Products, List<product_attribute> Attributes)> FetchProductsAsync(string token, List<long> sids);
+        Task<(List<JsonElement> Products, List<product_attribute> Attributes)> FetchProductsAsync(string token,
+            List<long> sids);
+
         Guid StartFetchJob(string token, List<long> sids);
+        Task<List<CategoryDto>> GetCategoriesAsync(string token);
+
     }
 
     public class SimaLandService : ISimaLandService
@@ -53,10 +58,11 @@ namespace WBSL.Services
                 AutoReplenishment = true
             });
         }
-        
-        
 
-        public async Task<(List<JsonElement> Products, List<product_attribute> Attributes)> FetchProductsAsync(string token, List<long> sids)
+
+
+        public async Task<(List<JsonElement> Products, List<product_attribute> Attributes)> FetchProductsAsync(
+            string token, List<long> sids)
         {
             var productBag = new ConcurrentBag<JsonElement>();
             var attrBag = new ConcurrentBag<product_attribute>();
@@ -108,7 +114,8 @@ namespace WBSL.Services
                     _logger.LogError(ex, "Error processing SID {Sid}, error #{Count}", sid, count);
                     if (count >= MaxErrorsPerPeriod)
                     {
-                        _logger.LogError("Exceeded max error threshold ({MaxErrorsPerPeriod}), aborting.", MaxErrorsPerPeriod);
+                        _logger.LogError("Exceeded max error threshold ({MaxErrorsPerPeriod}), aborting.",
+                            MaxErrorsPerPeriod);
                         cts.Cancel();
                     }
                 }
@@ -121,35 +128,102 @@ namespace WBSL.Services
 
             return (productBag.ToList(), attrBag.ToList());
         }
-        
-           public Guid StartFetchJob(string token, List<long> sids)
-    {
-        // Создаем запись в хранилище прогресса
-        var jobId = ProgressStore.CreateJob(sids.Count);
 
-        // Запускаем фоновую задачу
-        _ = Task.Run(async () =>
+        public Guid StartFetchJob(string token, List<long> sids)
         {
-            try
-            {
-                var (products, attributes) = await RunFetchInternalAsync(token, sids, jobId);
-                // По завершении отмечаем job как завершенный
-                ProgressStore.CompleteJob(jobId, products, attributes);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Background job {JobId} failed", jobId);
-                if (ProgressStore.GetJob(jobId) is var info && info != null)
-                    info.Status = ProgressStore.JobStatus.Failed;
-            }
-        });
+            // Создаем запись в хранилище прогресса
+            var jobId = ProgressStore.CreateJob(sids.Count);
 
-        return jobId;
+            // Запускаем фоновую задачу
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var (products, attributes) = await RunFetchInternalAsync(token, sids, jobId);
+                    // По завершении отмечаем job как завершенный
+                    ProgressStore.CompleteJob(jobId, products, attributes);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Background job {JobId} failed", jobId);
+                    if (ProgressStore.GetJob(jobId) is var info && info != null)
+                        info.Status = ProgressStore.JobStatus.Failed;
+                }
+            });
+
+            return jobId;
+        }
+
+ public async Task<List<CategoryDto>> GetCategoriesAsync(string token)
+    {
+        var client = _httpFactory.CreateClient("SimaLand");
+        client.DefaultRequestHeaders.Clear();
+        client.DefaultRequestHeaders.Add("X-Api-Key", token);
+
+        // 1) Получаем все категории вместе с sub_categories и active_sub_categories
+        var listResp = await client.GetAsync("category/?expand=sub_categories,active_sub_categories,name_alias");
+        listResp.EnsureSuccessStatusCode();
+        using var listDoc = JsonDocument.Parse(await listResp.Content.ReadAsStringAsync());
+        var root = listDoc.RootElement;
+
+        // если сервер вернул { items: [...] } — работаем с ним, иначе с корневым массивом
+        var array = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("items", out var items) 
+            ? items 
+            : root;
+
+        var categories = new List<CategoryDto>();
+        foreach (var elem in array.EnumerateArray())
+        {
+            categories.Add(ParseCategory(elem));
+        }
+
+        // 2) Параллельно дозапрашиваем name_alias для каждой категории (одноуровневая «плоская» коллекция)
+        var flat = new List<CategoryDto>();
+        void Flatten(CategoryDto c)
+        {
+            flat.Add(c);
+            foreach (var sub in c.SubCategories) Flatten(sub);
+            foreach (var asc in c.ActiveSubCategories) Flatten(asc);
+        }
+        foreach (var cat in categories) Flatten(cat);
+
+        
+        return categories;
     }
 
+    private CategoryDto ParseCategory(JsonElement e)
+    {
+        // Базовые поля
+        var dto = new CategoryDto
+        {
+            Id = e.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.Number
+                ? idProp.GetInt32() : 0,
+            Name = e.TryGetProperty("name", out var nameProp) && nameProp.ValueKind == JsonValueKind.String
+                ? nameProp.GetString()! : "",
+            // здесь сразу попытаемся взять alias, но скорее всего он пуст — он подтянется этапом выше
+            NameAlias = e.TryGetProperty("full_slug", out var aliasProp) && aliasProp.ValueKind == JsonValueKind.String
+                ? aliasProp.GetString()! : "",
+
+            ItemsCount = e.TryGetProperty("items_count", out var ic) && ic.ValueKind == JsonValueKind.Number
+                ? ic.GetInt32() : 0,
+            ItemsParentCount = e.TryGetProperty("items_parent_count", out var ipc) && ipc.ValueKind == JsonValueKind.Number
+                ? ipc.GetInt32() : 0,
+        };
+
+        // Подкатегории
+        if (e.TryGetProperty("sub_categories", out var sc) && sc.ValueKind == JsonValueKind.Array)
+            dto.SubCategories = sc.EnumerateArray().Select(ParseCategory).ToList();
+
+        if (e.TryGetProperty("active_sub_categories", out var asc) && asc.ValueKind == JsonValueKind.Array)
+            dto.ActiveSubCategories = asc.EnumerateArray().Select(ParseCategory).ToList();
+
+        return dto;
+    }
+
+    
 
 
-    /// <summary>
+/// <summary>
     /// Общая логика загрузки: если jobId != null — обновляет ProgressStore.
     /// </summary>
     private async Task<(List<JsonElement> products, List<product_attribute> attrs)> RunFetchInternalAsync(
