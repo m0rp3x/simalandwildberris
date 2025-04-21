@@ -1,6 +1,7 @@
 ﻿using Hangfire;
 using Hangfire.PostgreSql;
 using WBSL.Data.Services.Simaland;
+using WBSL.Data.Services.Wildberries;
 
 namespace WBSL.Data.Hangfire;
 
@@ -21,6 +22,18 @@ public static class HangfireConfig
             "fetch_simaland_balance",
             job => job.SyncProductsBalanceAsync(),
             "*/30 * * * *" // CRON: каждые 30 минут
+        );
+        
+        RecurringJob.AddOrUpdate<WildberriesCategoryService>(
+            "fetch_wb_categories",
+            job => job.SyncCategoriesAsync(),
+            "30 1 * * *" // каждый день в 1:30
+        );
+        
+        RecurringJob.AddOrUpdate<WildberriesProductsService>(
+            "fetch_wb_products",
+            job => job.SyncProductsAsync(),
+            "0 2 * * *" // каждый день в 2:00
         );
     }
 }
