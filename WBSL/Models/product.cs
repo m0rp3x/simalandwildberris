@@ -25,8 +25,6 @@ public partial class product
 
     public decimal? box_width { get; set; }
 
-    public string? base_photo_url { get; set; }
-
     public int? category_id { get; set; }
 
     public int? balance { get; set; }
@@ -45,7 +43,7 @@ public partial class product
 
     public int? vat { get; set; }
 
-    public string? trademark { get; set; }
+    public string? trademark_name { get; set; }
 
     public virtual ICollection<product_attribute> product_attributes { get; set; } = new List<product_attribute>();
 }

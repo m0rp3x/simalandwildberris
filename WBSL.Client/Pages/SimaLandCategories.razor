@@ -1,0 +1,197 @@
+﻿@page "/simaland-categories"
+@using System.Net.Http.Json
+@using Shared   <!-- ваше пространство имён, где лежат ExternalAccount и CategoryDto -->
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+<MudPaper Class="pa-6 mx-auto mt-8" Style="max-width:1080px;" Elevation="4">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h5">📁 Иерархия категорий Сима-Ленд</MudText>
+
+        <MudSelect T="ExternalAccount"
+                   @bind-Value="_selectedAccount"
+                   Label="Выберите аккаунт"
+                   Variant="Variant.Outlined"
+                   FullWidth>
+            @foreach (var acct in _accounts)
+            {
+                <MudSelectItem Value="@acct">@acct.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudButton OnClick="LoadCategories"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="_selectedAccount == null || _isLoading">
+            @(_isLoading ? "Загрузка..." : "Загрузить категории")
+        </MudButton>
+        <MudButton OnClick="ExportCategoriesExcel"
+                   Variant="Variant.Outlined"
+                   Color="Color.Success"
+                   Disabled="_selectedAccount==null">
+            📥 Экспорт в Excel
+        </MudButton>
+
+        @if (_isLoading)
+        {
+            <MudProgressCircular Indeterminate="true" Class="mx-auto mt-4" />
+        }
+        else if (_flatCategories.Any())
+        {
+            <MudTable T="CategoryWithLevel"
+                      Items="_flatCategories"
+                      Dense="true"
+                      Bordered="true"
+                      RowClassFunc="@GetRowClass">
+
+                <HeaderContent>
+                    <MudTh>Id</MudTh>
+                    <MudTh>Категория</MudTh>
+                    <MudTh>URI (slug)</MudTh>
+                    <MudTh>URL</MudTh>
+                    <MudTh>Товаров</MudTh>
+                </HeaderContent>
+
+                <RowTemplate Context="item">
+                    <MudTd>@item.Category.Id</MudTd>
+                    <!-- обязательно оборачиваем в $-строку, иначе Razor попытается подставить int в строку напрямую -->
+                    <MudTd Style="@($"padding-left:{item.Level * 16}px")">
+                        @item.Category.Name
+                    </MudTd>
+                    <MudTd>@item.Category.NameAlias</MudTd>
+                    <MudTd>
+                        <a target="_blank"
+                           href="@($"https://www.sima-land.ru/{item.Category.NameAlias}/")">
+                            https://www.sima-land.ru/@item.Category.NameAlias/
+                        </a>
+                    </MudTd>
+                    <MudTd>@item.Category.ItemsCount</MudTd>
+                </RowTemplate>
+            </MudTable>
+
+
+
+
+        }
+        else if (_categoriesLoaded)
+        {
+            <MudText>Нет категорий для отображения.</MudText>
+        }
+    </MudStack>
+</MudPaper>
+
+<style>
+    .parent-row td {
+        background-color: #e3f2fd;
+        font-weight: bold;
+    }
+    .child-row td {
+        /* можно ничего не указывать или задать другой фон */
+    }
+    .child-row .mud-td.category-cell::before {
+        content: "↳ ";
+        opacity: 0.6;
+        margin-right: 4px;
+    }
+
+    .parent-row td {
+        background-color: #e3f2fd;   /* легкий голубой фон для корневых категорий */
+        font-weight: bold;            /* жирный текст */
+    }
+
+    .child-row td {
+        background-color: transparent;
+    }
+
+    /* Отступы уже даёт padding-left на ячейке category-cell через level*16px,
+       но если хотите более явно: */
+    .category-cell {
+        /* Это правило будет брать значение padding-left из inline-стиля */
+    }
+
+    /* Если хочется добавить стрелочку для вложений: */
+    .child-row .category-cell::before {
+        content: "↳ ";
+        opacity: 0.6;
+        margin-right: 4px;
+    }
+
+</style>
+@code {
+    private ExternalAccount? _selectedAccount;
+    private List<ExternalAccount> _accounts = new();
+    private List<CategoryDto> _categories = new();
+    private List<CategoryWithLevel> _flatCategories = new();
+    private bool _isLoading;
+    private bool _categoriesLoaded;
+    private bool _initialized = false;
+
+
+   
+    protected override async Task OnAfterRenderAsync(bool firstRender){
+        if (firstRender && !_initialized){
+            _initialized = true;
+            await LoadAccounts();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadAccounts(){
+        _accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
+    }
+    
+    private string GetRowClass(CategoryWithLevel item, int rowIndex)
+        => item.Level == 0
+            ? "parent-row"
+            : "child-row";
+
+
+    private async Task LoadCategories()
+    {
+        if (_selectedAccount == null) return;
+
+        _isLoading = true;
+        _categoriesLoaded = false;
+        _flatCategories.Clear();
+
+        var cats = await Http.GetFromJsonAsync<List<CategoryDto>>(
+            $"api/SimaLand/Categories?accountId={_selectedAccount.Id}"
+        ) ?? new List<CategoryDto>();
+
+        _categories = cats;
+        Flatten(_categories, 0);
+
+        _categoriesLoaded = true;
+        _isLoading = false;
+    }
+
+    private void Flatten(IEnumerable<CategoryDto> cats, int level)
+    {
+        foreach (var c in cats)
+        {
+            _flatCategories.Add(new CategoryWithLevel(c, level));
+            if (c.SubCategories != null && c.SubCategories.Any())
+                Flatten(c.SubCategories, level + 1);
+        }
+    }
+    async Task ExportCategoriesExcel()
+    {
+        if (_selectedAccount == null) return;
+        var url = $"api/SimaLand/categories/export-excel/{_selectedAccount.Id}";
+        var res = await Http.GetAsync(url);
+        if (!res.IsSuccessStatusCode)
+        {
+            Snackbar.Add($"Ошибка экспорта: {res.StatusCode}", Severity.Error);
+            return;
+        }
+        var data = await res.Content.ReadAsByteArrayAsync();
+        var base64 = Convert.ToBase64String(data);
+        await JS.InvokeVoidAsync("downloadFileFromBlazor",
+            "categories.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            base64);
+    }
+
+
+    public record CategoryWithLevel(CategoryDto Category, int Level);
+}

@@ -103,111 +103,6 @@
         _accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
     }
 
-private async Task Fetch()
-{
-    if (_selectedAccount == null) return;
-
-    // Парсинг артикулов
-    var articles = _rawArticles
-        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .Select(long.Parse)
-        .ToList();
-
-    _loadingProgress = 1;
-    await InvokeAsync(StateHasChanged);
-
-    // Запрос на сервер для получения данных
-    var res = await Http.PostAsJsonAsync("api/simaland/fetch", new
-    {
-        AccountId = _selectedAccount.Id,
-        Articles = articles
-    });
-
-    if (!res.IsSuccessStatusCode)
-    {
-        _resultJson = $"Ошибка: {res.StatusCode}";
-        _loadingProgress = 0;
-        await InvokeAsync(StateHasChanged);
-        return;
-    }
-
-    // Чтение и разбор JSON-ответа
-    var json = await res.Content.ReadAsStringAsync();
-    using var doc = JsonDocument.Parse(json);
-    var root = doc.RootElement;
-    if (!root.TryGetProperty("products", out var productArray))
-    {
-        _resultJson = "Ответ не содержит секции products";
-        _loadingProgress = 0;
-        await InvokeAsync(StateHasChanged);
-        return;
-    }
-
-    _products.Clear();
-    var attrSet = new HashSet<string>();
-    var total = productArray.GetArrayLength();
-    int index = 0;
-
-    // Создание объекта для уведомления об изменениях прогресса
-    var progress = new Progress<int>(p =>
-    {
-        _loadingProgress = p;
-        // Гарантирует, что StateHasChanged вызывается в UI-потоке
-        InvokeAsync(StateHasChanged);
-    });
-
-    // Обработка товаров в фоновом потоке
-    await Task.Run(async () =>
-    {
-        foreach (var prodElem in productArray.EnumerateArray())
-        {
-            var product = JsonSerializer.Deserialize<Product>(
-                prodElem.GetRawText(), 
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-            );
-            if (product == null)
-                continue;
-
-            product.Attributes ??= new List<ProductAttribute>();
-
-            if (prodElem.TryGetProperty("attrs", out var attrsArray) &&
-                attrsArray.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var attr in attrsArray.EnumerateArray())
-                {
-                    var attrName = attr.TryGetProperty("attr_name", out var an) ? an.GetString() ?? "" : "";
-                    var value = attr.TryGetProperty("value", out var v) ? v.ToString() ?? "" : "";
-                    if (!string.IsNullOrWhiteSpace(attrName))
-                    {
-                        product.Attributes.Add(new ProductAttribute
-                        {
-                            product_sid = product.sid,
-                            attr_name = attrName,
-                            value_type = "text",
-                            value_text = value
-                        });
-                        attrSet.Add(attrName);
-                    }
-                }
-            }
-
-            _products.Add(product);
-            index++;
-
-            // Расчёт прогресса
-            int newProgress = Math.Min(99, (int)((index / (double)total) * 100));
-            ((IProgress<int>)progress).Report(newProgress);
-            
-            // Искусственная задержка для лучшей видимости прогресса
-            await Task.Delay(3);
-        }
-    });
-
-    _allAttrNames = attrSet.OrderBy(x => x).ToList();
-    _resultJson = $"Загружено товаров: {_products.Count}, атрибутов: {_allAttrNames.Count}";
-    _loadingProgress = 100;
-    await InvokeAsync(StateHasChanged);
-}
 
 
 
@@ -367,26 +262,42 @@ private async Task Fetch()
         }
     }
 
-    private async Task StoreToDatabase(){
-        var attributes = _products.SelectMany(p => p.Attributes.Select(attr => new ProductAttribute{
-            product_sid = p.sid,
-            attr_name = attr.attr_name,
-            value_type = attr.value_type,
-            value_text = attr.value_text
-        })).ToList();
+    private async Task StoreToDatabase()
+    {
+        // Собираем все атрибуты из продуктов
+        var flattenedAttributes = _products
+            .SelectMany(p => p.Attributes)
+            .Select(a => new ProductAttribute
+            {
+                product_sid = a.product_sid,
+                attr_name   = a.attr_name,
+                value_type  = a.value_type,
+                value_text  = a.value_text
+            })
+            .ToList();
 
-        var res = await Http.PostAsJsonAsync("api/simaland/store", new{
-            products = _products,
-            attributes
-        });
+        // Формируем DTO для отправки на сервер
+        var storeRequest = new ResultDto
+        {
+            products   = _products,
+            attributes = flattenedAttributes
+        };
 
-        if (res.IsSuccessStatusCode){
+        // Отправляем строго типизированный объект
+        var res = await Http.PostAsJsonAsync("api/simaland/store", storeRequest);
+
+        if (res.IsSuccessStatusCode)
+        {
             _resultJson = "Успешно загружено в базу!";
         }
-        else{
+        else
+        {
             _resultJson = $"Ошибка загрузки: {res.StatusCode}";
         }
+
+        await InvokeAsync(StateHasChanged);
     }
+
     
     async Task StartFetch()
     {
@@ -401,6 +312,8 @@ private async Task Fetch()
     async Task PollProgress()
     {
         if (_currentJob == null) return;
+
+        // 1) опрашиваем прогресс
         while (true)
         {
             var prog = await Http.GetFromJsonAsync<ProgressDto>($"api/simaland/fetch-progress/{_currentJob}");
@@ -409,32 +322,42 @@ private async Task Fetch()
             _total     = prog.total;
             _processed = prog.processed;
             _status    = prog.status;
-
             await InvokeAsync(StateHasChanged);
 
-            // корректно проверяем статус, игнорируя регистр
             if (!string.Equals(_status, "Running", StringComparison.OrdinalIgnoreCase))
                 break;
 
             await Task.Delay(500);
         }
 
+        // 2) когда job завершён, забираем результат
         if (string.Equals(_status, "Completed", StringComparison.OrdinalIgnoreCase))
         {
             var res = await Http.GetFromJsonAsync<ResultDto>($"api/simaland/fetch-result/{_currentJob}");
-            _products   = res?.products ?? new();
-            _attributes = res?.attributes ?? new();
+            if (res != null)
+            {
+                // заливаем полученные продукты
+                _products   = res.products;
+                // очищаем существующие поля Attributes
+                foreach (var p in _products)
+                    p.Attributes = new List<ProductAttribute>();
+
+                // распределяем атрибуты по товарам
+                foreach (var attr in res.attributes)
+                {
+                    var parent = _products.FirstOrDefault(x => x.sid == attr.product_sid);
+                    if (parent != null)
+                        parent.Attributes.Add(attr);
+                }
+            }
+
             _loadingProgress = 100;
             await InvokeAsync(StateHasChanged);
         }
     }
 
+    
 
-    public class FetchResponse
-    {
-        public List<Product> Products{ get; set; } = new();
-        public List<ProductAttribute> Attributes{ get; set; } = new();
-    }
 
     public class Product
     {
@@ -464,6 +387,7 @@ private async Task Fetch()
         public string? unit_name{ get; set; }
         public List<ProductAttribute> Attributes{ get; set; } = new();
     }
+ 
     
     public class FetchJobDto { public Guid jobid { get; set; } }
     public class ProgressDto
@@ -478,10 +402,16 @@ private async Task Fetch()
 
     public class ProductAttribute
     {
-        public long product_sid{ get; set; }
-        public string attr_name{ get; set; } = "";
-        public string value_type{ get; set; } = "text";
-        public string? value_text{ get; set; }
+        // Говорим сериализатору: JSON-поле "product_s" → это product_sid
+        [JsonPropertyName("product_s")]
+        public long product_sid { get; set; }
+
+        [JsonPropertyName("attr_name")]
+        public string attr_name   { get; set; } = "";
+        [JsonPropertyName("value_type")]
+        public string value_type  { get; set; } = "text";
+        [JsonPropertyName("value_text")]
+        public string? value_text { get; set; }
     }
 
 }
