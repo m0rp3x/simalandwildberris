@@ -8,17 +8,14 @@ public class WildberriesMappingService
     public List<WbCreateVariantInternalDto> BuildProductsFromMapping(
         CategoryMappingRequest request,
         List<product> simaProducts
-    )
-    {
+    ){
         var result = new List<WbCreateVariantInternalDto>();
-        
+
         var categoryId = request.WildberriesCategoryId;
         var mappings = request.Mappings;
-        
-        foreach (var sima in simaProducts)
-        {
-            var product = new WbCreateVariantInternalDto
-            {
+
+        foreach (var sima in simaProducts){
+            var product = new WbCreateVariantInternalDto{
                 SubjectID = categoryId,
                 Dimensions = new WbDimensionsDtoToApi(),
                 Characteristics = new List<WbCharacteristicDto>(),
@@ -26,12 +23,10 @@ public class WildberriesMappingService
                 VendorCode = sima.sid.ToString()
             };
 
-            foreach (var mapping in mappings)
-            {
+            foreach (var mapping in mappings){
                 var value = ExtractValue(sima, mapping.SourceProperty);
 
-                switch (mapping.Type)
-                {
+                switch (mapping.Type){
                     case FieldMappingType.Text:
                         if (mapping.WbFieldName == "Title") product.Title = value?.ToString() ?? "";
                         else if (mapping.WbFieldName == "Description") product.Description = value?.ToString() ?? "";
@@ -50,20 +45,36 @@ public class WildberriesMappingService
                                 product.Dimensions.Height = TryParseInt(value);
                                 break;
                             case "Weight":
-                                product.Dimensions.WeightBrutto = TryParseDecimal(value);
+                                var grams = TryParseDecimal(value);
+                                product.Dimensions.WeightBrutto = grams / 1000m;
                                 break;
                         }
+
                         break;
 
                     case FieldMappingType.Characteristic:
                         var charId = ExtractCharId(mapping.WbFieldName);
                         var parsedValue = ParseCharValue(value);
-                        product.Characteristics.Add(new WbCharacteristicDto
-                        {
-                            Id = charId,
-                            Name = mapping.DisplayName,
-                            Value = parsedValue
-                        });
+
+                        parsedValue = SubstituteCharacteristicValue(parsedValue, mapping.DisplayName,
+                            request.CharacteristicValueMappings);
+
+                        if (mapping.CharacteristicDataType != null){
+                            parsedValue = ConvertValueToExpectedType(
+                                parsedValue,
+                                mapping.CharacteristicDataType.Value,
+                                mapping.MaxCount
+                            );
+                        }
+
+                        if (!IsEmpty(parsedValue)){
+                            product.Characteristics.Add(new WbCharacteristicDto{
+                                Id = charId,
+                                Name = mapping.DisplayName,
+                                Value = parsedValue
+                            });
+                        }
+
                         break;
                 }
             }
@@ -73,60 +84,163 @@ public class WildberriesMappingService
 
         return result;
     }
-    
-    private object? ExtractValue(product sima, string source)
-    {
+
+    private object? ExtractValue(product sima, string source){
         if (source.StartsWith("Attr_"))
         {
             var attrName = source.Replace("Attr_", "");
-            return sima.product_attributes.FirstOrDefault(a => a.attr_name == attrName)?.value_text;
+
+            var values = sima.product_attributes
+                .Where(a => a.attr_name == attrName)
+                .Select(a => a.value_text?.Trim())
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .Distinct()
+                .ToList();
+
+            if (values.Count == 0)
+                return null;
+
+            if (values.Count == 1)
+                return values[0]!; // вернём строку, не список
+
+            return values; // вернём список строк
         }
 
         var prop = typeof(product).GetProperty(source);
         return prop?.GetValue(sima);
     }
 
-    private int TryParseInt(object? val)
-    {
+    private object ConvertValueToExpectedType(object value, WbCharacteristicDataType dataType, int? maxCount){
+        bool isList = !maxCount.HasValue || maxCount.Value != 1;
+
+        switch (dataType){
+            case WbCharacteristicDataType.String:
+                if (isList){
+                    if (value is List<string> strList) return strList;
+                    return new List<string>{ value.ToString() ?? "" };
+                }
+                else{
+                    return value.ToString() ?? "";
+                }
+
+            case WbCharacteristicDataType.Number:
+                if (isList){
+                    if (value is List<string> rawList){
+                        var numbers = rawList
+                            .Select(v => decimal.TryParse(v, out var d) ? (decimal?)d : null)
+                            .Where(d => d.HasValue)
+                            .Select(d => d.Value)
+                            .ToList();
+                        return numbers;
+                    }
+                    else if (decimal.TryParse(value.ToString(), out var singleNumberList)){
+                        return new List<decimal>{ singleNumberList };
+                    }
+                }
+                else{
+                    if (decimal.TryParse(value.ToString(), out var singleNumber))
+                        return singleNumber;
+                }
+
+                break;
+        }
+
+        return value; // fallback, если не удалось преобразовать
+    }
+
+
+    private object SubstituteCharacteristicValue(object value, string characteristicName,
+        List<CharacteristicValueMapping> substitutions){
+        if (value is string sValue){
+            var mapped = substitutions.FirstOrDefault(x =>
+                x.CharacteristicName.Equals(characteristicName, StringComparison.OrdinalIgnoreCase) &&
+                x.SimalandValue.Equals(sValue, StringComparison.OrdinalIgnoreCase));
+
+            return mapped?.WildberriesValue ?? value;
+        }
+
+        if (value is List<string> list){
+            var newList = list.Select(item => {
+                var mapped = substitutions.FirstOrDefault(x =>
+                    x.CharacteristicName.Equals(characteristicName, StringComparison.OrdinalIgnoreCase) &&
+                    x.SimalandValue.Equals(item, StringComparison.OrdinalIgnoreCase));
+
+                return mapped?.WildberriesValue ?? item;
+            }).ToList();
+
+            return newList;
+        }
+
+        return value;
+    }
+
+    private int TryParseInt(object? val){
         if (val == null) return 0;
 
-        try
-        {
+        try{
             return Convert.ToInt32(val);
         }
-        catch
-        {
+        catch{
             return int.TryParse(val.ToString(), out var i) ? i : 0;
         }
     }
-    
-    private decimal TryParseDecimal(object? val)
+
+    private bool IsEmpty(object? value)
     {
+        if (value == null) return true;
+
+        return value switch
+        {
+            string s => string.IsNullOrWhiteSpace(s),
+
+            IEnumerable<string> list => !list.Any(x => !string.IsNullOrWhiteSpace(x)),
+
+            _ => false
+        };
+    }
+
+    private decimal TryParseDecimal(object? val){
         if (val == null) return 0;
 
-        try
-        {
+        try{
             return Convert.ToDecimal(val);
         }
-        catch
-        {
+        catch{
             return decimal.TryParse(val.ToString(), out var i) ? i : 0;
         }
     }
 
-    private int ExtractCharId(string wbFieldName)
-    {
+    private int ExtractCharId(string wbFieldName){
         return wbFieldName.StartsWith("Char_") && int.TryParse(wbFieldName.Replace("Char_", ""), out var id)
-            ? id : 0;
+            ? id
+            : 0;
     }
 
     private object ParseCharValue(object? raw)
     {
-        var parts = raw?.ToString()?.Split(';', StringSplitOptions.RemoveEmptyEntries)
-            .Select(x => x.Trim())
-            .ToList() ?? new();
+        switch (raw)
+        {
+            case null:
+                return "";
 
-        return parts.Count > 1 ? parts : parts.FirstOrDefault() ?? "";
+            case List<string> list:
+                var cleaned = list
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .ToList();
+
+                return cleaned.Count > 1 ? cleaned : cleaned.FirstOrDefault() ?? "";
+
+            case string str:
+                var parts = str
+                    .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim())
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .ToList();
+
+                return parts.Count > 1 ? parts : parts.FirstOrDefault() ?? "";
+
+            default:
+                return raw.ToString() ?? "";
+        }
     }
-
 }

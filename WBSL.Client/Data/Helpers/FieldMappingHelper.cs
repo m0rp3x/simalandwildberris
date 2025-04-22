@@ -125,22 +125,39 @@ public static class FieldMappingHelper
             !currentFieldNames.Contains(m.WbFieldName));
 
         // Добавить недостающие
-        var existingFieldNames = mappings.Select(m => m.WbFieldName).ToHashSet();
-
+        var overrideMaxCount = new Dictionary<int, int>
+        {
+            { 90630, 1 },
+            { 90673, 1 }
+        };
         foreach (var charInfo in currentCharacteristics)
         {
             var fieldName = $"Char_{charInfo.CharcID}";
+            var maxCount = overrideMaxCount.TryGetValue(charInfo.CharcID, out var overriddenMax)
+                ? overriddenMax
+                : charInfo.MaxCount;
+            
+            var existing = mappings.FirstOrDefault(m => m.WbFieldName == fieldName);
 
-            if (existingFieldNames.Contains(fieldName))
-                continue;
-
-            mappings.Add(new FieldMapping
+            var dataType = InferCharacteristicDataType(charInfo.CharcType, charInfo.MaxCount);
+            
+            if (existing != null)
             {
-                WbFieldName = fieldName,
-                DisplayName = charInfo.Name,
-                Type = FieldMappingType.Characteristic,
-                SourceProperty = ""
-            });
+                existing.CharacteristicDataType = dataType;
+                existing.MaxCount = maxCount;
+            }
+            else
+            {
+                mappings.Add(new FieldMapping
+                {
+                    WbFieldName = fieldName,
+                    DisplayName = charInfo.Name,
+                    Type = FieldMappingType.Characteristic,
+                    SourceProperty = "",
+                    CharacteristicDataType = dataType,
+                    MaxCount = maxCount
+                });
+            }
         }
     }
     
@@ -166,6 +183,7 @@ public static class FieldMappingHelper
         }
     }
 
+    
     public static async Task SaveOrUpdateMappingsAsync(IJSRuntime js, List<FieldMapping> currentCategoryMappings)
     {
         var allJson = await js.InvokeAsync<string>("localStorage.getItem", "fieldMappings");
@@ -215,4 +233,18 @@ public static class FieldMappingHelper
         
         return defaultMappings;
     }
+    
+    private static WbCharacteristicDataType? InferCharacteristicDataType(int charcType, int maxCount)
+    {
+        // Строка
+        if (charcType == 0 || charcType == 1)
+            return WbCharacteristicDataType.String;
+
+        // Число
+        if (charcType == 4)
+            return WbCharacteristicDataType.Number;
+
+        return null; // если вдруг не определили
+    }
+
 }

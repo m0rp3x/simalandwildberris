@@ -2,7 +2,7 @@
 
 public class WbErrorListResponse
 {
-    public List<WbErrorItem> Data { get; set; }
+    public List<WbErrorItem>? Data { get; set; }
     public bool Error { get; set; }
     public string ErrorText { get; set; }
     public object AdditionalErrors { get; set; }

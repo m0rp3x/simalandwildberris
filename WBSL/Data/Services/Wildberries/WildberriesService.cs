@@ -16,7 +16,7 @@ public class WildberriesService : WildberriesBaseService
     private readonly WildberriesProductsService _productService;
 
     public WildberriesService(PlatformHttpClientFactory httpFactory, WildberriesProductsService productService,
-         QPlannerDbContext db, IDbContextFactory<QPlannerDbContext> contextFactory) : base(httpFactory){
+        QPlannerDbContext db, IDbContextFactory<QPlannerDbContext> contextFactory) : base(httpFactory){
         _db = db;
         _contextFactory = contextFactory;
         _productService = productService;
@@ -73,7 +73,7 @@ public class WildberriesService : WildberriesBaseService
             using var db = _contextFactory.CreateDbContext();
             var productFromDb = await db.WbProductCards
                 .FirstOrDefaultAsync(p => p.VendorCode == vendorCode);
-            
+
             if (productFromDb != null){
                 var productDto = WbProductCardMapper.MapToDto(productFromDb);
 
@@ -93,12 +93,12 @@ public class WildberriesService : WildberriesBaseService
     }
 
     public async Task<WbApiResult> CreteWbItemsAsync(List<WbCreateVariantInternalDto> itemsToCreate, int accountId){
-        if(itemsToCreate.Count == 0) return new WbApiResult();
+        if (itemsToCreate.Count == 0) return new WbApiResult();
         var wbClient = await GetWbClientAsync(accountId);
-        
-        var wbApiResult = await CheckLimits(wbClient, accountId);
-        if(wbApiResult != null) return wbApiResult;
-        
+
+        // var wbApiResult = await CheckLimits(wbClient, accountId);
+        // if(wbApiResult != null) return wbApiResult;
+
         var batches = SplitIntoCreateBatches(itemsToCreate);
         var allResults = new List<WbApiResult>();
 
@@ -139,7 +139,7 @@ public class WildberriesService : WildberriesBaseService
 
     private async Task<WbApiResult?> CheckLimits(HttpClient wbClient, int accountId){
         WbApiResult wbApiResult;
-        
+
         var maxLimit = await GetWbLimitsAsync(wbClient);
 
         var wbItemsCount = _db.WbProductCards.Count();
@@ -152,7 +152,13 @@ public class WildberriesService : WildberriesBaseService
                 ErrorText = $"Превышен лимит создания карточек: доступно для загрузки {Limit}"
             });
         }
+    }
 
+    private async Task<List<long>> GetNmIdsByVendorCodes(List<string> vendorCodes){
+        return await _db.WbProductCards
+            .Where(p => vendorCodes.Contains(p.VendorCode))
+            .Select(p => p.NmID)
+            .ToListAsync();
     }
 
     private async Task<WbApiResult> SearchAndAddSuccessfulAsync(List<string> vendorCodes, int accountId){
@@ -170,22 +176,29 @@ public class WildberriesService : WildberriesBaseService
 
                 if (card != null){
                     var entity = WbProductCardMapToDomain.MapToDomain(card);
+
+                    var photoUploadResult = await TrySendPhotosToWbAsync(entity.NmID, vendorCode, wbClient);
+
+                    if (photoUploadResult?.Error == true)
+                    {
+                        errors[vendorCode] = new List<string> { $"Photo upload error: {photoUploadResult.ErrorText}" };
+                    }
+
                     await _productService.SaveProductsToDatabaseAsync(new List<WbProductCard>{ entity });
                 }
                 else{
-                    errors[vendorCode] = new List<string> { "Card not found in response" };
+                    errors[vendorCode] = new List<string>{ "Card not found in response" };
                 }
             }
             catch (Exception ex){
-                errors[vendorCode] = new List<string> { $"Exception: {ex.Message}" };
+                errors[vendorCode] = new List<string>{ $"Exception: {ex.Message}" };
             }
 
             await Task.Delay(300); // слегка притормозим чтобы не задосить WB
         }
 
         if (errors.Any()){
-            return new WbApiResult
-            {
+            return new WbApiResult{
                 Error = true,
                 ErrorText = "Ошибки при добавлении успешных карточек в БД",
                 AdditionalErrors = errors
@@ -324,6 +337,44 @@ public class WildberriesService : WildberriesBaseService
         public int PaidLimits{ get; set; }
     }
 
+    private async Task<WbApiResult?> TrySendPhotosToWbAsync(long nmId, string vendorCode, HttpClient wbClient){
+        try{
+            var product = await _db.products
+                .Where(p => p.sid == long.Parse(vendorCode))
+                .FirstOrDefaultAsync();
+
+            if (product?.photo_urls is not { Count: > 0 })
+                return null;
+            
+            var payload = new{
+                nmId = nmId,
+                data = product.photo_urls
+            };
+
+            var content = JsonContent.Create(payload);
+            var response = await wbClient.PostAsync("/content/v3/media/save", content);
+            var apiResult = await response.Content.ReadFromJsonAsync<WbApiResult>();
+
+            // если ошибка в теле ответа — возвращаем
+            if (apiResult?.Error == true)
+            {
+                return apiResult;
+            }
+            return null;
+        }
+        catch (Exception ex){
+            return new WbApiResult
+            {
+                Error = true,
+                ErrorText = $"Exception during photo upload: {ex.Message}",
+                AdditionalErrors = new Dictionary<string, List<string>>
+                {
+                    { vendorCode, new List<string> { "Exception in TrySendPhotosToWbAsync" } }
+                }
+            };
+        }
+    }
+
     private async Task<int> GetWbLimitsAsync(HttpClient wbClient){
         var response = await wbClient.GetAsync("/content/v2/cards/limits");
         response.EnsureSuccessStatusCode();
@@ -341,18 +392,23 @@ public class WildberriesService : WildberriesBaseService
         var responseContent = await response.Response.Content.ReadAsStringAsync();
 
         try{
-            var inlineResult = JsonSerializer.Deserialize<WbErrorListResponse>(responseContent,
-                new JsonSerializerOptions{ PropertyNameCaseInsensitive = true });
+            using var doc = JsonDocument.Parse(responseContent);
+            var root = doc.RootElement;
 
-            if (inlineResult?.Error == true){
+            var error = root.GetProperty("error").GetBoolean();
+            var errorText = root.TryGetProperty("errorText", out var et) ? et.GetString() : null;
+
+            if (error)
+            {
                 var globalErrorDict = vendorCodes.ToDictionary(
                     v => v,
-                    v => new List<string> { inlineResult.ErrorText ?? "Unknown global error from WB" }
+                    v => new List<string> { errorText ?? "Unknown global error from WB" }
                 );
-                
-                return new WbApiResult{
+
+                return new WbApiResult
+                {
                     Error = true,
-                    ErrorText = inlineResult.ErrorText,
+                    ErrorText = errorText,
                     AdditionalErrors = globalErrorDict
                 };
             }
@@ -370,7 +426,17 @@ public class WildberriesService : WildberriesBaseService
             }
 
             var errorListJson = await errorListResponse.Content.ReadAsStringAsync();
-            var errorList = JsonSerializer.Deserialize<WbErrorListResponse>(errorListJson, new JsonSerializerOptions{
+            using var doc2 = JsonDocument.Parse(errorListJson);
+            if (doc2.RootElement.TryGetProperty("data", out var dataElement) &&
+                dataElement.ValueKind != JsonValueKind.Array)
+            {
+                return new WbApiResult{
+                    Error = false,
+                    ErrorText = null,
+                    AdditionalErrors = null
+                };
+            }
+            var errorList = JsonSerializer.Deserialize<WbErrorListResponse>(errorListJson, new JsonSerializerOptions {
                 PropertyNameCaseInsensitive = true
             });
 
@@ -385,27 +451,23 @@ public class WildberriesService : WildberriesBaseService
                     e => e.Errors ?? new List<string>()
                 );
 
-                return new WbApiResult
-                {
+                return new WbApiResult{
                     Error = true,
                     ErrorText = "Ошибка при обновлении товаров",
                     AdditionalErrors = errorsDict
                 };
             }
 
-            return new WbApiResult
-            {
+            return new WbApiResult{
                 Error = false
             };
         }
         catch (Exception ex){
-            return new WbApiResult
-            {
+            return new WbApiResult{
                 Error = true,
                 ErrorText = "Ошибка при разборе ответа от WB",
-                AdditionalErrors = new Dictionary<string, List<string>>
-                {
-                    { "Exception", new List<string> { ex.Message, responseContent } }
+                AdditionalErrors = new Dictionary<string, List<string>>{
+                    { "Exception", new List<string>{ ex.Message, responseContent } }
                 }
             };
         }
@@ -462,16 +524,15 @@ public class WildberriesService : WildberriesBaseService
         foreach (var result in results){
             if (result.AdditionalErrors == null) continue;
 
-            foreach (var pair in result.AdditionalErrors)
-            {
+            foreach (var pair in result.AdditionalErrors){
                 if (!mergedErrors.ContainsKey(pair.Key))
                     mergedErrors[pair.Key] = new List<string>();
 
                 mergedErrors[pair.Key].AddRange(pair.Value);
             }
         }
-        return new WbApiResult
-        {
+
+        return new WbApiResult{
             Error = results.Any(r => r.Error),
             ErrorText = string.Join("; ", results.Where(r => r.Error).Select(r => r.ErrorText)),
             AdditionalErrors = mergedErrors.Any() ? mergedErrors : null
