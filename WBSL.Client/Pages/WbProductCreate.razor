@@ -11,7 +11,7 @@
 @inject WbProductService ProductService
 @inject HttpClient Client
 @inject IJSRuntime JS
-
+<title>Создание товаров Wildberries</title>
 <MudPaper Class="pa-6 mx-auto mt-8" Elevation="4">
 
     <MudText Typo="Typo.h5" Class="mb-4">Создание товаров Wildberries</MudText>
@@ -46,30 +46,27 @@
     <MudDivider Class="my-6"/>
     <MudText Typo="Typo.h6">Выбор категории</MudText>
 
-    <MudAutocomplete T="WbCategoryDto"
-                     Label="Родительская категория"
-                     SearchFunc="(q, t) => SearchBaseCategories(q, t)"
-                     ToStringFunc="x => x?.Name"
-                     MinCharacters="0"
-                     MaxItems="100"
-                     Immediate="true"
-                     @bind-Value="SelectedBaseCategory"
-                     Dense="true"
-                     Class="mt-2"/>
-
-    <MudAutocomplete T="WbCategoryDto"
-                     Label="Дочерняя категория"
-                     SearchFunc="(q, t) => SearchChildCategories(q, t)"
-                     ToStringFunc="x => x?.Name"
-                     MaxItems="50"
-                     MinCharacters="0"
-                     Immediate="true"
-                     Value="SelectedChildCategory"
-                     Dense="true"
-                     Disabled="@(SelectedBaseCategory is null)"
-                     ValueChanged="OnCategorySelected"
-                     Class="mt-2"/>
-
+    <MudGrid>
+        <MudItem xs="6" sm="6" md="4">
+            <MudAutocomplete T="WbCategoryDto"
+                             Label="Родительская категория"
+                             SearchFunc="(q, t) => SearchBaseCategories(q, t)"
+                             ToStringFunc="@((x) => x?.Name )"
+                             @bind-Value="SelectedBaseCategory" Dense="true" Class="mt-2"/>
+        </MudItem>
+        <MudItem xs="6" sm="6" md="4">
+            <MudAutocomplete T="WbCategoryDto"
+                             Label="Дочерняя категория"
+                             SearchFunc="(q, t) => SearchChildCategories(q, t)"
+                             ToStringFunc="@((x) => x?.Name ?? "")"
+                             Value="SelectedChildCategory"
+                             Dense="true"
+                             Disabled="@(SelectedBaseCategory is null)"
+                             ValueChanged="OnCategorySelected"
+                             Class="mt-2"/>
+        </MudItem>
+    </MudGrid>
+    
     <MudButton OnClick="CheckCategoryMapping" Disabled="@(!CanSearch)" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
         Проверить
     </MudButton>
@@ -81,7 +78,7 @@
         <MudAutocomplete T="string"
                          Label="Характеристика SimaLand"
                          Value="SelectedSimalandAttribute"
-                         ValueChanged="val => SelectedSimalandAttribute = val"
+                         ValueChanged="val => OnAttributeChange(val)"
                          SearchFunc="SearchSimalandCategories"
                          ToStringFunc="x => x"
                          MinCharacters="1"
@@ -144,7 +141,19 @@
                     <MudTextField @bind-Value="context.SimalandValue" Placeholder="значение из SimaLand"/>
                 </MudTd>
                 <MudTd>
-                    <MudTextField @bind-Value="context.WildberriesValue" Placeholder="значение для WB"/>
+                    @if (IsAutocompleteSupported(context.CharacteristicName)){
+                        <MudAutocomplete T="string"
+                                         Value="@context.WildberriesValue"
+                                         ValueChanged="val => context.WildberriesValue = val"
+                                         SearchFunc="(q, ct) => SearchCharacteristicValues(context.CharacteristicName, q, ct)"
+                                         ToStringFunc="x => x"
+                                         MinCharacters="1"
+                                         Placeholder="значение для WB"
+                                         Dense="true"/>
+                    }
+                    else{
+                        <MudTextField @bind-Value="context.WildberriesValue" Placeholder="значение для WB"/>
+                    }
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -206,15 +215,26 @@
     private WbApiResult? LastWbResult;
     private string? LastWbSummary;
 
+    private static readonly HashSet<string> _autocompleteFields = new(){
+        "Цвет",
+        "Пол",
+        "Страна производства"
+    };
+
     private bool CanSearch =>
         SelectedChildCategory != null &&
         SelectedWbAccount != null &&
         SelectedSimaAccount != null;
 
+    private bool IsAutocompleteSupported(string name)
+        => _autocompleteFields.Contains(name, StringComparer.OrdinalIgnoreCase);
+
+    string BuildQuery(params (string key, string? value)[] parameters) =>
+        string.Join("&", parameters.Select(p => $"{p.key}={Uri.EscapeDataString(p.value ?? string.Empty)}"));
+
     protected override async Task OnInitializedAsync(){
         if (OperatingSystem.IsBrowser()){
             _accounts = await ProductService.LoadAccountsAsync();
-            Mappings = await FieldMappingHelper.LoadFromLocalStorageAsync(JS);
         }
     }
 
@@ -229,8 +249,14 @@
         var categoryId = SelectedChildCategory.Id;
 
         try{
-            var simalandAttrName = await Client.GetStringAsync($"api/wildberries/suggest-simaland-category?categoryId={categoryId}");
-            SelectedSimalandAttribute = simalandAttrName;
+            Mappings = await FieldMappingHelper.LoadFromLocalStorageAsync(JS);
+
+            if (string.IsNullOrEmpty(SelectedSimalandAttribute)){
+                var simalandAttrName = await Client.GetStringAsync($"api/wildberries/suggest-simaland-category?categoryId={categoryId}");
+            
+                SelectedSimalandAttribute = simalandAttrName;
+            }
+            
             SimalandAttributes = await Client.GetFromJsonAsync<List<SimalandAttributeDto>>($"api/simaland/attributes?categoryName={SelectedSimalandAttribute}") ?? new();
 
             _characteristicInfos = await Client.GetFromJsonAsync<List<WbAdditionalCharacteristicDto>>(
@@ -251,16 +277,19 @@
         _checkPerformed = true;
     }
 
-    private async Task<IEnumerable<WbCategoryDto>> SearchBaseCategories(string value, CancellationToken token){
-        var result = await Client.GetFromJsonAsync<List<WbCategoryDto>>(
-            $"api/wildberries/parentCategories?query={value}", token);
+    private async Task<IEnumerable<WbCategoryDto>> SearchBaseCategories(string? value, CancellationToken token){
+        var query = BuildQuery(("query", value));
+        var url = $"api/wildberries/parentCategories?{query}";
 
+        var result = await Client.GetFromJsonAsync<List<WbCategoryDto>>(url, token);
         return result ?? Enumerable.Empty<WbCategoryDto>();
     }
 
-    private async Task<IEnumerable<string>> SearchSimalandCategories(string value, CancellationToken token){
+    private async Task<IEnumerable<string>> SearchSimalandCategories(string? value, CancellationToken token){
+        var query = BuildQuery(("query", value));
+        var url = $"api/simaland/search-categories?{query}";
         var response = await Client.GetFromJsonAsync<List<string>>(
-            $"api/simaland/search-categories?query={value}", token);
+            url, token);
 
         return response ?? new();
     }
@@ -271,9 +300,11 @@
             return Enumerable.Empty<WbCategoryDto>();
 
         var baseId = SelectedBaseCategory.Id;
+        var query = BuildQuery(("query", value), ("parentId", baseId.ToString()));
+        var url = $"api/wildberries/childCategories?{query}";
 
         var result = await Client.GetFromJsonAsync<List<WbCategoryDto>>(
-            $"api/wildberries/childCategories?query={value}&parentId={baseId}", token);
+            url, token);
 
         return result ?? Enumerable.Empty<WbCategoryDto>();
     }
@@ -343,17 +374,11 @@
     private List<CharacteristicValueMapping> GenerateValueMappings(List<SimalandAttributeDto> attributes){
         var result = new List<CharacteristicValueMapping>();
 
-        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase){
-            "Цвет",
-            "Пол",
-            "Страна производства"
-        };
-
         foreach (var attr in attributes){
             if (string.IsNullOrWhiteSpace(attr.Name) || string.IsNullOrWhiteSpace(attr.Value))
                 continue;
-            
-            if (!allowed.Contains(attr.Name))
+
+            if (!_autocompleteFields.Contains(attr.Name))
                 continue;
 
             var values = attr.Value.Split(';', StringSplitOptions.RemoveEmptyEntries)
@@ -381,11 +406,35 @@
             return;
     }
 
+    private async Task<IEnumerable<string>> SearchCharacteristicValues(string characteristicName, string query, CancellationToken token){
+        try{
+            if (SelectedWbAccount == null)
+                return Enumerable.Empty<string>();
+
+            var encodedName = Uri.EscapeDataString(characteristicName);
+            var encodedQuery = Uri.EscapeDataString(query);
+            var accountId = SelectedWbAccount.Id;
+
+            var url = $"api/Wildberries/char-values?name={encodedName}&query={encodedQuery}&accountId={accountId}";
+            var response = await Client.GetFromJsonAsync<List<string>>(url, token);
+
+            return response ?? new List<string>();
+        }
+        catch{
+            return Enumerable.Empty<string>();
+        }
+    }
+
     private string GetGroupHeader(FieldMappingType type) => type switch{
         FieldMappingType.Text => "Основные поля",
         FieldMappingType.Dimension => "Габариты",
         FieldMappingType.Characteristic => "Характеристики",
         _ => "Прочее"
     };
+
+    private async Task OnAttributeChange(string val){
+        SelectedSimalandAttribute = val;
+        await CheckCategoryMapping();
+    }
 
 }

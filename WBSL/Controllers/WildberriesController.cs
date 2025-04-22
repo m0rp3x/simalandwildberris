@@ -59,6 +59,19 @@ public class WildberriesController : ControllerBase
 
         return Ok(simaCategories);
     }
+    
+    [HttpGet("char-values")]
+    public async Task<IActionResult> GetCharacteristicValues([FromQuery] string name, [FromQuery] string query, [FromQuery] int accountId)
+    {
+        var allValues = await _characteristicsService.GetCharacteristicValuesAsync(name, accountId);
+
+        var filtered = allValues
+            .Where(v => v.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Distinct()
+            .Take(50);
+
+        return Ok(filtered);
+    }
 
     [HttpPost("updateWbItem/{wbAccountId:int}")]
     public async Task<IActionResult> UpdateProduct([FromBody] List<WbProductCardDto> products, int wbAccountId){
@@ -66,6 +79,7 @@ public class WildberriesController : ControllerBase
 
         return Ok(result);
     }
+    
 
     [HttpPost("createWbItem/{wbAccountId:int}")]
     public async Task<IActionResult> CreateProduct([FromBody] CategoryMappingRequest mappingRequest, int wbAccountId){

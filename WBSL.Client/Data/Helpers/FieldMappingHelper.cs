@@ -115,15 +115,25 @@ public static class FieldMappingHelper
         List<FieldMapping> mappings,
         List<WbAdditionalCharacteristicDto> currentCharacteristics)
     {
+        var currentFieldNames = currentCharacteristics
+            .Select(c => $"Char_{c.CharcID}")
+            .ToHashSet();
+
+        // Удалить все "Char_*", которых нет в текущей категории
+        mappings.RemoveAll(m =>
+            m.Type == FieldMappingType.Characteristic &&
+            !currentFieldNames.Contains(m.WbFieldName));
+
+        // Добавить недостающие
         var existingFieldNames = mappings.Select(m => m.WbFieldName).ToHashSet();
 
         foreach (var charInfo in currentCharacteristics)
         {
             var fieldName = $"Char_{charInfo.CharcID}";
-            
+
             if (existingFieldNames.Contains(fieldName))
                 continue;
-            
+
             mappings.Add(new FieldMapping
             {
                 WbFieldName = fieldName,
