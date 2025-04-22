@@ -92,8 +92,15 @@ public class WildberriesService : WildberriesBaseService
         }
     }
 
-    public async Task<WbApiResult> CreteWbItemsAsync(List<WbCreateVariantInternalDto> itemsToCreate, int accountId){
-        if (itemsToCreate.Count == 0) return new WbApiResult();
+    public async Task<WbApiExtendedResult> CreteWbItemsAsync(List<WbCreateVariantInternalDto> itemsToCreate,
+        int accountId){
+        if (itemsToCreate.Count == 0){
+            return new WbApiExtendedResult{
+                Result = new WbApiResult(),
+                SuccessfulCount = 0
+            };
+        }
+
         var wbClient = await GetWbClientAsync(accountId);
 
         // var wbApiResult = await CheckLimits(wbClient, accountId);
@@ -101,6 +108,7 @@ public class WildberriesService : WildberriesBaseService
 
         var batches = SplitIntoCreateBatches(itemsToCreate);
         var allResults = new List<WbApiResult>();
+        var allSuccessVendorCodes = new List<string>();
 
         foreach (var batch in batches){
             var response = await SendCreateRequestAsync(batch, wbClient);
@@ -111,8 +119,8 @@ public class WildberriesService : WildberriesBaseService
             allResults.Add(result);
 
             if (!result.Error){
-                var successVendorCodes = vendorCodes;
-                var saveResult = await SearchAndAddSuccessfulAsync(successVendorCodes, accountId);
+                allSuccessVendorCodes.AddRange(vendorCodes);
+                var saveResult = await SearchAndAddSuccessfulAsync(vendorCodes, accountId);
                 if (saveResult.Error){
                     allResults.Add(saveResult);
                 }
@@ -125,6 +133,7 @@ public class WildberriesService : WildberriesBaseService
                         .ToList();
 
                     if (successVendorCodes.Any()){
+                        allSuccessVendorCodes.AddRange(successVendorCodes);
                         var saveResult = await SearchAndAddSuccessfulAsync(successVendorCodes, accountId);
                         if (saveResult.Error){
                             allResults.Add(saveResult);
@@ -134,7 +143,12 @@ public class WildberriesService : WildberriesBaseService
             }
         }
 
-        return MergeResults(allResults);
+        return new WbApiExtendedResult
+        {
+            Result = MergeResults(allResults),
+            SuccessfulCount = allSuccessVendorCodes.Count,
+            SuccessfulVendorCodes = allSuccessVendorCodes
+        };
     }
 
     private async Task<WbApiResult?> CheckLimits(HttpClient wbClient, int accountId){
@@ -179,9 +193,8 @@ public class WildberriesService : WildberriesBaseService
 
                     var photoUploadResult = await TrySendPhotosToWbAsync(entity.NmID, vendorCode, wbClient);
 
-                    if (photoUploadResult?.Error == true)
-                    {
-                        errors[vendorCode] = new List<string> { $"Photo upload error: {photoUploadResult.ErrorText}" };
+                    if (photoUploadResult?.Error == true){
+                        errors[vendorCode] = new List<string>{ $"Photo upload error: {photoUploadResult.ErrorText}" };
                     }
 
                     await _productService.SaveProductsToDatabaseAsync(new List<WbProductCard>{ entity });
@@ -343,9 +356,9 @@ public class WildberriesService : WildberriesBaseService
                 .Where(p => p.sid == long.Parse(vendorCode))
                 .FirstOrDefaultAsync();
 
-            if (product?.photo_urls is not { Count: > 0 })
+            if (product?.photo_urls is not{ Count: > 0 })
                 return null;
-            
+
             var payload = new{
                 nmId = nmId,
                 data = product.photo_urls
@@ -356,20 +369,18 @@ public class WildberriesService : WildberriesBaseService
             var apiResult = await response.Content.ReadFromJsonAsync<WbApiResult>();
 
             // если ошибка в теле ответа — возвращаем
-            if (apiResult?.Error == true)
-            {
+            if (apiResult?.Error == true){
                 return apiResult;
             }
+
             return null;
         }
         catch (Exception ex){
-            return new WbApiResult
-            {
+            return new WbApiResult{
                 Error = true,
                 ErrorText = $"Exception during photo upload: {ex.Message}",
-                AdditionalErrors = new Dictionary<string, List<string>>
-                {
-                    { vendorCode, new List<string> { "Exception in TrySendPhotosToWbAsync" } }
+                AdditionalErrors = new Dictionary<string, List<string>>{
+                    { vendorCode, new List<string>{ "Exception in TrySendPhotosToWbAsync" } }
                 }
             };
         }
@@ -398,15 +409,13 @@ public class WildberriesService : WildberriesBaseService
             var error = root.GetProperty("error").GetBoolean();
             var errorText = root.TryGetProperty("errorText", out var et) ? et.GetString() : null;
 
-            if (error)
-            {
+            if (error){
                 var globalErrorDict = vendorCodes.ToDictionary(
                     v => v,
-                    v => new List<string> { errorText ?? "Unknown global error from WB" }
+                    v => new List<string>{ errorText ?? "Unknown global error from WB" }
                 );
 
-                return new WbApiResult
-                {
+                return new WbApiResult{
                     Error = true,
                     ErrorText = errorText,
                     AdditionalErrors = globalErrorDict
@@ -428,15 +437,15 @@ public class WildberriesService : WildberriesBaseService
             var errorListJson = await errorListResponse.Content.ReadAsStringAsync();
             using var doc2 = JsonDocument.Parse(errorListJson);
             if (doc2.RootElement.TryGetProperty("data", out var dataElement) &&
-                dataElement.ValueKind != JsonValueKind.Array)
-            {
+                dataElement.ValueKind != JsonValueKind.Array){
                 return new WbApiResult{
                     Error = false,
                     ErrorText = null,
                     AdditionalErrors = null
                 };
             }
-            var errorList = JsonSerializer.Deserialize<WbErrorListResponse>(errorListJson, new JsonSerializerOptions {
+
+            var errorList = JsonSerializer.Deserialize<WbErrorListResponse>(errorListJson, new JsonSerializerOptions{
                 PropertyNameCaseInsensitive = true
             });
 

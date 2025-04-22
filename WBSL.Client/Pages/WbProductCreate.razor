@@ -325,23 +325,29 @@
         try{
             var response = await Client.PostAsJsonAsync($"api/Wildberries/createWbItem/{SelectedWbAccount.Id}", dto);
 
-            var result = await response.Content.ReadFromJsonAsync<WbApiResult>();
-            LastWbResult = result;
+            var extendedResult  = await response.Content.ReadFromJsonAsync<WbApiExtendedResult>();
+            LastWbResult = extendedResult ?.Result;
 
-            if (response.IsSuccessStatusCode && result is{ Error: false }){
-                LastWbSummary = "✅ Товар успешно создан";
+            if (response.IsSuccessStatusCode && LastWbResult is{ Error: false }){
+                var successfulCount = extendedResult?.SuccessfulVendorCodes?.Count ?? 0;
+                LastWbSummary = $"✅ Успешно создано товаров: {successfulCount}";
                 Snackbar.Add(LastWbSummary, Severity.Success);
             }
             else{
-                LastWbSummary = $"❌ Ошибка: {result?.ErrorText ?? "Неизвестная ошибка"}";
+                var successfulCount = extendedResult?.SuccessfulVendorCodes?.Count ?? 0;
+                if (successfulCount > 0){
+                    LastWbSummary = $"✅ Успешно создано товаров: {successfulCount}";
+                }
+                LastWbSummary = $"❌ Ошибка: {LastWbResult.ErrorText ?? "Неизвестная ошибка"}";
                 Snackbar.Add(LastWbSummary, Severity.Error);
 
-                if (result?.AdditionalErrors != null){
-                    foreach (var kvp in result.AdditionalErrors){
+                if (LastWbResult.AdditionalErrors != null){
+                    foreach (var kvp in LastWbResult.AdditionalErrors){
                         Snackbar.Add($"{kvp.Key}: {string.Join(", ", kvp.Value)}", Severity.Warning);
                     }
                 }
             }
+            
         }
         catch (Exception ex){
             LastWbSummary = $"❌ Ошибка при отправке: {ex.Message}";
