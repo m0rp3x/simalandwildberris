@@ -9,8 +9,6 @@ namespace WBSL.Data.Services;
 public class BalanceUpdateScheduler : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly Dictionary<int, DateTime> _lastRunTimes = new(); 
-    private readonly object _lock = new(); 
     
     public BalanceUpdateScheduler(IServiceScopeFactory scopeFactory)
     {
@@ -19,6 +17,7 @@ public class BalanceUpdateScheduler : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        return;
         List<BalanceUpdateRule> rules = new();
         DateTime lastRulesUpdate = DateTime.MinValue;
         
@@ -53,35 +52,59 @@ public class BalanceUpdateScheduler : BackgroundService
     {
         var now = DateTime.UtcNow;
 
-        lock (_lock)
+        if (!ShouldRunNow(rule, now))
         {
-            if (_lastRunTimes.TryGetValue(rule.Id, out var lastRun))
-            {
-                if (rule.UpdateInterval != TimeSpan.Zero && now - lastRun < rule.UpdateInterval)
-                {
-                    return;
-                }
-            }
-            
-            _lastRunTimes[rule.Id] = now;
+            return;
         }
-
+        
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
         var sima = scope.ServiceProvider.GetRequiredService<SimalandClientService>();
         var factory = scope.ServiceProvider.GetRequiredService<PlatformHttpClientFactory>();
-
-        var simaClient = await factory.CreateClientAsync(ExternalAccountType.SimaLand, 2, true);
-        var wbClient = await factory.CreateClientAsync(ExternalAccountType.WildBerriesMarketPlace, 1, true);
-
-        var sids = await db.products
-            .Where(p => p.balance >= rule.FromStock && p.balance <= rule.ToStock)
-            .Select(p => p.sid)
+        
+        var externalAccounts = await db.external_accounts
+            .Where(x => x.platform == ExternalAccountType.Wildberries.ToString())
             .ToListAsync(ct);
+        
+        var distinctWarehouses = externalAccounts
+            .GroupBy(x => x.warehouseid)
+            .Select(g => g.First())
+            .ToList();
+        var simaClient = await factory.CreateClientAsync(ExternalAccountType.SimaLand, 2, true);
+        foreach (var account in distinctWarehouses)
+        {
+            var wbClient = await factory.CreateClientAsync(ExternalAccountType.WildBerriesMarketPlace, account.id, true);
 
-        if (sids.Count == 0)
-            return;
+            // Выбираем товары для данного правила
+            var sids = await db.products
+                .Where(p => p.balance >= rule.FromStock && p.balance <= rule.ToStock)
+                .Select(p => p.sid)
+                .ToListAsync(ct);
 
-        await sima.FetchAndSaveProductsBalance(sids, simaClient, wbClient, ct);
+            if (sids.Count == 0)
+                continue;
+            // И запускаем синхронизацию
+            if (account.warehouseid.HasValue){
+                var matchingAccountIds = externalAccounts
+                    .Where(x => x.warehouseid == account.warehouseid)
+                    .Select(x => x.id)
+                    .ToList();
+                
+                await sima.FetchAndSaveProductsBalance(sids, simaClient, wbClient, ct, account.warehouseid.Value, matchingAccountIds);
+            }
+            else{
+                Console.WriteLine("Warehouse id is null");
+            }
+        }
+    }
+    private bool ShouldRunNow(BalanceUpdateRule rule, DateTime now)
+    {
+        if (rule.UpdateInterval == TimeSpan.Zero)
+            return true; // Крутится бесконечно
+
+        var minutesSinceMidnight = (int)now.TimeOfDay.TotalMinutes;
+        var intervalMinutes = (int)rule.UpdateInterval.TotalMinutes;
+
+        return minutesSinceMidnight % intervalMinutes == 0;
     }
 }

@@ -198,7 +198,7 @@ public class WildberriesService : WildberriesBaseService
                         errors[vendorCode] = new List<string>{ $"Photo upload error: {photoUploadResult.ErrorText}" };
                     }
 
-                    await _productService.SaveProductsToDatabaseAsync(new List<WbProductCard>{ entity });
+                    await _productService.SaveProductsToDatabaseAsync(_db, new List<WbProductCard>{ entity }, accountId); 
                 }
                 else{
                     errors[vendorCode] = new List<string>{ "Card not found in response" };

@@ -24,13 +24,16 @@ public class WildberriesController : ControllerBase
     private readonly WildberriesCategoryService _categoryService;
     private readonly WildberriesProductsService _productsService;
     private readonly WildberriesCharacteristicsService _characteristicsService;
+    private readonly WildberriesPriceService _wildberriesPriceService;
     private readonly SimalandFetchService _simalandFetchService;
 
     public WildberriesController(QPlannerDbContext db, IHttpClientFactory clientFactory,
         WildberriesService wildberriesService, WildberriesProductsService productsService,
         WildberriesCategoryService categoryService,
-        WildberriesCharacteristicsService characteristicsService, SimalandFetchService simalandFetchService){
+        WildberriesCharacteristicsService characteristicsService, SimalandFetchService simalandFetchService,
+        WildberriesPriceService wildberriesPriceService){
         _db = db;
+        _wildberriesPriceService = wildberriesPriceService;
         _wildberriesService = wildberriesService;
         _productsService = productsService;
         _categoryService = categoryService;
@@ -76,6 +79,13 @@ public class WildberriesController : ControllerBase
     [HttpPost("updateWbItem/{wbAccountId:int}")]
     public async Task<IActionResult> UpdateProduct([FromBody] List<WbProductCardDto> products, int wbAccountId){
         var result = await _wildberriesService.UpdateWbItemsAsync(products, wbAccountId);
+
+        return Ok(result);
+    }
+    
+    [HttpPost("updateWbPrices/{wbAccountId:int}")]
+    public async Task<IActionResult> UpdateProduct([FromBody] List<long> productsnmIds, int wbAccountId){
+        var result = await _wildberriesPriceService.PushPricesToWildberriesAsync(productsnmIds, wbAccountId);
 
         return Ok(result);
     }

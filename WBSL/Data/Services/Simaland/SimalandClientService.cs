@@ -12,8 +12,7 @@ public class SimalandClientService
     private readonly QPlannerDbContext _db;
 
     public SimalandClientService(
-        QPlannerDbContext db)
-    {
+        QPlannerDbContext db){
         _db = db;
     }
 
@@ -26,8 +25,9 @@ public class SimalandClientService
     public async Task FetchAndSaveProductsBalance(List<long> sids,
         HttpClient client,
         HttpClient wildberriesClient,
-        CancellationToken ct)
-    {
+        CancellationToken ct,
+        int warehouseId,
+        List<int> externalAccountIds){
         const int batchSize = 1000;
         const int maxParallelRequests = 5; // 5 параллельных запроса
         const int delayBetweenRequestsMs = 50; // Задержка между партиями
@@ -68,11 +68,11 @@ public class SimalandClientService
                         });
 
                         Interlocked.Increment(ref processedCount);
-                        success = true; 
+                        success = true;
                     }
 
                     if (bag.Count >= batchSize){
-                        await SaveBatchAndPushToWB(bag.ToList(), wildberriesClient, ct);
+                        await SaveBatchAndPushToWB(bag.ToList(), wildberriesClient, ct, warehouseId, externalAccountIds);
                         bag = new ConcurrentBag<ProductInfo>();
                     }
 
@@ -87,70 +87,105 @@ public class SimalandClientService
             }
         });
         if (!bag.IsEmpty)
-            await SaveBatchAndPushToWB(bag.ToList(), wildberriesClient, ct);
+            await SaveBatchAndPushToWB(bag.ToList(), wildberriesClient, ct, warehouseId, externalAccountIds);
     }
 
-    private async Task SaveBatchAndPushToWB(List<ProductInfo> batch, HttpClient wbClient, CancellationToken ct){
+    private async Task SaveBatchAndPushToWB(List<ProductInfo> batch, 
+        HttpClient wbClient, 
+        CancellationToken ct,
+        int warehouseId,
+        List<int> externalAccountIds){
         try{
-            var toUpdate = batch.Select(pi => new product { sid = pi.Sid, balance = pi.Balance }).ToList();
-            var bulk = new BulkConfig { UpdateByProperties = new List<string>{ nameof(product.sid) },
+            var toUpdate = batch.Select(pi => new product{ sid = pi.Sid, balance = pi.Balance }).ToList();
+            var bulk = new BulkConfig{
+                UpdateByProperties = new List<string>{ nameof(product.sid) },
                 PropertiesToInclude = new List<string>{ nameof(product.balance) },
                 SetOutputIdentity = false,
                 PreserveInsertOrder = false,
-                UseTempDB = false, };
+                UseTempDB = false,
+            };
             await _db.BulkUpdateAsync(toUpdate, bulk, cancellationToken: ct);
             await _db.SaveChangesAsync(ct);
-            
+
             Console.WriteLine($"Saved batch of {toUpdate.Count} products");
-            
-            await UpdateStocksOnWildberries(batch, wbClient, ct);
+
+            await UpdateStocksOnWildberries(batch, wbClient, ct, warehouseId, externalAccountIds);
         }
         catch (Exception ex){
             Console.WriteLine($"Error saving batch: {ex.Message}");
         }
     }
-    private async Task UpdateStocksOnWildberries(List<ProductInfo> batch, HttpClient wbClient, CancellationToken ct)
-    {
-        var wbTasks = new List<Task>();
 
-        foreach (var pi in batch)
-        {
-            try
-            {
-                var prod = await _db.products.FirstAsync(p => p.sid == pi.Sid, cancellationToken: ct);
-                var lots = prod.qty_multiplier > 0 ? pi.Balance / prod.qty_multiplier : 0; // Защита от деления на 0
+    private async Task UpdateStocksOnWildberries(List<ProductInfo> batch, HttpClient wbClient, CancellationToken ct, int warehouseId, List<int> externalAccountIds){
+        try{
+            var productSids = batch.Select(p => p.Sid).ToList();
 
-                if (lots <= 0)
+            var products = await _db.products
+                .AsNoTracking()
+                .Where(p => productSids.Contains(p.sid))
+                .ToListAsync(cancellationToken: ct);
+            
+            var productVendorCodes = productSids.Select(sid => sid.ToString()).ToList();
+
+            var wbProductCards = await _db.WbProductCards
+                .AsNoTracking()
+                .Include(x => x.SizeChrts)
+                .Where(wb => productVendorCodes.Contains(wb.VendorCode) 
+                             && wb.externalaccount_id.HasValue 
+                             && externalAccountIds.Contains(wb.externalaccount_id.Value))
+                .ToListAsync(cancellationToken: ct);
+
+            var stocks = new List<object>();
+
+            foreach (var pi in batch){
+                var prod = products.FirstOrDefault(p => p.sid == pi.Sid);
+                if (prod == null) continue;
+
+                var wbCard = wbProductCards.FirstOrDefault(wb => wb.VendorCode == prod.sid.ToString());
+                if (wbCard == null) continue;
+
+                var lots = prod.qty_multiplier > 0 ? pi.Balance / prod.qty_multiplier : 0;
+
+                if (lots < 0) continue;
+
+                var firstSize = wbCard.SizeChrts.FirstOrDefault();
+                if (firstSize == null || string.IsNullOrWhiteSpace(firstSize.Value)) continue;
+
+                var skuParts = firstSize.Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var sku = skuParts.FirstOrDefault();
+                if (string.IsNullOrEmpty(sku)) continue;
+
+                stocks.Add(new
                 {
-                    Console.WriteLine($"Product {prod.sid} has 0 available lots, skipping update to WB.");
-                    continue;
-                }
-
-                var content = new StringContent(JsonSerializer.Serialize(new
-                {
-                    nmId = prod.sid,
-                    quantity = lots
-                }), Encoding.UTF8, "application/json");
-
-                wbTasks.Add(wbClient.PostAsync("/api/v1/stocks", content, ct));
+                    sku = sku,
+                    amount = lots
+                });
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to prepare update for SID {pi.Sid}: {ex.Message}");
+
+            if (stocks.Count == 0){
+                Console.WriteLine("No stocks to update to Wildberries.");
+                return;
+            }
+
+            var payload = new{
+                stocks = stocks
+            };
+
+            var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+            
+
+            var response = await wbClient.PutAsync($"/api/v3/stocks/{warehouseId}", content, ct);
+
+            if (response.IsSuccessStatusCode){
+                Console.WriteLine($"Successfully updated {stocks.Count} stocks to Wildberries.");
+            }
+            else{
+                var errorContent = await response.Content.ReadAsStringAsync(ct);
+                Console.WriteLine($"Failed to update stocks to Wildberries: {response.StatusCode} {errorContent}");
             }
         }
-
-        if (wbTasks.Count > 0)
-        {
-            try
-            {
-                await Task.WhenAll(wbTasks);
-                Console.WriteLine($"Pushed {wbTasks.Count} stocks updates to Wildberries.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error sending stocks to Wildberries: {ex.Message}");
-            }
+        catch (Exception ex){
+            Console.WriteLine($"Error updating stocks to Wildberries: {ex.Message}");
         }
     }
 }

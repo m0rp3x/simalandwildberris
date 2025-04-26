@@ -28,7 +28,7 @@ public class AccountTokenService
         var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
 
         external_account? account = null;
-        if(platform == ExternalAccountType.WildBerriesMarketPlace){
+        if(platform == ExternalAccountType.WildBerriesMarketPlace || platform == ExternalAccountType.WildBerriesDiscountPrices || platform == ExternalAccountType.WildBerriesCommonApi){
             platform = ExternalAccountType.Wildberries;
         }
         

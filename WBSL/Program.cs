@@ -5,7 +5,6 @@ using Microsoft.IdentityModel.Tokens;
 using WBSL.Data;
 using System.Text;
 using Hangfire;
-using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using WBSL.Client.Data.Services;
@@ -73,10 +72,15 @@ builder.Services.AddScoped<AccountTokenService>();
 builder.Services.AddScoped<WildberriesService>();
 builder.Services.AddScoped<WildberriesCategoryService>();
 builder.Services.AddScoped<WildberriesProductsService>();
+builder.Services.AddScoped<WildberriesPriceService>();
+builder.Services.AddScoped<PriceCalculatorService>();
+builder.Services.AddScoped<CommissionService>();
+builder.Services.AddScoped<BoxTariffService>();
 builder.Services.AddScoped<WildberriesCharacteristicsService>();
 builder.Services.AddScoped<SimalandFetchService>();
 builder.Services.AddScoped<ProductMappingService>();
 builder.Services.AddScoped<WbProductService>();
+builder.Services.AddScoped<PriceCalculatorService>();
 builder.Services.AddScoped<IDbContextFactory<QPlannerDbContext>, ManualDbContextFactory>();
 builder.Services.AddScoped<ISimaLandService, SimaLandService>();
 
@@ -98,20 +102,34 @@ builder.Services.AddHttpClient("Wildberries",
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerries");
         return new RateLimitedAuthHandler(a, "WildBerries");
     });
+
+builder.Services.AddHttpClient("WildBerriesMarketPlace",
+        client => { client.BaseAddress = new Uri("https://marketplace-api.wildberries.ru"); })
+    .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerriesMarketPlace"))
+    .AddHttpMessageHandler(sp => {
+        var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesMarketPlace");
+        return new RateLimitedAuthHandler(a, "WildBerriesMarketPlace");
+    });
+
+builder.Services.AddHttpClient("WildBerriesDiscountPrices",
+        client => { client.BaseAddress = new Uri("https://discounts-prices-api.wildberries.ru"); })
+    .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerriesDiscountPrices"))
+    .AddHttpMessageHandler(sp => {
+        var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesDiscountPrices");
+        return new RateLimitedAuthHandler(a, "WildBerriesDiscountPrices");
+    });
+
+builder.Services.AddHttpClient("WildBerriesCommonApi",
+        client => { client.BaseAddress = new Uri("https://common-api.wildberries.ru/"); })
+    .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerriesCommonApi"))
+    .AddHttpMessageHandler(sp => {
+        var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesDiscountPrices");
+        return new RateLimitedAuthHandler(a, "WildBerriesCommonApi");
+    });
+
 builder.Services.Remove(
     builder.Services.FirstOrDefault(d =>
         d.ServiceType == typeof(Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware))!);
-
-
-
-
-builder.Services.AddHttpClient("WildberriesMarketPlace",
-        client => { client.BaseAddress = new Uri("https://marketplace-api.wildberries.ru"); })
-    .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildberriesMarketPlace"))
-    .AddHttpMessageHandler(sp => {
-        var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesMarketPlace");
-        return new RateLimitedAuthHandler(a, "WildberriesMarketPlace");
-    });
 
 var app = builder.Build();
 app.MapControllers(); // <-- обязательно!

@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Shared;
+using Shared.Enums;
 using WBSL.Data.Exceptions;
 using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Data.Mappers;
@@ -13,35 +14,53 @@ public class WildberriesProductsService : WildberriesBaseService
 {
     public List<WbProductCardDto> Cards{ get; } = new List<WbProductCardDto>();
     private readonly QPlannerDbContext _db;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly int maxRetries = 3;
 
     public WildberriesProductsService(
         PlatformHttpClientFactory httpFactory,
-        QPlannerDbContext db) : base(httpFactory){
+        QPlannerDbContext db, IServiceScopeFactory scopeFactory) : base(httpFactory){
         _db = db;
+        _scopeFactory = scopeFactory;
     }
 
-    public async Task<ProductsSyncResult> SyncProductsAsync(){
+    public async Task<List<ProductsSyncResult>> SyncProductsAsync(){
+        var externalAccounts = await _db.external_accounts
+            .Where(x => x.platform == ExternalAccountType.Wildberries.ToString())
+            .ToListAsync();
+
+        var tasks = new List<Task<ProductsSyncResult>>();
+
+        foreach (var account in externalAccounts){
+            tasks.Add(SyncProductsForAccountAsync(account.id));
+        }
+
+        var results = await Task.WhenAll(tasks);
+
+        return results.ToList();
+    }
+
+    private async Task<ProductsSyncResult> SyncProductsForAccountAsync(int accountId){
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
+
         int totalRequests = 0;
         int totalCards = 0;
         int fetchErrorCount = 0;
         int saveErrorCount = 0;
-        int accountId = 1;
         string updatedAt = string.Empty;
         long? nmID = null;
         int totalAvailable = 1;
-            
+
         do{
             try{
                 var (response, cardsCount) = await FetchProductsBatchAsync(updatedAt, nmID, accountId);
                 totalRequests++;
                 totalCards += cardsCount;
 
-
                 try{
                     var batch = response.Cards.Select(card => WbProductCardMapToDomain.MapToDomain(card)).ToList();
-
-                    await SaveProductsToDatabaseAsync(batch.ToList());
+                    await SaveProductsToDatabaseAsync(db, batch, accountId);
                 }
                 catch (Exception saveEx){
                     saveErrorCount++;
@@ -57,7 +76,7 @@ public class WildberriesProductsService : WildberriesBaseService
                     }
 
                     await Task.Delay(1000);
-                    continue; 
+                    continue;
                 }
 
                 updatedAt = response.Cursor.UpdatedAt.ToString("o");
@@ -89,19 +108,19 @@ public class WildberriesProductsService : WildberriesBaseService
         return new ProductsSyncResult(totalCards, totalRequests);
     }
 
-    public async Task SaveProductsToDatabaseAsync(List<WbProductCard> productsToSave){
+    public async Task SaveProductsToDatabaseAsync(QPlannerDbContext db,List<WbProductCard> productsToSave, int externalAccountId){
         if (!productsToSave.Any())
             return;
 
-        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await using var transaction = await db.Database.BeginTransactionAsync();
 
         try{
-            var existingProductIds = await _db.WbProductCards
+            var existingProductIds = await db.WbProductCards
                 .Where(p => productsToSave.Select(x => x.NmID).Contains(p.NmID))
                 .Select(p => p.NmID)
                 .ToListAsync();
 
-            var existingEntities = await _db.WbProductCards
+            var existingEntities = await db.WbProductCards
                 .Include(p => p.WbPhotos)
                 .Include(p => p.WbProductCardCharacteristics)
                 .Include(x => x.SizeChrts)
@@ -120,24 +139,27 @@ public class WildberriesProductsService : WildberriesBaseService
             await ProcessSizesAndSkusAsync(productsToSave);
 
             if (newProducts.Any()){
-                await _db.WbProductCards.AddRangeAsync(newProducts);
+                foreach (var product in newProducts){
+                    product.externalaccount_id = externalAccountId;
+                }
+                await db.WbProductCards.AddRangeAsync(newProducts);
             }
 
             foreach (var product in existingProducts){
                 var existing = existingEntities.FirstOrDefault(p => p.NmID == product.NmID);
 
                 if (existing != null){
-                    _db.Entry(existing).CurrentValues.SetValues(product);
+                    db.Entry(existing).CurrentValues.SetValues(product);
 
-                    _db.WbPhotos.RemoveRange(existing.WbPhotos);
+                    db.WbPhotos.RemoveRange(existing.WbPhotos);
                     existing.WbPhotos = product.WbPhotos;
 
-                    _db.WbProductCardCharacteristics.RemoveRange(existing.WbProductCardCharacteristics);
+                    db.WbProductCardCharacteristics.RemoveRange(existing.WbProductCardCharacteristics);
                     existing.WbProductCardCharacteristics = product.WbProductCardCharacteristics;
                 }
             }
 
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
 
             await transaction.CommitAsync();
         }
@@ -213,7 +235,7 @@ public class WildberriesProductsService : WildberriesBaseService
             attempt++;
             try{
                 var content = await CreateRequestContent(updatedAt, nmID);
-                var WbClient = await GetWbClientAsync(accountId);
+                var WbClient = await GetWbClientAsync(accountId, true);
                 var response = await WbClient.PostAsync("/content/v2/get/cards/list", content);
                 response.EnsureSuccessStatusCode();
 

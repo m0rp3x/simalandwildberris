@@ -1,7 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using System.Security.Claims;
 using Shared.Enums;
-using WBSL.Data.Enums;
 using WBSL.Data.Services;
 
 namespace WBSL.Data.HttpClientFactoryExt;
@@ -33,7 +32,7 @@ public class PlatformHttpClientFactory
         var account = await _accountService.GetAccountAsync(platform, accountId: accountId, userId: userId, isSync: sync);
         
         var client = _httpClientFactory.CreateClient(platform.ToString());
-        if (platform is ExternalAccountType.Wildberries or ExternalAccountType.WildBerriesMarketPlace){
+        if (platform is ExternalAccountType.Wildberries or ExternalAccountType.WildBerriesMarketPlace or ExternalAccountType.WildBerriesDiscountPrices or ExternalAccountType.WildBerriesCommonApi){
             client.DefaultRequestHeaders.Add("Authorization", account.token);
         }
         if(platform == ExternalAccountType.SimaLand){
@@ -43,4 +42,5 @@ public class PlatformHttpClientFactory
         
         return client;
     }
+    
 }
