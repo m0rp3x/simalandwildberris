@@ -28,6 +28,10 @@ public class AccountTokenService
         var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
 
         external_account? account = null;
+        if(platform == ExternalAccountType.WildBerriesMarketPlace){
+            platform = ExternalAccountType.Wildberries;
+        }
+        
         if (isSync){
             account = await db.external_accounts
                 .FirstOrDefaultAsync(a => a.id == accountId && a.platform == platform.ToString());

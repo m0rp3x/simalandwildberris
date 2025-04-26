@@ -18,12 +18,6 @@ public static class HangfireConfig
 
     public static void RegisterJobs()
     {
-        RecurringJob.AddOrUpdate<SimalandBackgroundService>(
-            "fetch_simaland_balance",
-            job => job.SyncProductsBalanceAsync(),
-            "*/30 * * * *" // CRON: каждые 30 минут
-        );
-        
         RecurringJob.AddOrUpdate<WildberriesCategoryService>(
             "fetch_wb_categories",
             job => job.SyncCategoriesAsync(),
