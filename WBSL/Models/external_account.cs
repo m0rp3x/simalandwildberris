@@ -19,5 +19,7 @@ public partial class external_account
 
     public int? warehouseid { get; set; }
 
+    public virtual ICollection<WbProductCard> WbProductCards { get; set; } = new List<WbProductCard>();
+
     public virtual user user { get; set; } = null!;
 }

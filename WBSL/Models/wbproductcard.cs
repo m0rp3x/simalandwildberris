@@ -29,9 +29,13 @@ public partial class WbProductCard
 
     public DateTime? UpdatedAt { get; set; }
 
+    public int? externalaccount_id { get; set; }
+
     public virtual ICollection<WbPhoto> WbPhotos { get; set; } = new List<WbPhoto>();
 
     public virtual ICollection<WbProductCardCharacteristic> WbProductCardCharacteristics { get; set; } = new List<WbProductCardCharacteristic>();
+
+    public virtual external_account? externalaccount { get; set; }
 
     public virtual ICollection<WbDimension> Dimensions { get; set; } = new List<WbDimension>();
 

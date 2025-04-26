@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using WBSL.Data.Models;
 using WBSL.Models;
 
 namespace WBSL.Data;
@@ -65,26 +64,11 @@ public partial class QPlannerDbContext : DbContext
     public virtual DbSet<wildberries_category> wildberries_categories { get; set; }
 
     public virtual DbSet<wildberries_parrent_category> wildberries_parrent_categories { get; set; }
-    
-    public virtual DbSet<BalanceUpdateRule> BalanceUpdateRules { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("pgcrypto");
-        
-        modelBuilder.Entity<BalanceUpdateRule>(entity =>
-        {
-            entity.ToTable("balance_update_rules");
 
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.FromStock).HasColumnName("from_stock");
-            entity.Property(e => e.ToStock).HasColumnName("to_stock");
-            entity.Property(e => e.UpdateInterval).HasColumnName("update_interval");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-        });
-        
         modelBuilder.Entity<WbCharacteristic>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("WbCharacteristic_pkey");
@@ -128,6 +112,10 @@ public partial class QPlannerDbContext : DbContext
             entity.Property(e => e.NmID).ValueGeneratedNever();
             entity.Property(e => e.CreatedAt).HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.externalaccount).WithMany(p => p.WbProductCards)
+                .HasForeignKey(d => d.externalaccount_id)
+                .HasConstraintName("wbproductcard_external_accounts_id_fk");
 
             entity.HasMany(d => d.Dimensions).WithMany(p => p.ProductNms)
                 .UsingEntity<Dictionary<string, object>>(
