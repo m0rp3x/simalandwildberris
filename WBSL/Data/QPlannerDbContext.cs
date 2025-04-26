@@ -27,12 +27,37 @@ public partial class QPlannerDbContext : DbContext
 
     public virtual DbSet<WbSize> WbSizes { get; set; }
 
+    public virtual DbSet<_lock> _locks { get; set; }
+
+    public virtual DbSet<aggregatedcounter> aggregatedcounters { get; set; }
+
+    public virtual DbSet<balance_update_rule> balance_update_rules { get; set; }
+
+    public virtual DbSet<counter> counters { get; set; }
+
     public virtual DbSet<external_account> external_accounts { get; set; }
-    
+
+    public virtual DbSet<hash> hashes { get; set; }
+
+    public virtual DbSet<job> jobs { get; set; }
+
+    public virtual DbSet<jobparameter> jobparameters { get; set; }
+
+    public virtual DbSet<jobqueue> jobqueues { get; set; }
+
+    public virtual DbSet<list> lists { get; set; }
 
     public virtual DbSet<product> products { get; set; }
 
     public virtual DbSet<product_attribute> product_attributes { get; set; }
+
+    public virtual DbSet<schema> schemas { get; set; }
+
+    public virtual DbSet<server> servers { get; set; }
+
+    public virtual DbSet<set> sets { get; set; }
+
+    public virtual DbSet<state> states { get; set; }
 
     public virtual DbSet<user> users { get; set; }
 
@@ -145,7 +170,45 @@ public partial class QPlannerDbContext : DbContext
             entity.Property(e => e.WbSize1).HasColumnName("WbSize");
         });
 
-        
+        modelBuilder.Entity<_lock>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToTable("lock", "hangfire");
+
+            entity.HasIndex(e => e.resource, "lock_resource_key").IsUnique();
+
+            entity.Property(e => e.updatecount).HasDefaultValue(0);
+        });
+
+        modelBuilder.Entity<aggregatedcounter>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("aggregatedcounter_pkey");
+
+            entity.ToTable("aggregatedcounter", "hangfire");
+
+            entity.HasIndex(e => e.key, "aggregatedcounter_key_key").IsUnique();
+        });
+
+        modelBuilder.Entity<balance_update_rule>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("balance_update_rules_pkey");
+
+            entity.Property(e => e.created_at)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+        });
+
+        modelBuilder.Entity<counter>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("counter_pkey");
+
+            entity.ToTable("counter", "hangfire");
+
+            entity.HasIndex(e => e.expireat, "ix_hangfire_counter_expireat");
+
+            entity.HasIndex(e => e.key, "ix_hangfire_counter_key");
+        });
 
         modelBuilder.Entity<external_account>(entity =>
         {
@@ -159,7 +222,77 @@ public partial class QPlannerDbContext : DbContext
                 .HasForeignKey(d => d.user_id)
                 .HasConstraintName("external_accounts_user_id_fkey");
         });
-        
+
+        modelBuilder.Entity<hash>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("hash_pkey");
+
+            entity.ToTable("hash", "hangfire");
+
+            entity.HasIndex(e => new { e.key, e.field }, "hash_key_field_key").IsUnique();
+
+            entity.HasIndex(e => e.expireat, "ix_hangfire_hash_expireat");
+
+            entity.Property(e => e.updatecount).HasDefaultValue(0);
+        });
+
+        modelBuilder.Entity<job>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("job_pkey");
+
+            entity.ToTable("job", "hangfire");
+
+            entity.HasIndex(e => e.expireat, "ix_hangfire_job_expireat");
+
+            entity.HasIndex(e => e.statename, "ix_hangfire_job_statename");
+
+            entity.HasIndex(e => e.statename, "ix_hangfire_job_statename_is_not_null").HasFilter("(statename IS NOT NULL)");
+
+            entity.Property(e => e.arguments).HasColumnType("jsonb");
+            entity.Property(e => e.invocationdata).HasColumnType("jsonb");
+            entity.Property(e => e.updatecount).HasDefaultValue(0);
+        });
+
+        modelBuilder.Entity<jobparameter>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("jobparameter_pkey");
+
+            entity.ToTable("jobparameter", "hangfire");
+
+            entity.HasIndex(e => new { e.jobid, e.name }, "ix_hangfire_jobparameter_jobidandname");
+
+            entity.Property(e => e.updatecount).HasDefaultValue(0);
+
+            entity.HasOne(d => d.job).WithMany(p => p.jobparameters)
+                .HasForeignKey(d => d.jobid)
+                .HasConstraintName("jobparameter_jobid_fkey");
+        });
+
+        modelBuilder.Entity<jobqueue>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("jobqueue_pkey");
+
+            entity.ToTable("jobqueue", "hangfire");
+
+            entity.HasIndex(e => new { e.fetchedat, e.queue, e.jobid }, "ix_hangfire_jobqueue_fetchedat_queue_jobid").HasNullSortOrder(new[] { NullSortOrder.NullsFirst, NullSortOrder.NullsLast, NullSortOrder.NullsLast });
+
+            entity.HasIndex(e => new { e.jobid, e.queue }, "ix_hangfire_jobqueue_jobidandqueue");
+
+            entity.HasIndex(e => new { e.queue, e.fetchedat }, "ix_hangfire_jobqueue_queueandfetchedat");
+
+            entity.Property(e => e.updatecount).HasDefaultValue(0);
+        });
+
+        modelBuilder.Entity<list>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("list_pkey");
+
+            entity.ToTable("list", "hangfire");
+
+            entity.HasIndex(e => e.expireat, "ix_hangfire_list_expireat");
+
+            entity.Property(e => e.updatecount).HasDefaultValue(0);
+        });
 
         modelBuilder.Entity<product>(entity =>
         {
@@ -205,7 +338,55 @@ public partial class QPlannerDbContext : DbContext
                 .HasConstraintName("product_attributes_product_sid_fkey");
         });
 
-        
+        modelBuilder.Entity<schema>(entity =>
+        {
+            entity.HasKey(e => e.version).HasName("schema_pkey");
+
+            entity.ToTable("schema", "hangfire");
+
+            entity.Property(e => e.version).ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<server>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("server_pkey");
+
+            entity.ToTable("server", "hangfire");
+
+            entity.Property(e => e.data).HasColumnType("jsonb");
+            entity.Property(e => e.updatecount).HasDefaultValue(0);
+        });
+
+        modelBuilder.Entity<set>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("set_pkey");
+
+            entity.ToTable("set", "hangfire");
+
+            entity.HasIndex(e => e.expireat, "ix_hangfire_set_expireat");
+
+            entity.HasIndex(e => new { e.key, e.score }, "ix_hangfire_set_key_score");
+
+            entity.HasIndex(e => new { e.key, e.value }, "set_key_value_key").IsUnique();
+
+            entity.Property(e => e.updatecount).HasDefaultValue(0);
+        });
+
+        modelBuilder.Entity<state>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("state_pkey");
+
+            entity.ToTable("state", "hangfire");
+
+            entity.HasIndex(e => e.jobid, "ix_hangfire_state_jobid");
+
+            entity.Property(e => e.data).HasColumnType("jsonb");
+            entity.Property(e => e.updatecount).HasDefaultValue(0);
+
+            entity.HasOne(d => d.job).WithMany(p => p.states)
+                .HasForeignKey(d => d.jobid)
+                .HasConstraintName("state_jobid_fkey");
+        });
 
         modelBuilder.Entity<user>(entity =>
         {

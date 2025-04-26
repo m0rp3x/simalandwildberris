@@ -1,59 +1,120 @@
 ﻿@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Как пользоваться сайтом</PageTitle>
 
-<MudText Typo="Typo.h3" GutterBottom="true">Hello, world!</MudText>
-<MudText Class="mb-8">Welcome to your new app, powered by MudBlazor and the .NET 9 Template!</MudText>
+<MudText Typo="Typo.h3" GutterBottom="true">🧭 Гайд: Как пользоваться сайтом</MudText>
 
-<MudAlert Severity="Severity.Normal">
-    You can find documentation and examples on our website here:
-    <MudLink Href="https://mudblazor.com" Target="_blank" Typo="Typo.body2" Color="Color.Primary">
-        <b>www.mudblazor.com</b>
-    </MudLink>
-</MudAlert>
-
-<br />
-<MudText Typo="Typo.h5" GutterBottom="true">Interactivity in this Template</MudText>
-<br />
-<MudText Typo="Typo.body2">
-    When you opt for the "Global" Interactivity Location, <br />
-    the render modes are defined in App.razor and consequently apply to all child components.<br />
-    In this case, providers are globally set in the MainLayout.<br />
-    <br />
-    On the other hand, if you choose the "Per page/component" Interactivity Location,<br />
-    it is necessary to include the <br />
-    <br />
-    &lt;MudPopoverProvider /&gt; <br />
-    &lt;MudDialogProvider /&gt; <br />
-    &lt;MudSnackbarProvider /&gt; <br />
-    <br />
-    components on every interactive page.<br />
-    <br />
-    If a render mode is not specified for a page, it defaults to Server-Side Rendering (SSR),<br />
-    similar to this page. While MudBlazor allows pages to be rendered in SSR,<br />
-    please note that interactive features, such as buttons and dropdown menus, will not be functional.
+<MudText Class="mb-8">
+    Добро пожаловать! Здесь вы узнаете, как использовать функционал сайта, какие есть возможности и что следует учитывать.
 </MudText>
 
-<br />
-<MudText Typo="Typo.h5" GutterBottom="true">What's New in Blazor with the Release of .NET 9</MudText>
+
+
 <br />
 
-<MudText Typo="Typo.h6" GutterBottom="true">Prerendering</MudText>
-<MudText Typo="Typo.body2" GutterBottom="true">
-    If you're exploring the features of .NET 9 Blazor,<br /> you might be pleasantly surprised to learn that each page is prerendered on the server,<br /> regardless of the selected render mode.<br /><br />
-    This means that you'll need to inject all necessary services on the server,<br /> even when opting for the wasm (WebAssembly) render mode.<br /><br />
-    This prerendering functionality is crucial to ensuring that WebAssembly mode feels fast and responsive,<br /> especially when it comes to initial page load times.<br /><br />
-    For more information on how to detect prerendering and leverage the RenderContext, you can refer to the following link:
-    <MudLink Href="https://github.com/dotnet/aspnetcore/issues/51468#issuecomment-1783568121" Target="_blank" Typo="Typo.body2" Color="Color.Primary">
-        More details
-    </MudLink>
+<MudDivider />
+
+<MudText Typo="Typo.h5" GutterBottom="true">1. 📋 Основы интерфейса</MudText>
+<MudText Typo="Typo.body2" Class="mb-4">
+    Слева находится <b>меню навигации</b> со ссылками на все основные страницы платформы: импорт товаров, управление аккаунтами, настройки и мониторинг задач.
 </MudText>
 
-<br />
-<MudText Typo="Typo.h6" GutterBottom="true">InteractiveAuto</MudText>
+<MudDivider />
+
+<MudText Typo="Typo.h5" GutterBottom="true">2. 🔑 Регистрация и вход</MudText>
+<MudText Typo="Typo.body2" Class="mb-4">
+    Чтобы создать аккаунт:
+    <ul>
+        <li>Перейдите на страницу <b>Аутентификации</b>.</li>
+        <li>После регистрации система перенаправит вас на страницу добавления платформ.</li>
+        <li>Доступные платформы: <b>SimaLand</b> и <b>Wildberries</b>.</li>
+    </ul>
+</MudText>
+
+<MudDivider />
+
+<MudText Typo="Typo.h5" GutterBottom="true">3. ⚙️ Как выполнять задачи</MudText>
+<MudText Typo="Typo.body2" Class="mb-4">
+    На платформе есть два типа задач:
+    <ul>
+        <li><b>Импорт товаров</b> с SimaLand в БД или в файлы (<i>JSON, CSV, Excel</i>).</li>
+        <li><b>Загрузка товаров</b> на Wildberries.</li>
+    </ul>
+    Чтобы начать работу:
+    <ul>
+        <li>Перейдите в меню <b>СимаЛенд Импорт</b> для импорта товаров.</li>
+        <li>Перейдите в меню <b>Вайлдберрис Товары</b> для загрузки товаров на маркетплейс.</li>
+    </ul>
+</MudText>
+
+<MudDivider />
+
+<MudText Typo="Typo.h5" GutterBottom="true">4. 🛠️ Вспомогательные инструменты</MudText>
+<MudText Typo="Typo.body2" Class="mb-4">
+    Для автоматизации процессов используется <b>Hangfire</b>:
+    <ul>
+        <li>Подгрузка категорий Wildberries.</li>
+        <li>Обновление остатков товаров с SimaLand.</li>
+    </ul>
+    Чтобы всё работало правильно:
+    <ul>
+        <li>В таблице <code>external_accounts</code> пропишите токены:
+            <ul>
+                <li><b>ID 1</b> — токен SimaLand.</li>
+                <li><b>ID 2</b> — аккаунт Wildberries.</li>
+            </ul>
+        </li>
+        <li>Создайте административного пользователя в таблице <code>users</code>.</li>
+        <li>Создавайте платформенные аккаунты под админским аккаунтом.</li>
+    </ul>
+
+    Эндпоинты для управления задачами:
+    <ul>
+        <li><code>/hangfire</code></li>
+        <li><code>/CoreAdmin</code></li>
+    </ul>
+    Или используйте ссылки в меню навигации.
+</MudText>
+
+<MudDivider />
+
+<MudText Typo="Typo.h5" GutterBottom="true">5. 🌐 Основные эндпоинты</MudText>
+<MudText Typo="Typo.body2" Class="mb-4">
+    Основные страницы платформы:
+    <ul>
+        <li><code>/login</code> — Страница входа.</li>
+        <li><code>/my-accounts</code> — Управление привязанными платформами.</li>
+        <li><code>/simaland-categories</code> — Категории SimaLand.</li>
+        <li><code>/simaland-import</code> — Импорт товаров SimaLand.</li>
+        <li><code>/wb-product</code> — Работа с товарами Wildberries.</li>
+    </ul>
+</MudText>
+
+<MudDivider />
+
+<MudText Typo="Typo.h5" GutterBottom="true">7. ⚙️ Настройка конфигурации</MudText>
 <MudText Typo="Typo.body2">
-    A discussion on how to achieve this can be found here:
-    <MudLink Href="https://github.com/dotnet/aspnetcore/issues/51468#issue-1950424116" Target="_blank" Typo="Typo.body2" Color="Color.Primary">
-        More details
+    Все основные параметры проекта хранятся в файле <code>appsettings.json</code>. В нём вы можете задать:
+    <ul>
+        <li><b>Строки подключения к Базе Данных</b>:
+            <ul>
+                <li><code>DefaultConnection</code> — основная БД.</li>
+                <li><code>Postgres</code> — база данных Hangfire.</li>
+            </ul>
+        </li>
+        <li><b>Путь для сохранения изображений</b>:
+            <br />
+            <code>"SimaLand": { "PhotoStoragePath": "C:\\Users\\...\\wwwroot" }</code>
+        </li>
+    </ul>
+    Убедитесь, что значения в этом файле актуальны и соответствуют вашей среде разработки или продакшну.
+</MudText>
+<MudDivider />
+
+<MudText Typo="Typo.h5" GutterBottom="true">6. 🚀 Дополнительные возможности</MudText>
+<MudText Typo="Typo.body2">
+    Связь с разработчиками и технической поддержкой:
+    <MudLink Href="https://t.me/exchangethis" Target="_blank" Typo="Typo.body2" Color="Color.Primary">
+        Менеджер: Артем
     </MudLink>
 </MudText>

@@ -94,6 +94,12 @@ builder.Services.AddHttpClient("Wildberries",
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerries");
         return new RateLimitedAuthHandler(a, "WildBerries");
     });
+builder.Services.Remove(
+    builder.Services.FirstOrDefault(d =>
+        d.ServiceType == typeof(Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware))!);
+
+
+
 
 var app = builder.Build();
 app.MapControllers(); // <-- обязательно!
@@ -111,7 +117,6 @@ else{
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
 
 HangfireConfig.RegisterJobs();
 

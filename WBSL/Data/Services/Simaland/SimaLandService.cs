@@ -223,9 +223,7 @@ namespace WBSL.Services
     
 
 
-/// <summary>
-    /// Общая логика загрузки: если jobId != null — обновляет ProgressStore.
-    /// </summary>
+
     private async Task<(List<JsonElement> products, List<product_attribute> attrs)> RunFetchInternalAsync(
         string token, List<long> sids, Guid? jobId)
     {
@@ -298,7 +296,7 @@ namespace WBSL.Services
 
         private async Task<Dictionary<string, JsonElement>?> FetchProductAsync(HttpClient client, long sid, CancellationToken cancellationToken)
         {
-            var resp = await client.GetAsync($"item/?sid={sid}&expand=description,stocks,barcodes,attrs,category,trademark,country,unit,category_id", cancellationToken);
+            var resp = await client.GetAsync($"item/?sid={sid}&expand=description,stocks,barcodes,attrs,category,trademark,country,unit,category_id,minQty", cancellationToken);
             JsonElement product;
 
             if (resp.IsSuccessStatusCode)
@@ -319,7 +317,13 @@ namespace WBSL.Services
             ExtractTrademarkCountryUnit(product, dict);
             ExtractBarcodes(dict);
             ExtractPhotos(product, dict);
-
+            
+            if (product.TryGetProperty("min_qty", out var minQtyElem) && minQtyElem.ValueKind == JsonValueKind.Number)
+            {
+                // Прямо кладём JsonElement, можно и сериализовать, но JsonElement проще:
+                dict["qty_multiplier"] = minQtyElem;
+            }
+            
             if (product.TryGetProperty("attrs", out var arr) && arr.ValueKind == JsonValueKind.Array)
                 dict["attrs"] = arr;
             return dict;
@@ -378,6 +382,8 @@ namespace WBSL.Services
                 d["country_name"] = cn;
             if (e.TryGetProperty("unit", out var u) && u.ValueKind == JsonValueKind.Object && u.TryGetProperty("name", out var un))
                 d["unit_name"] = un;
+            
+            
         }
 
         private void ExtractBarcodes(Dictionary<string, JsonElement> d)

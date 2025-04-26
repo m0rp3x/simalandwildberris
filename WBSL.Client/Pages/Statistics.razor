@@ -1,0 +1,72 @@
+﻿@page "/statistics"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<MudPaper Class="pa-6 mx-auto mt-8" Style="max-width:800px" Elevation="4">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h5">📊 Статистика базы данных</MudText>
+
+        @if (_isLoading)
+        {
+            <MudProgressCircular Indeterminate="true" Class="mx-auto my-6" />
+        }
+        else
+        {
+            <MudGrid GutterSize="3">
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 text-center" Elevation="1">
+                        <MudText Typo="Typo.subtitle2">Products</MudText>
+                        <MudText Typo="Typo.h4">@_stats.products</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 text-center" Elevation="1">
+                        <MudText Typo="Typo.subtitle2">Product Attributes</MudText>
+                        <MudText Typo="Typo.h4">@_stats.productAttributes</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 text-center" Elevation="1">
+                        <MudText Typo="Typo.subtitle2">WB Product Cards</MudText>
+                        <MudText Typo="Typo.h4">@_stats.wbProductCards</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 text-center" Elevation="1">
+                        <MudText Typo="Typo.subtitle2">Card Characteristics</MudText>
+                        <MudText Typo="Typo.h4">@_stats.wbProductCardCharacteristics</MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    private bool _isLoading = true;
+    private StatsDto _stats;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        // NavigationManager.BaseUri is a string, so first turn it into a Uri
+        var baseUri = new Uri(Nav.BaseUri);
+
+        // Now use the Uri‐based ctor to combine base + relative
+        var statsUrl = new Uri(baseUri, "api/Stats/counts");
+
+        _stats = await Http.GetFromJsonAsync<StatsDto>(statsUrl);
+        _isLoading = false;
+    }
+    
+
+    private class StatsDto
+    {
+        public int products { get; set; }
+        public int productAttributes { get; set; }
+        public int wbProductCards { get; set; }
+        public int wbProductCardCharacteristics { get; set; }
+    }
+}

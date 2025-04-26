@@ -3,6 +3,7 @@ using System.Text.Json;
 using EFCore.BulkExtensions;
 using Hangfire;
 using Hangfire.Server;
+using Microsoft.EntityFrameworkCore;
 using WBSL.Data.Handlers;
 using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Models;
@@ -12,26 +13,30 @@ namespace WBSL.Data.Services.Simaland;
 public class SimalandBackgroundService : SimalandBaseService
 {
     private readonly QPlannerDbContext _db;
+    private readonly string _syncToken;
+    private readonly IHttpClientFactory _httpFactory;
 
-    public SimalandBackgroundService(PlatformHttpClientFactory factory, QPlannerDbContext db) : base(factory){
+    public SimalandBackgroundService(PlatformHttpClientFactory factory,IHttpClientFactory httpFactory, IConfiguration config, QPlannerDbContext db) : base(factory){
         _db = db;
+        _httpFactory = httpFactory;
+        _syncToken   = config.GetValue<string>("SimaLand:SyncToken") 
+                       ?? throw new InvalidOperationException("SyncToken not configured");
     }
 
     [AutomaticRetry(Attempts = 3, OnAttemptsExceeded = AttemptsExceededAction.Delete)]
     public async Task<bool> SyncProductsBalanceAsync(){
         try{
-            var ids = _db.products.Select(x => x.sid).ToList();
+            // вместо GetAccountAsync берем сразу _syncToken:
+            var client = _httpFactory.CreateClient("SimaLand");
+            client.DefaultRequestHeaders.Add("X-Api-Key", _syncToken);
 
-            if (ids.Count == 0){
-                return true;
-            }
-            var сlient = await GetClientAsync(2);
-            var result = await FetchAndSaveProductsBalance(ids, сlient);
+            // список ID из БД
+            var ids = await _db.products.Select(x => x.sid).ToListAsync();
+            if (ids.Count == 0) return true;
 
-            if (!result){
+            var result = await FetchAndSaveProductsBalance(ids, client);
+            if (!result)
                 throw new Exception("Temporary sync failure");
-            }
-
             return true;
         }
         catch (CircuitBrokenException ex){
