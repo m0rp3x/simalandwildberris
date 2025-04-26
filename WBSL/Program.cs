@@ -59,6 +59,8 @@ builder.Services.Configure<RateLimitConfig>("SimaLand",
     builder.Configuration.GetSection("RateLimits:SimaLand"));
 builder.Services.Configure<RateLimitConfig>("WildBerries",
     builder.Configuration.GetSection("RateLimits:WildBerries"));
+builder.Services.Configure<RateLimitConfig>("WildBerriesMarketPlace",
+    builder.Configuration.GetSection("RateLimits:WildBerriesMarketPlace"));
 
 builder.Services.AddScoped<PlatformHttpClientFactory>(sp =>
     new PlatformHttpClientFactory(
@@ -78,6 +80,9 @@ builder.Services.AddScoped<WbProductService>();
 builder.Services.AddScoped<IDbContextFactory<QPlannerDbContext>, ManualDbContextFactory>();
 builder.Services.AddScoped<ISimaLandService, SimaLandService>();
 
+builder.Services.AddScoped<SimalandClientService>();
+builder.Services.AddHostedService<BalanceUpdateScheduler>();
+
 builder.Services
     .AddHttpClient("SimaLand", client => { client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/"); })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("SimaLand"))
@@ -85,7 +90,6 @@ builder.Services
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("SimaLand");
         return new RateLimitedAuthHandler(a, "SimaLand");
     });
-
 
 builder.Services.AddHttpClient("Wildberries",
         client => { client.BaseAddress = new Uri("https://content-api.wildberries.ru"); })
@@ -100,6 +104,14 @@ builder.Services.Remove(
 
 
 
+
+builder.Services.AddHttpClient("WildberriesMarketPlace",
+        client => { client.BaseAddress = new Uri("https://marketplace-api.wildberries.ru"); })
+    .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildberriesMarketPlace"))
+    .AddHttpMessageHandler(sp => {
+        var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesMarketPlace");
+        return new RateLimitedAuthHandler(a, "WildberriesMarketPlace");
+    });
 
 var app = builder.Build();
 app.MapControllers(); // <-- обязательно!

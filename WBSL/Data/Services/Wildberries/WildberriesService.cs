@@ -182,6 +182,7 @@ public class WildberriesService : WildberriesBaseService
         foreach (var vendorCode in vendorCodes){
             try{
                 var content = await CreateSearchRequestContentByVendorCode(textSearch: vendorCode);
+                await Task.Delay(2000);
                 var response = await wbClient.PostAsync("/content/v2/get/cards/list", content);
                 response.EnsureSuccessStatusCode();
 

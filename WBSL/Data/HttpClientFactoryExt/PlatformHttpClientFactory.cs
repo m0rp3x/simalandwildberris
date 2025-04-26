@@ -33,7 +33,7 @@ public class PlatformHttpClientFactory
         var account = await _accountService.GetAccountAsync(platform, accountId: accountId, userId: userId, isSync: sync);
         
         var client = _httpClientFactory.CreateClient(platform.ToString());
-        if (platform == ExternalAccountType.Wildberries){
+        if (platform is ExternalAccountType.Wildberries or ExternalAccountType.WildBerriesMarketPlace){
             client.DefaultRequestHeaders.Add("Authorization", account.token);
         }
         if(platform == ExternalAccountType.SimaLand){
