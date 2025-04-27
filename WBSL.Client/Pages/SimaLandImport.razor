@@ -10,8 +10,9 @@
     <MudStack Spacing="3">
         <MudText Typo="Typo.h5">📦 Импорт товаров из Сима-Ленд</MudText>
         <MudSelect T="ExternalAccount" @bind-Value="_selectedAccount" Label="Выберите аккаунт" Variant="Variant.Outlined" FullWidth>
-            @foreach (var account in _accounts){
-                <MudSelectItem Value="@account">@account.Name</MudSelectItem>
+            @foreach (var account in _accounts)
+            {
+            <MudSelectItem Value="@account">@account.Name</MudSelectItem>
             }
         </MudSelect>
         <MudTextField T="string" @bind-Value="_rawArticles" Label="Артикулы (через запятую)" Variant="Variant.Outlined" Lines="3" FullWidth/>
@@ -42,20 +43,23 @@
         </MudStack>
         <MudDivider Class="my-4"/>
 
-        @if (_currentJob != null){
-            <MudProgressLinear Value="@((_total > 0) ? (_processed / (double)_total * 100) : 0)"
-                               BufferValue="100" Height="20" Rounded="true" Class="my-4"/>
-            <MudText Typo="Typo.subtitle1">@_processed / @_total</MudText>
+        @if (_currentJob != null)
+        {
+        <MudProgressLinear Value="@((_total>0) ? (_processed/(double)_total*100) : 0)"
+        BufferValue="100" Height="20" Rounded="true" Class="my-4"/>
+        <MudText Typo="Typo.subtitle1">@_processed / @_total</MudText>
         }
+      
 
-
-        else if (_currentJob == null && _loadingProgress > 0 && _loadingProgress < 100){
-            <MudProgressLinear Color="Color.Primary" Value="@_loadingProgress"
-                               BufferValue="100" Height="20" Rounded="true" Class="my-4"/>
-            <MudText Typo="Typo.subtitle1">Загрузка... @_loadingProgress%</MudText>
+                else if (_currentJob == null && _loadingProgress > 0 && _loadingProgress < 100)
+        {
+        <MudProgressLinear Color="Color.Primary" Value="@_loadingProgress"
+        BufferValue="100" Height="20" Rounded="true" Class="my-4"/>
+        <MudText Typo="Typo.subtitle1">Загрузка... @_loadingProgress%</MudText>
         }
-        else if (_products.Any()){
-            <MudText Typo="Typo.h6">📋 Найдено товаров: @_products.Count</MudText>
+        else if (_products.Any())
+        {
+        <MudText Typo="Typo.h6">📋 Найдено товаров: @_products.Count</MudText>
         }
 
     </MudStack>
@@ -80,7 +84,7 @@
     public List<ProductAttribute> Attributes{ get; set; } = new();
     private HashSet<string> _dynamicAttrNames = new();
     private List<string> _allAttrNames = new();
-    private int _loadingProgress = 0;
+    private int _loadingProgress = 0;   
     Guid? _currentJob;
     int _total, _processed;
     string _status = "";
@@ -98,6 +102,11 @@
     private async Task LoadAccounts(){
         _accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
     }
+
+
+
+
+
 
     private async Task DownloadPhotosForProduct(long sid){
         var product = _products.FirstOrDefault(p => p.sid == sid);
@@ -125,9 +134,12 @@
     }
 
 
-    private async Task DownloadExcel(){
-        var exportData = _products.Select(p => {
-            var dict = new Dictionary<string, object?>{
+    private async Task DownloadExcel()
+    {
+        var exportData = _products.Select(p =>
+        {
+            var dict = new Dictionary<string, object?>
+            {
                 ["Артикул"] = p.sid,
                 ["Наименование"] = p.name,
                 ["Описание"] = p.description,
@@ -142,7 +154,8 @@
                 ["Фото"] = string.Join(" | ", p.photo_urls ?? new())
             };
 
-            foreach (var attr in p.Attributes){
+            foreach (var attr in p.Attributes)
+            {
                 if (!string.IsNullOrWhiteSpace(attr.attr_name))
                     dict[attr.attr_name] = attr.value_text;
             }
@@ -151,7 +164,8 @@
         }).ToList();
 
         var response = await Http.PostAsJsonAsync("api/simaland/export-excel", exportData);
-        if (!response.IsSuccessStatusCode){
+        if (!response.IsSuccessStatusCode)
+        {
             _resultJson = $"Ошибка: {response.StatusCode}";
             return;
         }
@@ -248,40 +262,46 @@
         }
     }
 
-    private async Task StoreToDatabase(){
+    private async Task StoreToDatabase()
+    {
         // Собираем все атрибуты из продуктов
         var flattenedAttributes = _products
             .SelectMany(p => p.Attributes)
-            .Select(a => new ProductAttribute{
+            .Select(a => new ProductAttribute
+            {
                 product_sid = a.product_sid,
-                attr_name = a.attr_name,
-                value_type = a.value_type,
-                value_text = a.value_text
+                attr_name   = a.attr_name,
+                value_type  = a.value_type,
+                value_text  = a.value_text
             })
             .ToList();
 
         // Формируем DTO для отправки на сервер
-        var storeRequest = new ResultDto{
-            products = _products,
+        var storeRequest = new ResultDto
+        {
+            products   = _products,
             attributes = flattenedAttributes
         };
 
         // Отправляем строго типизированный объект
         var res = await Http.PostAsJsonAsync("api/simaland/store", storeRequest);
 
-        if (res.IsSuccessStatusCode){
+        if (res.IsSuccessStatusCode)
+        {
             _resultJson = "Успешно загружено в базу!";
         }
-        else{
+        else
+        {
             _resultJson = $"Ошибка загрузки: {res.StatusCode}";
         }
 
         await InvokeAsync(StateHasChanged);
     }
 
-
-    async Task StartFetch(){
-        var req = new{ AccountId = _selectedAccount!.Id, Articles = _rawArticles.Split(',').Select(long.Parse).ToList() };
+    
+    async Task StartFetch()
+    {
+        var req = new { AccountId = _selectedAccount!.Id, Articles = _rawArticles.Split(',').Select(long.Parse).ToList() };
         var resp = await Http.PostAsJsonAsync("api/simaland/fetch-job", req);
         resp.EnsureSuccessStatusCode();
         var data = await resp.Content.ReadFromJsonAsync<FetchJobDto>();
@@ -289,17 +309,19 @@
         _ = PollProgress();
     }
 
-    async Task PollProgress(){
+    async Task PollProgress()
+    {
         if (_currentJob == null) return;
 
         // 1) опрашиваем прогресс
-        while (true){
+        while (true)
+        {
             var prog = await Http.GetFromJsonAsync<ProgressDto>($"api/simaland/fetch-progress/{_currentJob}");
             if (prog == null) break;
 
-            _total = prog.total;
+            _total     = prog.total;
             _processed = prog.processed;
-            _status = prog.status;
+            _status    = prog.status;
             await InvokeAsync(StateHasChanged);
 
             if (!string.Equals(_status, "Running", StringComparison.OrdinalIgnoreCase))
@@ -309,39 +331,36 @@
         }
 
         // 2) когда job завершён, забираем результат
-        try{
-            if (string.Equals(_status, "Completed", StringComparison.OrdinalIgnoreCase)){
-                var res = await Http.GetFromJsonAsync<ResultDto>($"api/simaland/fetch-result/{_currentJob}");
-                if (res != null){
-                    // заливаем полученные продукты
-                    _products = res.products;
-                    // очищаем существующие поля Attributes
-                    foreach (var p in _products)
-                        p.Attributes = new List<ProductAttribute>();
+        if (string.Equals(_status, "Completed", StringComparison.OrdinalIgnoreCase))
+        {
+            var res = await Http.GetFromJsonAsync<ResultDto>($"api/simaland/fetch-result/{_currentJob}");
+            if (res != null)
+            {
+                // заливаем полученные продукты
+                _products   = res.products;
+                // очищаем существующие поля Attributes
+                foreach (var p in _products)
+                    p.Attributes = new List<ProductAttribute>();
 
-                    // распределяем атрибуты по товарам
-                    foreach (var attr in res.attributes){
-                        var parent = _products.FirstOrDefault(x => x.sid == attr.product_sid);
-                        if (parent != null)
-                            parent.Attributes.Add(attr);
-                    }
+                // распределяем атрибуты по товарам
+                foreach (var attr in res.attributes)
+                {
+                    var parent = _products.FirstOrDefault(x => x.sid == attr.product_sid);
+                    if (parent != null)
+                        parent.Attributes.Add(attr);
                 }
-
-                _loadingProgress = 100;
-                await InvokeAsync(StateHasChanged);
             }
-        }
-        catch (Exception e){
-            Console.WriteLine(e);
-            throw;
+
+            _loadingProgress = 100;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
+    
+
+
     public class Product
     {
-        public Product(){
-        }
-
         public long sid{ get; set; }
         public string name{ get; set; } = "";
         public string color{ get; set; } = "";
@@ -368,41 +387,31 @@
         public string? unit_name{ get; set; }
         public List<ProductAttribute> Attributes{ get; set; } = new();
     }
-
-    public class FetchJobDto
-    {
-        public Guid jobid{ get; set; }
-    }
-
+ 
+    
+    public class FetchJobDto { public Guid jobid { get; set; } }
     public class ProgressDto
     {
-        public int total{ get; set; }
+        public int total { get; set; }
 
-        public int processed{ get; set; }
+        public int processed { get; set; }
 
-        public string status{ get; set; } = "";
-    }
-
-    public class ResultDto
-    {
-        public List<Product> products{ get; set; } = new();
-        public List<ProductAttribute> attributes{ get; set; } = new();
-    }
+        public string status { get; set; } = "";
+    }    
+    public class ResultDto { public List<Product> products { get; set; } = new(); public List<ProductAttribute> attributes { get; set; } = new(); }
 
     public class ProductAttribute
     {
-        [JsonPropertyName("product_sid")]
+        // Говорим сериализатору: JSON-поле "product_s" → это product_sid
+        [JsonPropertyName("product_s")]
         public long product_sid { get; set; }
 
         [JsonPropertyName("attr_name")]
-        public string attr_name { get; set; } = "";
-
+        public string attr_name   { get; set; } = "";
+        [JsonPropertyName("value_type")]
+        public string value_type  { get; set; } = "text";
         [JsonPropertyName("value_text")]
         public string? value_text { get; set; }
-
-        // добавляем НЕМАППИРУЕМОЕ поле с дефолтным значением
-        [JsonIgnore] 
-        public string value_type { get; set; } = "text";
     }
 
 }
