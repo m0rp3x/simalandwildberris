@@ -84,8 +84,8 @@ public class WildberriesController : ControllerBase
     }
     
     [HttpPost("updateWbPrices/{wbAccountId:int}")]
-    public async Task<IActionResult> UpdateProduct([FromBody] List<long> productsnmIds, int wbAccountId){
-        var result = await _wildberriesPriceService.PushPricesToWildberriesAsync(productsnmIds, wbAccountId);
+    public async Task<IActionResult> UpdateProduct([FromBody] PriceCalculatorSettingsDto settingsDto, int wbAccountId){
+        var result = await _wildberriesPriceService.PushPricesToWildberriesAsync(settingsDto, wbAccountId);
 
         return Ok(result);
     }

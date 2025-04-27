@@ -1,10 +1,10 @@
 ﻿@page "/price-calculator-settings"
 @using Shared
+@using Shared.Enums
 
 @inject HttpClient Http
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
-@inject PriceCalculatorSettingsDto Settings
 
 <PageTitle>Настройки Калькулятора Цен</PageTitle>
 
@@ -17,74 +17,127 @@
                    Label="Выберите аккаунт"
                    Variant="Variant.Outlined"
                    FullWidth>
-            @foreach (var acct in _accounts)
-            {
-            <MudSelectItem Value="@acct">@acct.Name</MudSelectItem>
+            @foreach (var acct in _accounts){
+                <MudSelectItem Value="@acct">@acct.Name</MudSelectItem>
             }
         </MudSelect>
 
-        <EditForm Model="Settings" OnValidSubmit="SaveSettings">
+        <MudForm @ref="_form" OnValidSubmit="SaveSettings">
             <MudGrid Class="mt-4">
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="Settings.HandlingCost" Label="Стоимость обработки" Variant="Variant.Filled" Immediate="true" />
+                    <MudTextField @bind-Value="Settings.HandlingCost"
+                                  Label="Стоимость обработки"
+                                  Variant="Variant.Filled"
+                                  Immediate="true"
+                                  For="@(() => Settings.HandlingCost)"
+                                  Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="Settings.PackagingCost" Label="Стоимость упаковки" Variant="Variant.Filled" Immediate="true" />
+                    <MudTextField @bind-Value="Settings.PackagingCost"
+                                  Label="Стоимость упаковки"
+                                  Variant="Variant.Filled"
+                                  Immediate="true"
+                                  For="@(() => Settings.PackagingCost)"
+                                  Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="Settings.SalaryCost" Label="Стоимость зарплаты" Variant="Variant.Filled" Immediate="true" />
+                    <MudTextField @bind-Value="Settings.SalaryCost"
+                                  Label="Стоимость зарплаты"
+                                  Variant="Variant.Filled"
+                                  Immediate="true"
+                                  For="@(() => Settings.SalaryCost)"
+                                  Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="Settings.MarginPercent" Label="Маржа (%)" Variant="Variant.Filled" Immediate="true" />
+                    <MudTextField @bind-Value="Settings.MarginPercent"
+                                  Label="Маржа (%)"
+                                  Variant="Variant.Filled"
+                                  Immediate="true"
+                                  For="@(() => Settings.MarginPercent)"
+                                  Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="Settings.RedemptionLossPercent" Label="Процент невыкупа (%)" Variant="Variant.Filled" Immediate="true" />
+                    <MudTextField @bind-Value="Settings.RedemptionLossPercent"
+                                  Label="Процент невыкупа (%)"
+                                  Variant="Variant.Filled"
+                                  Immediate="true"
+                                  For="@(() => Settings.RedemptionLossPercent)"
+                                  Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="Settings.PlannedDiscountPercent" Label="Планируемая скидка (%)" Variant="Variant.Filled" Immediate="true" />
+                    <MudTextField @bind-Value="Settings.PlannedDiscountPercent"
+                                  Label="Планируемая скидка (%)"
+                                  Variant="Variant.Filled"
+                                  Immediate="true"
+                                  For="@(() => Settings.PlannedDiscountPercent)"
+                                  Required="true" />
                 </MudItem>
             </MudGrid>
 
             <MudDivider Class="my-4" />
 
-            <MudButton Type="Submit"
+            <MudButton OnClick="Submit"
                        Variant="Variant.Filled"
                        Color="Color.Primary"
                        Disabled="_selectedAccount == null">
                 Сохранить
             </MudButton>
-        </EditForm>
+        </MudForm>
     </MudStack>
 </MudPaper>
 
 @code {
-private ExternalAccount? _selectedAccount;
-private List<ExternalAccount> _accounts = new();
-private bool _initialized = false;
+    private MudForm _form;
+    private PriceCalculatorSettingsDto Settings = new();
+    private ExternalAccount? _selectedAccount;
+    private List<ExternalAccount> _accounts = new();
+    private bool _initialized = false;
 
-protected override async Task OnAfterRenderAsync(bool firstRender)
-{
-if (firstRender && !_initialized)
-{
-_initialized = true;
-await LoadAccounts();
-StateHasChanged();
-}
-}
+    protected override async Task OnAfterRenderAsync(bool firstRender){
+        if (firstRender && !_initialized){
+            _initialized = true;
+            await LoadAccounts();
+            StateHasChanged();
+        }
+    }
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (_form.IsValid)
+        {
+            await SaveSettings();
+        }
+    }
+    private async Task LoadAccounts(){
+        var accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
+        _accounts = accounts.Where(x=>x.Platform == ExternalAccountType.Wildberries.ToString()).ToList();
+    }
 
-private async Task LoadAccounts()
-{
-_accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
-}
+    private async Task SaveSettings(){
+        if (_selectedAccount == null){
+            Snackbar.Add("Выберите аккаунт перед сохранением.", Severity.Warning);
+            return;
+        }
+        
+        var response = await Http.PostAsJsonAsync($"api/wildberries/updateWbPrices/{_selectedAccount.Id}", Settings);
 
-private async Task SaveSettings()
-{
-if (_selectedAccount == null)
-{
-Snackbar.Add("Выберите аккаунт перед сохранением.", Severity.Warning);
-return;
-}
+        if (response.IsSuccessStatusCode)
+        {
+            var success = await response.Content.ReadFromJsonAsync<bool>();
 
-await DialogService.ShowMessageBox("Успех", $"Настройки для аккаунта {_selectedAccount.Name} сохранены.");
-}
+            if (success)
+            {
+                await DialogService.ShowMessageBox("Успех", $"Настройки для аккаунта {_selectedAccount.Name} сохранены.");
+            }
+            else
+            {
+                Snackbar.Add("Ошибка при сохранении настроек. Сервер вернул false.", Severity.Error);
+            }
+        }
+        else
+        {
+            Snackbar.Add($"Ошибка при сохранении настроек: {response.StatusCode}", Severity.Error);
+        }
+    }
+
 }

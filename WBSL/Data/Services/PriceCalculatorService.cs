@@ -2,58 +2,101 @@
 using Shared;
 using WBSL.Data;
 using WBSL.Data.Services.Wildberries;
+using WBSL.Models;
 
 public class PriceCalculatorService
 {
     private readonly CommissionService _commissionService;
     private readonly BoxTariffService _boxTariffService;
     private readonly QPlannerDbContext _db;
-    private readonly PriceCalculatorSettingsDto _settings;
+    private PriceCalculatorSettingsDto _settings;
 
     public PriceCalculatorService(QPlannerDbContext db, CommissionService commissionService,
-        BoxTariffService boxTariffService, PriceCalculatorSettingsDto settings)
+        BoxTariffService boxTariffService)
     {
         _commissionService = commissionService;
         _boxTariffService = boxTariffService;
         _db = db;
-        _settings = settings;
+        _settings = new PriceCalculatorSettingsDto();
     }
-
-    public async Task<decimal> CalculatePriceAsync(long nmId, int accountId)
+    
+    private List<WbProductCard> _productCards;
+    private List<product> _products;
+    private (decimal BasePrice1, decimal LiterPrice) _boxTariffs;
+    private Dictionary<int, decimal?> _commissionPercents;
+    
+    public async Task PrepareCalculationDataAsync(int accountId)
     {
-        var productCard = await _db.WbProductCards.FirstOrDefaultAsync(p => p.NmID == nmId);
+        _productCards = await _db.WbProductCards
+            .AsNoTracking()
+            .Where(x => x.externalaccount_id == accountId)
+            .ToListAsync();
+
+        var sids = _productCards
+            .Where(pc => long.TryParse(pc.VendorCode, out _))
+            .Select(pc => long.Parse(pc.VendorCode))
+            .Distinct()
+            .ToList();
+
+        _products = await _db.products
+            .AsNoTracking()
+            .Where(p => sids.Contains(p.sid))
+            .ToListAsync();
+        if (_products.Count == 0){
+            throw new Exception("Products not found in database");
+        }
+
+        _boxTariffs = await _boxTariffService.GetCurrentBoxTariffsAsync(accountId);
+
+        var subjectIds = _productCards
+            .Where(pc => pc.SubjectID.HasValue)
+            .Select(pc => pc.SubjectID.Value)
+            .Distinct()
+            .ToList();
+
+        _commissionPercents = new Dictionary<int, decimal?>();
+        foreach (var subjectId in subjectIds)
+        {
+            _commissionPercents[subjectId] = await _commissionService.GetCommissionPercentAsync(subjectId, accountId);
+        }
+    }
+    public Task<decimal> CalculatePriceAsync(long nmId, PriceCalculatorSettingsDto settingsDto, int accountId)
+    {
+        var productCard = _productCards.FirstOrDefault(p => p.NmID == nmId);
 
         if (productCard == null)
-            throw new Exception($"Product with NMID {nmId} not found.");
+            return Task.FromResult(0m);
 
         long sid = long.Parse(productCard?.VendorCode ?? "0");
         if (sid == 0)
-        {
-            throw new Exception($"Product with NMID {nmId} failed to get SID.");
-        }
+            return Task.FromResult(0m);
 
-        var product = await _db.products.FirstOrDefaultAsync(p => p.sid == sid);
-
+        var product = _products.FirstOrDefault(p => p.sid == sid);
         if (product == null)
-            throw new Exception($"Product with SID {nmId} not found.");
+            return Task.FromResult(0m);
 
-        var purchasePrice = product.price ?? 0m; // Оптовая цена
-
+        var purchasePrice = product.price ?? 0m;
         var dimensions = new { product.box_width, product.box_depth, product.box_height };
 
-        var (basePrice1, literPrice) = await _boxTariffService.GetCurrentBoxTariffsAsync(accountId);
-        var logisticsCost = CalculateLogisticsCost(dimensions.box_width.Value, dimensions.box_depth.Value, dimensions.box_height.Value, basePrice1, literPrice);
-        var commissionPercent = await _commissionService.GetCommissionPercentAsync(productCard.SubjectID.Value, accountId);
+        var (basePrice1, literPrice) = _boxTariffs;
 
-        var totalFixedCosts = _settings.HandlingCost + _settings.PackagingCost + _settings.SalaryCost + logisticsCost;
+        var logisticsCost = CalculateLogisticsCost(
+            dimensions.box_width.Value,
+            dimensions.box_depth.Value,
+            dimensions.box_height.Value,
+            basePrice1, literPrice);
 
-        var totalCommissionPercent = _settings.PlannedDiscountPercent + _settings.RedemptionLossPercent + commissionPercent;
+        var commissionPercent = productCard.SubjectID.HasValue && _commissionPercents.TryGetValue(productCard.SubjectID.Value, out var com)
+            ? com
+            : 0m;
 
-        var basePrice = purchasePrice + (purchasePrice * _settings.MarginPercent / 100m) + totalFixedCosts;
+        var totalFixedCosts = settingsDto.HandlingCost + settingsDto.PackagingCost + settingsDto.SalaryCost + logisticsCost;
+        var totalCommissionPercent = settingsDto.PlannedDiscountPercent + settingsDto.RedemptionLossPercent + commissionPercent;
 
+        var basePrice = purchasePrice + (purchasePrice * settingsDto.MarginPercent / 100m) + totalFixedCosts;
         var finalPrice = basePrice / ((100m - totalCommissionPercent) / 100m);
 
-        return Math.Round(finalPrice.Value, 0);
+        return Task.FromResult(Math.Round((decimal)finalPrice, 0));
     }
 
     public Task<int> CalculateDiscountAsync(long nmId)

@@ -61,6 +61,8 @@ builder.Services.Configure<RateLimitConfig>("WildBerries",
     builder.Configuration.GetSection("RateLimits:WildBerries"));
 builder.Services.Configure<RateLimitConfig>("WildBerriesMarketPlace",
     builder.Configuration.GetSection("RateLimits:WildBerriesMarketPlace"));
+builder.Services.Configure<RateLimitConfig>("WildBerriesCommonApi",
+    builder.Configuration.GetSection("RateLimits:WildBerriesCommonApi"));
 
 builder.Services.AddScoped<PlatformHttpClientFactory>(sp =>
     new PlatformHttpClientFactory(
@@ -127,7 +129,7 @@ builder.Services.AddHttpClient("WildBerriesCommonApi",
         client => { client.BaseAddress = new Uri("https://common-api.wildberries.ru/"); })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerriesCommonApi"))
     .AddHttpMessageHandler(sp => {
-        var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesDiscountPrices");
+        var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesCommonApi");
         return new RateLimitedAuthHandler(a, "WildBerriesCommonApi");
     });
 

@@ -146,6 +146,7 @@ public class WildberriesProductsService : WildberriesBaseService
             }
 
             foreach (var product in existingProducts){
+                product.externalaccount_id = externalAccountId;
                 var existing = existingEntities.FirstOrDefault(p => p.NmID == product.NmID);
 
                 if (existing != null){

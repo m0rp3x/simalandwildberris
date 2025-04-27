@@ -1,5 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Shared;
 using Shared.Enums;
 using WBSL.Data.Errors;
 using WBSL.Data.HttpClientFactoryExt;
@@ -23,21 +25,27 @@ public class WildberriesPriceService : WildberriesBaseService
         _priceCalculator = priceCalculator;
     }
     
-    public async Task<bool> PushPricesToWildberriesAsync(List<long> nmIds, int accountId, bool isSync = false)
+    public async Task<bool> PushPricesToWildberriesAsync(PriceCalculatorSettingsDto settingsDto, int accountId, bool isSync = false)
     {
-        if (nmIds == null || nmIds.Count == 0)
-        {
-            throw new ArgumentException("No nmIds provided for price upload.", nameof(nmIds));
-        }
-
         var client = await GetWbClientAsync(accountId, isSync);
         
+        await _priceCalculator.PrepareCalculationDataAsync(accountId); 
+
         var payloadData = new List<object>();
 
+        var nmIds = await _db.WbProductCards
+            .AsNoTracking()
+            .Where(x => x.externalaccount_id == accountId)
+            .Select(x => x.NmID)
+            .ToListAsync();
+        
         foreach (var nmId in nmIds)
         {
-            var price = await _priceCalculator.CalculatePriceAsync(nmId, accountId);
-            var discount = 0;
+            var price = await _priceCalculator.CalculatePriceAsync(nmId, settingsDto, accountId);
+            if (price == 0)
+                continue;
+
+            var discount = settingsDto.PlannedDiscountPercent;
 
             payloadData.Add(new
             {
