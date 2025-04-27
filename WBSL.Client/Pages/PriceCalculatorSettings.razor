@@ -1,0 +1,46 @@
+﻿@page "/price-calculator-settings"
+
+@inject PriceCalculatorService PriceCalculatorService
+@inject PriceCalculatorSettingsDto Settings
+@inject IDialogService DialogService
+
+<PageTitle>Настройки Калькулятора Цен</PageTitle>
+
+<MudPaper Class="p-4">
+    <MudText Typo="Typo.h5" Class="mb-4">Настройки калькулятора цен</MudText>
+
+    <EditForm Model="Settings" OnValidSubmit="SaveSettings">
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="Settings.HandlingCost" Label="Стоимость обработки" Variant="Variant.Filled" Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="Settings.PackagingCost" Label="Стоимость упаковки" Variant="Variant.Filled" Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="Settings.SalaryCost" Label="Стоимость зарплаты" Variant="Variant.Filled" Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="Settings.MarginPercent" Label="Маржа (%)" Variant="Variant.Filled" Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="Settings.RedemptionLossPercent" Label="Процент невыкупа (%)" Variant="Variant.Filled" Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="Settings.PlannedDiscountPercent" Label="Планируемая скидка (%)" Variant="Variant.Filled" Immediate="true" />
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-4" />
+
+        <MudButton Type="Submit" Variant="Variant.Filled" Color="Color.Primary">Сохранить</MudButton>
+    </EditForm>
+</MudPaper>
+
+@code {
+private async Task SaveSettings()
+{
+// Здесь можно добавить сохранение в базу или локальное хранилище
+await DialogService.ShowMessageBox("Успех", "Настройки сохранены.");
+}
+}
