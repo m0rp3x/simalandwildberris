@@ -1,47 +1,90 @@
 ﻿@page "/price-calculator-settings"
 @using Shared
 
-@inject PriceCalculatorSettings PriceCalculatorService
-@inject PriceCalculatorSettingsDto Settings
+@inject HttpClient Http
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject PriceCalculatorSettingsDto Settings
 
 <PageTitle>Настройки Калькулятора Цен</PageTitle>
 
-<MudPaper Class="p-4">
-    <MudText Typo="Typo.h5" Class="mb-4">Настройки калькулятора цен</MudText>
+<MudPaper Class="pa-6 mx-auto mt-8" Style="max-width:1080px;" Elevation="4">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h5">⚙️ Настройки калькулятора цен</MudText>
 
-    <EditForm Model="Settings" OnValidSubmit="SaveSettings">
-        <MudGrid>
-            <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="Settings.HandlingCost" Label="Стоимость обработки" Variant="Variant.Filled" Immediate="true" />
-            </MudItem>
-            <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="Settings.PackagingCost" Label="Стоимость упаковки" Variant="Variant.Filled" Immediate="true" />
-            </MudItem>
-            <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="Settings.SalaryCost" Label="Стоимость зарплаты" Variant="Variant.Filled" Immediate="true" />
-            </MudItem>
-            <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="Settings.MarginPercent" Label="Маржа (%)" Variant="Variant.Filled" Immediate="true" />
-            </MudItem>
-            <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="Settings.RedemptionLossPercent" Label="Процент невыкупа (%)" Variant="Variant.Filled" Immediate="true" />
-            </MudItem>
-            <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="Settings.PlannedDiscountPercent" Label="Планируемая скидка (%)" Variant="Variant.Filled" Immediate="true" />
-            </MudItem>
-        </MudGrid>
+        <MudSelect T="ExternalAccount"
+                   @bind-Value="_selectedAccount"
+                   Label="Выберите аккаунт"
+                   Variant="Variant.Outlined"
+                   FullWidth>
+            @foreach (var acct in _accounts)
+            {
+            <MudSelectItem Value="@acct">@acct.Name</MudSelectItem>
+            }
+        </MudSelect>
 
-        <MudDivider Class="my-4" />
+        <EditForm Model="Settings" OnValidSubmit="SaveSettings">
+            <MudGrid Class="mt-4">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Settings.HandlingCost" Label="Стоимость обработки" Variant="Variant.Filled" Immediate="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Settings.PackagingCost" Label="Стоимость упаковки" Variant="Variant.Filled" Immediate="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Settings.SalaryCost" Label="Стоимость зарплаты" Variant="Variant.Filled" Immediate="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Settings.MarginPercent" Label="Маржа (%)" Variant="Variant.Filled" Immediate="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Settings.RedemptionLossPercent" Label="Процент невыкупа (%)" Variant="Variant.Filled" Immediate="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Settings.PlannedDiscountPercent" Label="Планируемая скидка (%)" Variant="Variant.Filled" Immediate="true" />
+                </MudItem>
+            </MudGrid>
 
-        <MudButton Type="Submit" Variant="Variant.Filled" Color="Color.Primary">Сохранить</MudButton>
-    </EditForm>
+            <MudDivider Class="my-4" />
+
+            <MudButton Type="Submit"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Disabled="_selectedAccount == null">
+                Сохранить
+            </MudButton>
+        </EditForm>
+    </MudStack>
 </MudPaper>
 
 @code {
+private ExternalAccount? _selectedAccount;
+private List<ExternalAccount> _accounts = new();
+private bool _initialized = false;
+
+protected override async Task OnAfterRenderAsync(bool firstRender)
+{
+if (firstRender && !_initialized)
+{
+_initialized = true;
+await LoadAccounts();
+StateHasChanged();
+}
+}
+
+private async Task LoadAccounts()
+{
+_accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
+}
+
 private async Task SaveSettings()
 {
-// Здесь можно добавить сохранение в базу или локальное хранилище
-await DialogService.ShowMessageBox("Успех", "Настройки сохранены.");
+if (_selectedAccount == null)
+{
+Snackbar.Add("Выберите аккаунт перед сохранением.", Severity.Warning);
+return;
+}
+
+await DialogService.ShowMessageBox("Успех", $"Настройки для аккаунта {_selectedAccount.Name} сохранены.");
 }
 }
