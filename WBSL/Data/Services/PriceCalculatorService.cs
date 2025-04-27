@@ -25,7 +25,7 @@ public class PriceCalculatorService
     private (decimal BasePrice1, decimal LiterPrice) _boxTariffs;
     private Dictionary<int, decimal?> _commissionPercents;
     
-    public async Task PrepareCalculationDataAsync(int accountId)
+    public async Task<List<long>> PrepareCalculationDataAsync(int accountId)
     {
         _productCards = await _db.WbProductCards
             .AsNoTracking()
@@ -59,6 +59,16 @@ public class PriceCalculatorService
         {
             _commissionPercents[subjectId] = await _commissionService.GetCommissionPercentAsync(subjectId, accountId);
         }
+        var matchedVendorCodes = _products
+            .Select(p => p.sid.ToString())
+            .ToHashSet(); // Быстрая проверка
+
+        var matchedNmIds = _productCards
+            .Where(pc => pc.VendorCode != null && matchedVendorCodes.Contains(pc.VendorCode))
+            .Select(pc => pc.NmID)
+            .ToList();
+
+        return matchedNmIds;
     }
     public Task<decimal> CalculatePriceAsync(long nmId, PriceCalculatorSettingsDto settingsDto, int accountId)
     {

@@ -29,15 +29,9 @@ public class WildberriesPriceService : WildberriesBaseService
     {
         var client = await GetWbClientAsync(accountId, isSync);
         
-        await _priceCalculator.PrepareCalculationDataAsync(accountId); 
+        var nmIds = await _priceCalculator.PrepareCalculationDataAsync(accountId); 
 
         var payloadData = new List<object>();
-
-        var nmIds = await _db.WbProductCards
-            .AsNoTracking()
-            .Where(x => x.externalaccount_id == accountId)
-            .Select(x => x.NmID)
-            .ToListAsync();
         
         foreach (var nmId in nmIds)
         {
