@@ -7,6 +7,7 @@ using System.Text;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
+using Shared;
 using WBSL.Client.Data.Services;
 using WBSL.Data.Config;
 using WBSL.Data.Handlers;
@@ -86,6 +87,9 @@ builder.Services.AddScoped<ISimaLandService, SimaLandService>();
 
 builder.Services.AddScoped<SimalandClientService>();
 builder.Services.AddHostedService<BalanceUpdateScheduler>();
+builder.Services.AddSingleton<PriceCalculatorSettingsDto>(); // Настройки (одни на всё приложение)
+
+builder.Services.AddScoped<PriceCalculatorService>(); // Сам сервис калькулятора цен
 
 builder.Services
     .AddHttpClient("SimaLand", client => { client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/"); })
