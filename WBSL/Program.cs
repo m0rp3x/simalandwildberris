@@ -61,6 +61,8 @@ builder.Services.Configure<RateLimitConfig>("WildBerries",
     builder.Configuration.GetSection("RateLimits:WildBerries"));
 builder.Services.Configure<RateLimitConfig>("WildBerriesMarketPlace",
     builder.Configuration.GetSection("RateLimits:WildBerriesMarketPlace"));
+builder.Services.Configure<RateLimitConfig>("WildBerriesDiscountPrices",
+    builder.Configuration.GetSection("RateLimits:WildBerriesDiscountPrices"));
 builder.Services.Configure<RateLimitConfig>("WildBerriesCommonApi",
     builder.Configuration.GetSection("RateLimits:WildBerriesCommonApi"));
 
