@@ -4,6 +4,7 @@
 @using System.Text.Json.Serialization
 @using Shared
 @inject HttpClient Http
+@inject ISnackbar Snackbar
 @inject IJSRuntime JS
 
 <MudPaper Class="p-6 mx-auto mt-8" Style="max-width: 1600px;" Elevation="4">
@@ -108,30 +109,51 @@
 
 
 
-    private async Task DownloadPhotosForProduct(long sid){
-        var product = _products.FirstOrDefault(p => p.sid == sid);
-        if (product is null){
-            _resultJson = $"Товар с артикулом {sid} не найден в списке.";
+    private async Task DownloadPhotosForAll()
+    {
+        if (!_products.Any())
+        {
+            Snackbar.Add("⚠️ Нет товаров для скачивания.", Severity.Warning);
             return;
         }
 
-        var response = await Http.PostAsJsonAsync("api/simaland/download-photos", new List<Product>{ product });
-        _resultJson = response.IsSuccessStatusCode
-            ? $"Фото артикула {sid} скачаны успешно."
-            : $"Ошибка при скачивании фото артикула {sid}: {response.StatusCode}";
-    }
-
-    private async Task DownloadPhotosForAll(){
-        if (!_products.Any()){
-            _resultJson = "Нет товаров для скачивания.";
-            return;
-        }
+        Snackbar.Add("⏳ Начинаем скачивание всех фото...", Severity.Info);
 
         var response = await Http.PostAsJsonAsync("api/simaland/download-photos", _products);
-        _resultJson = response.IsSuccessStatusCode
-            ? "Фото для всех товаров скачаны успешно."
-            : $"Ошибка при скачивании: {response.StatusCode}";
+
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("✅ Все фото успешно скачаны!", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add($"❌ Ошибка при скачивании фото: {response.StatusCode}", Severity.Error);
+        }
     }
+
+    private async Task DownloadPhotosForProduct(long sid)
+    {
+        var product = _products.FirstOrDefault(p => p.sid == sid);
+        if (product is null)
+        {
+            Snackbar.Add($"⚠️ Товар с артикулом {sid} не найден.", Severity.Warning);
+            return;
+        }
+
+        Snackbar.Add($"⏳ Скачиваем фото для артикула {sid}...", Severity.Info);
+
+        var response = await Http.PostAsJsonAsync("api/simaland/download-photos", new List<Product> { product });
+
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add($"✅ Фото для артикула {sid} успешно скачаны!", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add($"❌ Ошибка при скачивании фото артикула {sid}: {response.StatusCode}", Severity.Error);
+        }
+    }
+
 
 
     private async Task DownloadExcel()
@@ -264,7 +286,6 @@
 
     private async Task StoreToDatabase()
     {
-        // Собираем все атрибуты из продуктов
         var flattenedAttributes = _products
             .SelectMany(p => p.Attributes)
             .Select(a => new ProductAttribute
@@ -276,23 +297,23 @@
             })
             .ToList();
 
-        // Формируем DTO для отправки на сервер
         var storeRequest = new ResultDto
         {
             products   = _products,
             attributes = flattenedAttributes
         };
 
-        // Отправляем строго типизированный объект
+        Snackbar.Add("⏳ Загрузка товаров в базу...", Severity.Info);
+
         var res = await Http.PostAsJsonAsync("api/simaland/store", storeRequest);
 
         if (res.IsSuccessStatusCode)
         {
-            _resultJson = "Успешно загружено в базу!";
+            Snackbar.Add("✅ Товары успешно загружены в базу данных!", Severity.Success);
         }
         else
         {
-            _resultJson = $"Ошибка загрузки: {res.StatusCode}";
+            Snackbar.Add($"❌ Ошибка загрузки в базу: {res.StatusCode}", Severity.Error);
         }
 
         await InvokeAsync(StateHasChanged);
@@ -301,14 +322,32 @@
     
     async Task StartFetch()
     {
-        var req = new { AccountId = _selectedAccount!.Id, Articles = _rawArticles.Split(',').Select(long.Parse).ToList() };
+        var articleIds = _rawArticles.Split(',')
+            .Select(article => TryParseLong(article, out var result) ? result : (long?)null)
+            .Where(id => id.HasValue)  // Отбираем только те, которые успешно преобразованы
+            .Select(id => id.Value)    // Преобразуем из Nullable<long> в обычный long
+            .ToList();
+
+        var successfullyParsedCount = articleIds.Count;
+        var failedCount = _rawArticles.Split(',').Length - successfullyParsedCount;
+
+        // Делаем запрос
+        var req = new { AccountId = _selectedAccount!.Id, Articles = articleIds };
         var resp = await Http.PostAsJsonAsync("api/simaland/fetch-job", req);
         resp.EnsureSuccessStatusCode();
         var data = await resp.Content.ReadFromJsonAsync<FetchJobDto>();
         _currentJob = data?.jobid;
+        
+        Snackbar.Add($"Загружено {successfullyParsedCount} товаров, не прошло проверку: {failedCount}", Severity.Info);
+
         _ = PollProgress();
     }
 
+    private bool TryParseLong(string value, out long result)
+    {
+        return long.TryParse(value, out result);
+    }
+    
     async Task PollProgress()
     {
         if (_currentJob == null) return;
