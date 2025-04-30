@@ -42,7 +42,23 @@ public class WildberriesCharacteristicsService : WildberriesBaseService
     private async Task<IEnumerable<string>> GetColorNames(int accountId)
     {
         var colors = await GetWbColorsApiAsync(accountId);
-        return colors.Select(c => c.Name).Distinct().ToList();
+        
+        var parentNames = colors
+            .Select(c => c.ParentName)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct()
+            .ToList();
+
+        // Собираем все ненулевые/непустые name, которые не равны ни одному из parentName
+        var childNames = colors
+            .Select(c => c.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct()
+            .Where(n => !parentNames.Contains(n))
+            .ToList();
+
+        // Сначала все parent-цвета, затем оттенки
+        return parentNames.Concat(childNames);
     }
 
     private async Task<IEnumerable<string>> GetKindNames(int accountId)

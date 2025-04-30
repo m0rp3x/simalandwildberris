@@ -57,7 +57,7 @@ public static class WbFieldInfoHelper
                 DisplayName = "Вес брутто",
                 GroupName = "Габариты (в см / кг)",
                 Getter = () => dimensions.WeightBrutto,
-                Setter = val => dimensions.WeightBrutto = Convert.ToDecimal(val)
+                Setter = val => dimensions.WeightBrutto = (double?)Convert.ToDecimal(val)
             }
         };
     }

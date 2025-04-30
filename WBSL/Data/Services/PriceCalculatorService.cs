@@ -86,6 +86,11 @@ public class PriceCalculatorService
             return Task.FromResult(0m);
 
         var purchasePrice = product.price ?? 0m;
+        
+        var effectivePurchasePrice = settingsDto.IsMinimal
+            ? purchasePrice * product.qty_multiplier
+            : purchasePrice;
+        
         var dimensions = new { product.box_width, product.box_depth, product.box_height };
 
         var (basePrice1, literPrice) = _boxTariffs;
@@ -103,7 +108,7 @@ public class PriceCalculatorService
         var totalFixedCosts = settingsDto.HandlingCost + settingsDto.PackagingCost + settingsDto.SalaryCost + logisticsCost;
         var totalCommissionPercent = settingsDto.PlannedDiscountPercent + settingsDto.RedemptionLossPercent + commissionPercent;
 
-        var basePrice = purchasePrice + (purchasePrice * settingsDto.MarginPercent / 100m) + totalFixedCosts;
+        var basePrice = effectivePurchasePrice + (effectivePurchasePrice * settingsDto.MarginPercent / 100m) + totalFixedCosts;
         var finalPrice = basePrice / ((100m - totalCommissionPercent) / 100m);
 
         return Task.FromResult(Math.Round((decimal)finalPrice, 0));

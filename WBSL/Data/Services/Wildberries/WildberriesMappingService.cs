@@ -55,8 +55,18 @@ public class WildberriesMappingService
                     case FieldMappingType.Characteristic:
                         var charId = ExtractCharId(mapping.WbFieldName);
                         var parsedValue = ParseCharValue(value);
-
-                        parsedValue = SubstituteCharacteristicValue(parsedValue, mapping.DisplayName,
+                        string rawName = mapping.SourceProperty ?? "";
+                        string characteristicName;
+                        
+                        if (rawName.StartsWith("Attr_", StringComparison.OrdinalIgnoreCase) && rawName.Length > 5)
+                        {
+                            characteristicName = rawName.Substring(5);
+                        }
+                        else
+                        {
+                            characteristicName = rawName;
+                        }
+                        parsedValue = SubstituteCharacteristicValue(parsedValue, characteristicName,
                             request.CharacteristicValueMappings);
 
                         if (mapping.CharacteristicDataType != null){
@@ -152,23 +162,27 @@ public class WildberriesMappingService
     private object SubstituteCharacteristicValue(object value, string characteristicName,
         List<CharacteristicValueMapping> substitutions){
         if (value is string sValue){
-            var mapped = substitutions.FirstOrDefault(x =>
-                x.CharacteristicName.Equals(characteristicName, StringComparison.OrdinalIgnoreCase) &&
-                x.SimalandValue.Equals(sValue, StringComparison.OrdinalIgnoreCase));
+            var mapping = substitutions
+                .FirstOrDefault(x =>
+                    x.CharacteristicName.Equals(characteristicName, StringComparison.OrdinalIgnoreCase) &&
+                    x.SimalandValue.Equals(sValue, StringComparison.OrdinalIgnoreCase));
 
-            return mapped?.WildberriesValue ?? value;
+            // Берём WildberriesValue из mapping, если оно не пустое; иначе – исходное
+            var mapped = mapping?.WildberriesValue;
+            return !string.IsNullOrWhiteSpace(mapped) ? mapped : sValue;
         }
 
         if (value is List<string> list){
-            var newList = list.Select(item => {
-                var mapped = substitutions.FirstOrDefault(x =>
-                    x.CharacteristicName.Equals(characteristicName, StringComparison.OrdinalIgnoreCase) &&
-                    x.SimalandValue.Equals(item, StringComparison.OrdinalIgnoreCase));
+            return list.Select(item =>
+            {
+                var mapping = substitutions
+                    .FirstOrDefault(x =>
+                        x.CharacteristicName.Equals(characteristicName, StringComparison.OrdinalIgnoreCase) &&
+                        x.SimalandValue.Equals(item, StringComparison.OrdinalIgnoreCase));
 
-                return mapped?.WildberriesValue ?? item;
+                var mapped = mapping?.WildberriesValue;
+                return !string.IsNullOrWhiteSpace(mapped) ? mapped : item;
             }).ToList();
-
-            return newList;
         }
 
         return value;

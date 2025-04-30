@@ -18,7 +18,7 @@
                    Variant="Variant.Outlined"
                    FullWidth>
             @foreach (var acct in _accounts){
-                <MudSelectItem Value="@acct">@acct.Name</MudSelectItem>
+                <MudSelectItem Value="@acct">@acct.Name</MudSelectItem>     
             }
         </MudSelect>
 
@@ -71,6 +71,11 @@
                                   Immediate="true"
                                   For="@(() => Settings.PlannedDiscountPercent)"
                                   Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudCheckBox T="bool" @bind-Checked="Settings.IsMinimal"
+                                 Label="Минимальное количество"
+                                 Variant="Variant.Filled" />
                 </MudItem>
             </MudGrid>
 

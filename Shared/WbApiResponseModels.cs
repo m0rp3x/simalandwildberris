@@ -73,7 +73,7 @@ public class WbCreateVariantDto
                 Length = FixDimension(dto.Dimensions.Length),
                 Width = FixDimension(dto.Dimensions.Width),
                 Height = FixDimension(dto.Dimensions.Height),
-                WeightBrutto = Math.Round(dto.Dimensions.WeightBrutto, 3),
+                WeightBrutto = Math.Round((decimal)dto.Dimensions.WeightBrutto, 3),
             }
             : new WbDimensionsDtoToApi();
         Characteristics = dto.Characteristics ?? new List<WbCharacteristicDto>();
@@ -129,7 +129,7 @@ public class WbCreateVariantInternalDto : WbCreateVariantDto
                 Length = FixDimension(dimensions.Length),
                 Width = FixDimension(dimensions.Width),
                 Height = FixDimension(dimensions.Height),
-                WeightBrutto = Math.Round(dimensions.WeightBrutto, 3)
+                WeightBrutto = Math.Round((decimal)dimensions.WeightBrutto, 3)
             }
             : new WbDimensionsDtoToApi();
         
@@ -180,7 +180,7 @@ public class WbDimensionsDto
     public int Width{ get; set; }
     public int Height{ get; set; }
     public int Length{ get; set; }
-    public decimal WeightBrutto{ get; set; }
+    public double? WeightBrutto{ get; set; }
     public bool IsValid{ get; set; }
 }
 

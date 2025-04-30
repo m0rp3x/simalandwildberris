@@ -52,13 +52,14 @@
                              Label="Родительская категория"
                              SearchFunc="(q, t) => SearchBaseCategories(q, t)"
                              ToStringFunc="@((x) => x?.Name )"
-                             @bind-Value="SelectedBaseCategory" Dense="true" Class="mt-2"/>
+                             @bind-Value="SelectedBaseCategory" Dense="true" Class="mt-2" MaxItems="1000"/>
         </MudItem>
         <MudItem xs="6" sm="6" md="4">
             <MudAutocomplete T="WbCategoryDto"
                              Label="Дочерняя категория"
                              SearchFunc="(q, t) => SearchChildCategories(q, t)"
                              ToStringFunc="@((x) => x?.Name ?? "")"
+                             MaxItems="1000"
                              Value="SelectedChildCategory"
                              Dense="true"
                              Disabled="@(SelectedBaseCategory is null)"
@@ -129,34 +130,52 @@
         <MudDivider Class="my-6"/>
         <MudText Typo="Typo.h6">Мапинг значений характеристик</MudText>
 
-        <MudTable Items="CharacteristicValueMappings">
-            <HeaderContent>
-                <MudTh>Характеристика</MudTh>
-                <MudTh>Значение из SimaLand</MudTh>
-                <MudTh>Значение для Wildberries</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@context.CharacteristicName</MudTd>
-                <MudTd>
-                    <MudTextField @bind-Value="context.SimalandValue" Placeholder="значение из SimaLand"/>
-                </MudTd>
-                <MudTd>
-                    @if (IsAutocompleteSupported(context.CharacteristicName)){
-                        <MudAutocomplete T="string"
-                                         Value="@context.WildberriesValue"
-                                         ValueChanged="val => context.WildberriesValue = val"
-                                         SearchFunc="(q, ct) => SearchCharacteristicValues(context.CharacteristicName, q, ct)"
-                                         ToStringFunc="x => x"
-                                         MinCharacters="1"
-                                         Placeholder="значение для WB"
-                                         Dense="true"/>
+ <MudTable Items="CharacteristicValueMappings">
+    <HeaderContent>
+        <MudTh>Характеристика</MudTh>
+        <MudTh>Значение из SimaLand</MudTh>
+        <MudTh>Значение для Wildberries</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.CharacteristicName</MudTd>
+        <MudTd>
+            <MudTextField @bind-Value="context.SimalandValue"
+                          ReadOnly="true"
+                          Placeholder="значение из SimaLand" />
+        </MudTd>
+        <MudTd>
+            @if (IsAutocompleteSupported(context.CharacteristicName))
+            {
+                <!-- Оставляем автокомплит для «Цвет», «Пол», «Страна производства» и т.п. -->
+                <MudAutocomplete T="string"
+                                 @bind-Value="context.WildberriesValue"
+                                 Dense="true"
+                                 MinCharacters="1"
+                                 Placeholder="значение для WB"
+                                 SearchFunc="(q, ct) => SearchCharacteristicValues(context.CharacteristicName, q, ct)"
+                                 ToStringFunc="x => x" />
+            }
+            else
+            {
+                <!-- Выпадающий список со всеми значениями из SimaLand -->
+                <MudSelect T="string"
+                           @bind-Value="context.WildberriesValue"
+                           Dense="true"
+                           Placeholder="значение для WB">
+                    <MudSelectItem Value="@string.Empty">– не выбрано –</MudSelectItem>
+                    @foreach (var option in CharacteristicValueMappings
+                                             .Where(m => m.CharacteristicName == context.CharacteristicName)
+                                             .Select(m => m.SimalandValue)
+                                             .Distinct())
+                    {
+                        <MudSelectItem Value="@option">@option</MudSelectItem>
                     }
-                    else{
-                        <MudTextField @bind-Value="context.WildberriesValue" Placeholder="значение для WB"/>
-                    }
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
+                </MudSelect>
+            }
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
 
         <MudButton OnClick="SendToBackend" Variant="Variant.Filled" Color="Color.Success" Class="mt-4">
             Создать товар в вб
@@ -385,8 +404,22 @@
                 continue;
 
             if (!_autocompleteFields.Contains(attr.Name))
-                continue;
+            {
+                var values2 = attr.Value.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(v => v.Trim())
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .Distinct();
 
+                foreach (var val in values2){
+                    result.Add(new CharacteristicValueMapping{
+                        CharacteristicName = attr.Name,
+                        SimalandValue = val,
+                        WildberriesValue = ""
+                    });
+                }
+                continue;
+            }
+            
             var values = attr.Value.Split(';', StringSplitOptions.RemoveEmptyEntries)
                 .Select(v => v.Trim())
                 .Where(v => !string.IsNullOrWhiteSpace(v))

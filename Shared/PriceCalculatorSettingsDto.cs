@@ -16,4 +16,6 @@ public class PriceCalculatorSettingsDto
     public decimal RedemptionLossPercent { get; set; } = 3m; // Процент невыкупа
     [Required]
     public decimal PlannedDiscountPercent { get; set; } = 60m; // Планируемая скидка
+    [Required]
+    public bool IsMinimal { get; set; } = false;
 }

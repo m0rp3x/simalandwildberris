@@ -47,7 +47,7 @@ public class SimalandProductDto
     public int? vat{ get; set; }
     [Display(Name = "Торговая марка")]
     public string? trademark_name{ get; set; }
-    [Display(Name = "Страна")]
+    [Display(Name = "Страна производства")]
     public string? country_name{ get; set; }
     public string? unit_name{ get; set; }
     public List<ProductAttribute> Attributes{ get; set; } = new();
