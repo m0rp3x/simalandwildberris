@@ -51,7 +51,7 @@
             <MudAutocomplete T="WbCategoryDto"
                              Label="Родительская категория"
                              SearchFunc="(q, t) => SearchBaseCategories(q, t)"
-                             ToStringFunc="@((x) => x?.Name )"
+                             ToStringFunc="@((x) => x?.Name)"
                              @bind-Value="SelectedBaseCategory" Dense="true" Class="mt-2" MaxItems="1000"/>
         </MudItem>
         <MudItem xs="6" sm="6" md="4">
@@ -67,7 +67,7 @@
                              Class="mt-2"/>
         </MudItem>
     </MudGrid>
-    
+
     <MudButton OnClick="CheckCategoryMapping" Disabled="@(!CanSearch)" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
         Проверить
     </MudButton>
@@ -93,7 +93,8 @@
             <MudTh>Поле Wildberries</MudTh>
             <MudTh>Источник SimaLand</MudTh>
 
-            @foreach (var group in Mappings.GroupBy(m => m.Type)){
+            @foreach (var group in Mappings
+                          .GroupBy(m => m.Type == FieldMappingType.Characteristic ? "Characteristic+Text" : m.Type.ToString())){
                 <MudTr>
                     <MudTd ColSpan="2">
                         <MudText Typo="Typo.subtitle2" Color="Color.Primary">
@@ -102,7 +103,7 @@
                     </MudTd>
                 </MudTr>
 
-                @foreach (var context in group){
+                @foreach (var context in GetGroupedContexts(group.Key)){
                     <MudTr>
                         <MudTd>@context.DisplayName</MudTd>
                         <MudTd>
@@ -254,17 +255,16 @@
 
             if (string.IsNullOrEmpty(SelectedSimalandAttribute)){
                 var simalandAttrName = await Client.GetStringAsync($"api/wildberries/suggest-simaland-category?categoryId={categoryId}");
-            
+
                 SelectedSimalandAttribute = simalandAttrName;
             }
-            
+
             SimalandAttributes = await Client.GetFromJsonAsync<List<SimalandAttributeDto>>($"api/simaland/attributes?categoryName={SelectedSimalandAttribute}") ?? new();
 
             _characteristicInfos = await Client.GetFromJsonAsync<List<WbAdditionalCharacteristicDto>>(
                 $"api/Wildberries/characteristics/{SelectedChildCategory.Id}/{SelectedWbAccount.Id}") ?? new();
 
             CharacteristicValueMappings = GenerateValueMappings(SimalandAttributes);
-
 
             FieldMappingHelper.MergeCharacteristicMappings(Mappings, _characteristicInfos);
             FieldMappingHelper.SanitizeMappings(Mappings, SimalandAttributes);
@@ -326,8 +326,8 @@
         try{
             var response = await Client.PostAsJsonAsync($"api/Wildberries/createWbItem/{SelectedWbAccount.Id}", dto);
 
-            var extendedResult  = await response.Content.ReadFromJsonAsync<WbApiExtendedResult>();
-            LastWbResult = extendedResult ?.Result;
+            var extendedResult = await response.Content.ReadFromJsonAsync<WbApiExtendedResult>();
+            LastWbResult = extendedResult?.Result;
 
             if (response.IsSuccessStatusCode && LastWbResult is{ Error: false }){
                 var successfulCount = extendedResult?.SuccessfulVendorCodes?.Count ?? 0;
@@ -339,6 +339,7 @@
                 if (successfulCount > 0){
                     LastWbSummary = $"✅ Успешно создано товаров: {successfulCount}";
                 }
+
                 LastWbSummary = $"❌ Ошибка: {LastWbResult.ErrorText ?? "Неизвестная ошибка"}";
                 Snackbar.Add(LastWbSummary, Severity.Error);
 
@@ -348,7 +349,6 @@
                     }
                 }
             }
-            
         }
         catch (Exception ex){
             LastWbSummary = $"❌ Ошибка при отправке: {ex.Message}";
@@ -377,7 +377,12 @@
             Snackbar.Add("✅ JSON ошибки скопирован в буфер", Severity.Info);
         }
     }
-
+    
+    bool IsNumeric(string input)
+    {
+        return double.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _);
+    }
+    
     private List<CharacteristicValueMapping> GenerateValueMappings(List<SimalandAttributeDto> attributes){
         var result = new List<CharacteristicValueMapping>();
 
@@ -385,23 +390,26 @@
             if (string.IsNullOrWhiteSpace(attr.Name) || string.IsNullOrWhiteSpace(attr.Value))
                 continue;
 
-            if (!_autocompleteFields.Contains(attr.Name))
-            {
+            if (!_autocompleteFields.Contains(attr.Name)){
                 var values2 = attr.Value.Split(';', StringSplitOptions.RemoveEmptyEntries)
                     .Select(v => v.Trim())
                     .Where(v => !string.IsNullOrWhiteSpace(v))
                     .Distinct();
 
                 foreach (var val in values2){
+                    if (IsNumeric(val))
+                        continue;
+                    
                     result.Add(new CharacteristicValueMapping{
                         CharacteristicName = attr.Name,
                         SimalandValue = val,
                         WildberriesValue = ""
                     });
                 }
+
                 continue;
             }
-            
+
             var values = attr.Value.Split(';', StringSplitOptions.RemoveEmptyEntries)
                 .Select(v => v.Trim())
                 .Where(v => !string.IsNullOrWhiteSpace(v))
@@ -445,7 +453,18 @@
             return Enumerable.Empty<string>();
         }
     }
-
+    
+    private string GetGroupHeader(string key)
+    {
+        return key switch
+        {
+            "Characteristic+Text" => "Характеристики",
+            "Text" => "Основные поля",
+            "Dimension" => "Габариты",
+            _ => key
+        };
+    }
+    
     private string GetGroupHeader(FieldMappingType type) => type switch{
         FieldMappingType.Text => "Основные поля",
         FieldMappingType.Dimension => "Габариты",
@@ -456,6 +475,15 @@
     private async Task OnAttributeChange(string val){
         SelectedSimalandAttribute = val;
         await CheckCategoryMapping();
+    }
+
+    private IEnumerable<FieldMapping> GetGroupedContexts(string groupKey){
+        return groupKey switch{
+            "Characteristic+Text" => Mappings.Where(m => m.Type == FieldMappingType.Characteristic || m.Type == FieldMappingType.Text),
+            "Text" => Mappings.Where(m => m.Type == FieldMappingType.Text),
+            "Dimension" => Mappings.Where(m => m.Type == FieldMappingType.Dimension),
+            _ => Enumerable.Empty<FieldMapping>()
+        };
     }
 
 }
