@@ -361,7 +361,9 @@
 
     private List<SimalandFieldInfo> SimalandFields => typeof(SimalandProductDto)
         .GetProperties()
-        .Where(p => p.PropertyType == typeof(string) || p.PropertyType.IsValueType)
+        .Where(p =>
+            (p.PropertyType == typeof(string) || p.PropertyType.IsValueType) &&
+            p.GetCustomAttribute<DisplayAttribute>() != null)
         .Select(p => new SimalandFieldInfo{
             PropertyName = p.Name,
             DisplayName = p.GetCustomAttribute<DisplayAttribute>()?.Name ?? p.Name
@@ -458,7 +460,7 @@
 
     private string GetGroupHeader(string key){
         return key switch{
-            "Characteristic+Text" => "Характеристики",
+            "Characteristic" => "Характеристики",
             "Text" => "Основные поля",
             "Dimension" => "Габариты",
             _ => key

@@ -223,6 +223,10 @@ public partial class QPlannerDbContext : DbContext
             entity.Property(e => e.width)
                 .HasPrecision(10, 2)
                 .HasDefaultValueSql("0");
+            entity.Property(e => e.country_name)
+                .HasColumnName("country_name")
+                .HasMaxLength(255)
+                .IsRequired(false); 
         });
 
         modelBuilder.Entity<product_attribute>(entity =>
