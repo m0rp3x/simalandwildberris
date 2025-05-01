@@ -1,8 +1,8 @@
 ﻿using System.Collections.Concurrent;
 using System.Text.Json;
 using EFCore.BulkExtensions;
+using FuzzySharp;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Shared;
 using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Models;
@@ -119,9 +119,8 @@ public class WildberriesCategoryService : WildberriesBaseService
 
         string? FindBestMatch(List<string> list, string target)
         {
-            return list.FirstOrDefault(x => string.Equals(x.Trim(), target.Trim(), StringComparison.OrdinalIgnoreCase))
-                   ?? list.FirstOrDefault(x => x.Contains(target, StringComparison.OrdinalIgnoreCase))
-                   ?? list.FirstOrDefault();
+            var result = Process.ExtractOne(target, list);
+            return result?.Score >= 60 ? result.Value : null;
         }
 
         var bestMatch = FindBestMatch(simaCategories, wbCategory);
