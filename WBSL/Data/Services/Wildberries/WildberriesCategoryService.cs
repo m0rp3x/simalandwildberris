@@ -119,8 +119,13 @@ public class WildberriesCategoryService : WildberriesBaseService
 
         string? FindBestMatch(List<string> list, string target)
         {
-            var result = Process.ExtractOne(target, list);
-            return result?.Score >= 60 ? result.Value : null;
+            var result = list
+                .Select(item => new {
+                    Item = item,
+                    Score = Fuzz.TokenSortRatio(item, target)
+                }).MaxBy(x => x.Score);
+
+            return result?.Score >= 70 ? result.Item : null;
         }
 
         var bestMatch = FindBestMatch(simaCategories, wbCategory);

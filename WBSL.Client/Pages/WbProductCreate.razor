@@ -93,17 +93,16 @@
             <MudTh>Поле Wildberries</MudTh>
             <MudTh>Источник SimaLand</MudTh>
 
-            @foreach (var group in Mappings
-                          .GroupBy(m => m.Type == FieldMappingType.Characteristic ? "Characteristic+Text" : m.Type.ToString())){
+            @foreach (var groupKey in GetGroupKeys()){
                 <MudTr>
                     <MudTd ColSpan="2">
                         <MudText Typo="Typo.subtitle2" Color="Color.Primary">
-                            @GetGroupHeader(group.Key)
+                            @GetGroupHeader(groupKey)
                         </MudText>
                     </MudTd>
                 </MudTr>
 
-                @foreach (var context in GetGroupedContexts(group.Key)){
+                @foreach (var context in GetGroupedContexts(groupKey)){
                     <MudTr>
                         <MudTd>@context.DisplayName</MudTd>
                         <MudTd>
@@ -114,6 +113,10 @@
                                 @if (context.Type == FieldMappingType.Characteristic){
                                     @foreach (var attr in SimalandAttributes){
                                         <MudSelectItem Value="@($"Attr_{attr.Name}")">@attr.Name</MudSelectItem>
+                                    }
+
+                                    @foreach (var prop in SimalandFields){
+                                        <MudSelectItem Value="@prop.PropertyName">@prop.DisplayName</MudSelectItem>
                                     }
                                 }
                                 else{
@@ -377,12 +380,11 @@
             Snackbar.Add("✅ JSON ошибки скопирован в буфер", Severity.Info);
         }
     }
-    
-    bool IsNumeric(string input)
-    {
+
+    bool IsNumeric(string input){
         return double.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _);
     }
-    
+
     private List<CharacteristicValueMapping> GenerateValueMappings(List<SimalandAttributeDto> attributes){
         var result = new List<CharacteristicValueMapping>();
 
@@ -399,7 +401,7 @@
                 foreach (var val in values2){
                     if (IsNumeric(val))
                         continue;
-                    
+
                     result.Add(new CharacteristicValueMapping{
                         CharacteristicName = attr.Name,
                         SimalandValue = val,
@@ -453,18 +455,16 @@
             return Enumerable.Empty<string>();
         }
     }
-    
-    private string GetGroupHeader(string key)
-    {
-        return key switch
-        {
+
+    private string GetGroupHeader(string key){
+        return key switch{
             "Characteristic+Text" => "Характеристики",
             "Text" => "Основные поля",
             "Dimension" => "Габариты",
             _ => key
         };
     }
-    
+
     private string GetGroupHeader(FieldMappingType type) => type switch{
         FieldMappingType.Text => "Основные поля",
         FieldMappingType.Dimension => "Габариты",
@@ -477,9 +477,20 @@
         await CheckCategoryMapping();
     }
 
+    private List<string> GetGroupKeys(){
+        var keys = new List<string>();
+        if (Mappings.Any(m => m.Type == FieldMappingType.Text))
+            keys.Add("Text");
+        if (Mappings.Any(m => m.Type == FieldMappingType.Dimension))
+            keys.Add("Dimension");
+        if (Mappings.Any(m => m.Type == FieldMappingType.Characteristic))
+            keys.Add("Characteristic");
+        return keys;
+    }
+
     private IEnumerable<FieldMapping> GetGroupedContexts(string groupKey){
         return groupKey switch{
-            "Characteristic+Text" => Mappings.Where(m => m.Type == FieldMappingType.Characteristic || m.Type == FieldMappingType.Text),
+            "Characteristic" => Mappings.Where(m => m.Type == FieldMappingType.Characteristic),
             "Text" => Mappings.Where(m => m.Type == FieldMappingType.Text),
             "Dimension" => Mappings.Where(m => m.Type == FieldMappingType.Dimension),
             _ => Enumerable.Empty<FieldMapping>()
