@@ -11,6 +11,8 @@
     <PackageReference Include="ClosedXML" Version="0.104.2" />
     <PackageReference Include="CoreAdmin" Version="3.0.0" />
     <PackageReference Include="EFCore.BulkExtensions" Version="8.0.4" />
+    <PackageReference Include="ExcelDataReader" Version="3.7.0" />
+    <PackageReference Include="ExcelDataReader.DataSet" Version="3.7.0" />
     <PackageReference Include="FuzzySharp" Version="2.0.2" />
     <PackageReference Include="Hangfire" Version="1.8.18" />
     <PackageReference Include="Hangfire.PostgreSql" Version="1.20.12" />

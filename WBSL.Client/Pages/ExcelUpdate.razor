@@ -1,0 +1,118 @@
+﻿@page "/excel-update"
+@using System.Text.Json
+@using ExcelDataReader
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<MudPaper Class="p-6 mx-auto mt-4" MaxWidth="700px" Elevation="4">
+    <MudText Typo="Typo.h5" Class="mb-4">Обновление наименований товаров</MudText>
+
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.subtitle1">Загрузите Excel-файл (Артикул, Наименование):</MudText>
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="TriggerFileInput">
+            📤 Загрузить Excel
+        </MudButton>
+
+        <input type="file" hidden @ref="inputFileElement" @onchange="HandleFile" />
+
+        <MudText Typo="Typo.subtitle1" Color="@((status?.StartsWith("Ошибка") ?? false) ? Color.Error : Color.Success)">
+            @status
+        </MudText>
+
+        <MudDivider Class="my-4" />
+
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="DownloadExcel">
+            📥 Скачать всю базу в Excel
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private ElementReference inputFileElement;
+    private string status = "";
+
+    private async Task TriggerFileInput()
+    {
+        await JS.InvokeVoidAsync("triggerFileInput", inputFileElement);
+    }
+
+    private async Task HandleFile(ChangeEventArgs e)
+    {
+        try
+        {
+            var fileInputArgs = (Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs)(object)e;
+            var file = fileInputArgs.File;
+
+            using var stream = file.OpenReadStream();
+            using var reader = ExcelReaderFactory.CreateReader(stream);
+
+            var result = reader.AsDataSet();
+            var table = result.Tables[0];
+            var updates = new List<ProductNameUpdateDto>();
+
+            // ⬇️ Вот сюда вставляешь исправленный цикл:
+            for (int i = 1; i < table.Rows.Count; i++)
+            {
+                var sidCell = table.Rows[i][0];
+                var nameCell = table.Rows[i][1];
+
+                var sidText = sidCell?.ToString()?.Trim();
+                var nameText = nameCell?.ToString()?.Trim();
+
+                if (long.TryParse(sidText, out var sid) && !string.IsNullOrWhiteSpace(nameText))
+                {
+                    updates.Add(new ProductNameUpdateDto
+                    {
+                        Sid = sid,
+                        Name = nameText
+                    });
+                }
+            }
+
+
+            var response = await Http.PostAsJsonAsync("api/excelupdate/update-names", updates);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var resultJson = await response.Content.ReadFromJsonAsync<JsonElement>();
+                int updated = resultJson.GetProperty("Updated").GetInt32();
+                status = $"✅ Обновлено товаров: {updated}";
+            }
+            else
+            {
+                status = "❌ Ошибка при обновлении данных.";
+            }
+        }
+        catch (Exception ex)
+        {
+            status = $"❌ Ошибка: {ex.Message}";
+        }
+    }
+
+    private async Task DownloadExcel()
+    {
+        try
+        {
+            var url = "api/excelupdate/export";
+            var fileName = $"products_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+
+            using var stream = await Http.GetStreamAsync(url);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+
+            await JS.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(bytes));
+        }
+        catch (Exception ex)
+        {
+            status = $"❌ Ошибка при скачивании: {ex.Message}";
+        }
+    }
+
+    public class ProductNameUpdateDto
+    {
+        public long Sid { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+}

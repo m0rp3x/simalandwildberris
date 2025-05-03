@@ -88,6 +88,7 @@ builder.Services.AddScoped<WbProductService>();
 builder.Services.AddScoped<PriceCalculatorService>();
 builder.Services.AddScoped<IDbContextFactory<QPlannerDbContext>, ManualDbContextFactory>();
 builder.Services.AddScoped<ISimaLandService, SimaLandService>();
+builder.Services.AddScoped<ExcelUpdateService>();
 
 builder.Services.AddScoped<SimalandClientService>();
 builder.Services.AddHostedService<BalanceUpdateScheduler>();
@@ -102,6 +103,8 @@ builder.Services
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("SimaLand");
         return new RateLimitedAuthHandler(a, "SimaLand");
     });
+
+
 
 builder.Services.AddHttpClient("Wildberries",
         client => { client.BaseAddress = new Uri("https://content-api.wildberries.ru"); })
