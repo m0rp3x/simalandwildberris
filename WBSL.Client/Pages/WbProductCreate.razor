@@ -151,16 +151,25 @@
             @if (IsAutocompleteSupported(context.CharacteristicName))
             {
                 <!-- Оставляем автокомплит для «Цвет», «Пол», «Страна производства» и т.п. -->
-                <MudAutocomplete T="string"
-                                 @bind-Value="context.WildberriesValue"
-                                 Dense="true"
-                                 MinCharacters="1"
-                                 Placeholder="значение для WB"
-                                 SearchFunc="(q, ct) => SearchCharacteristicValues(context.CharacteristicName, q, ct)"
-                                 ToStringFunc="x => x" />
+            <MudAutocomplete T="string"
+                             Value="context.WildberriesValue"
+                             ValueChanged="@(val => OnAutocompleteValueChanged(val, context))"
+                             Dense="true"
+                             MinCharacters="1"
+                             Placeholder="значение для WB"
+                             SearchFunc="(q, ct) => SearchCharacteristicValues(context.CharacteristicName, q, ct)"
+                             ToStringFunc="x => x" />
             }
             else
             {
+                if (string.IsNullOrWhiteSpace(context.WildberriesValue))
+                {
+                    context.WildberriesValue = CharacteristicValueMappings
+                        .Where(m => m.CharacteristicName == context.CharacteristicName)
+                        .Select(m => m.SimalandValue)
+                        .Distinct()
+                        .FirstOrDefault() ?? string.Empty;
+                }
                 <!-- Выпадающий список со всеми значениями из SimaLand -->
                 <MudSelect T="string"
                            @bind-Value="context.WildberriesValue"
@@ -219,7 +228,6 @@
 </style>
 
 @code {
-    private string VendorCode = string.Empty;
     private ExternalAccount? SelectedWbAccount;
     private ExternalAccount? SelectedSimaAccount;
 
@@ -286,7 +294,10 @@
                 $"api/Wildberries/characteristics/{SelectedChildCategory.Id}/{SelectedWbAccount.Id}") ?? new();
 
             CharacteristicValueMappings = GenerateValueMappings(SimalandAttributes);
-
+            
+            var savedCharacteristicMappings = await CharacteristicMappingHelper.LoadFromLocalStorageAsync(JS);
+            CharacteristicMappingHelper.MergeWithSavedMappings(CharacteristicValueMappings, savedCharacteristicMappings);
+            
             FieldMappingHelper.MergeCharacteristicMappings(Mappings, _characteristicInfos);
             FieldMappingHelper.SanitizeMappings(Mappings, SimalandAttributes);
 
@@ -455,6 +466,20 @@
 
         if (SelectedChildCategory == null)
             return;
+    }
+    
+    private async Task OnAutocompleteValueChanged(string newValue, CharacteristicValueMapping context)
+    {
+        context.WildberriesValue = newValue;
+
+        var mapping = new CharacteristicValueMapping
+        {
+            CharacteristicName = context.CharacteristicName,
+            SimalandValue = context.SimalandValue,
+            WildberriesValue = newValue
+        };
+
+        await CharacteristicMappingHelper.UpsertMappingAsync(JS, mapping);
     }
 
     private async Task<IEnumerable<string>> SearchCharacteristicValues(string characteristicName, string query, CancellationToken token){

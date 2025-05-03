@@ -28,8 +28,17 @@ public class WildberriesMappingService
 
                 switch (mapping.Type){
                     case FieldMappingType.Text:
-                        if (mapping.WbFieldName == "Title") product.Title = value?.ToString() ?? "";
-                        else if (mapping.WbFieldName == "Description") product.Description = value?.ToString() ?? "";
+                        if (mapping.WbFieldName == "Title") 
+                        {
+                            var title = value?.ToString() ?? "";
+                            product.Title = title.Length > 60 ? title.Substring(0, 60) : title;
+                        }
+                        else if (mapping.WbFieldName == "Description")
+                        {
+                            var desc = value?.ToString() ?? "";
+                            desc = desc.Replace("&nbsp;", " ").Replace("\u00A0", " ");
+                            product.Description = desc;
+                        }
                         else if (mapping.WbFieldName == "Brand") product.Brand = value?.ToString() ?? "";
                         break;
 
@@ -121,7 +130,7 @@ public class WildberriesMappingService
     }
 
     private object ConvertValueToExpectedType(object value, WbCharacteristicDataType dataType, int? maxCount){
-        bool isList = !maxCount.HasValue || maxCount.Value != 1;
+        bool isList = maxCount.HasValue && maxCount.Value > 1;
 
         switch (dataType){
             case WbCharacteristicDataType.String:
@@ -137,19 +146,26 @@ public class WildberriesMappingService
                 if (isList){
                     if (value is List<string> rawList){
                         var numbers = rawList
-                            .Select(v => decimal.TryParse(v, out var d) ? (decimal?)d : null)
+                            .Select(v => int.TryParse(v, out var d) ? (int?)d : null)
                             .Where(d => d.HasValue)
                             .Select(d => d.Value)
                             .ToList();
                         return numbers;
                     }
-                    else if (decimal.TryParse(value.ToString(), out var singleNumberList)){
-                        return new List<decimal>{ singleNumberList };
+                    else if (int.TryParse(value.ToString(), out var singleIntList))
+                    {
+                        return new List<int> { singleIntList };
+                    }
+                    else if (decimal.TryParse(value.ToString(), out var dVal))
+                    {
+                        return new List<int> { (int)Math.Round(dVal) };
                     }
                 }
                 else{
-                    if (decimal.TryParse(value.ToString(), out var singleNumber))
-                        return singleNumber;
+                    if (int.TryParse(value.ToString(), out var singleInt))
+                        return singleInt;
+                    else if (decimal.TryParse(value.ToString(), out var dVal))
+                        return (int)Math.Round(dVal);
                 }
 
                 break;
@@ -169,7 +185,7 @@ public class WildberriesMappingService
 
             // Берём WildberriesValue из mapping, если оно не пустое; иначе – исходное
             var mapped = mapping?.WildberriesValue;
-            return !string.IsNullOrWhiteSpace(mapped) ? mapped : sValue;
+            return mapping != null ? mapping.WildberriesValue ?? "" : sValue;
         }
 
         if (value is List<string> list){
@@ -180,8 +196,7 @@ public class WildberriesMappingService
                         x.CharacteristicName.Equals(characteristicName, StringComparison.OrdinalIgnoreCase) &&
                         x.SimalandValue.Equals(item, StringComparison.OrdinalIgnoreCase));
 
-                var mapped = mapping?.WildberriesValue;
-                return !string.IsNullOrWhiteSpace(mapped) ? mapped : item;
+                return mapping != null ? mapping.WildberriesValue : item;
             }).ToList();
         }
 

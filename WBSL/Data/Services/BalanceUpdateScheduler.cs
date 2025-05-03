@@ -16,7 +16,8 @@ public class BalanceUpdateScheduler : BackgroundService
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {                   
+    {                  
+        return;
         return;
         List<BalanceUpdateRule> rules = new();
         DateTime lastRulesUpdate = DateTime.MinValue;

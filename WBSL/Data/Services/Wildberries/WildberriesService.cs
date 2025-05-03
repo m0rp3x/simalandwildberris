@@ -103,9 +103,6 @@ public class WildberriesService : WildberriesBaseService
 
         var wbClient = await GetWbClientAsync(accountId);
 
-        // var wbApiResult = await CheckLimits(wbClient, accountId);
-        // if(wbApiResult != null) return wbApiResult;
-
         var batches = SplitIntoCreateBatches(itemsToCreate);
         var allResults = new List<WbApiResult>();
         var allSuccessVendorCodes = new List<string>();
@@ -456,15 +453,20 @@ public class WildberriesService : WildberriesBaseService
                 .ToList();
 
             if (matchedErrors != null && matchedErrors.Any()){
-                var errorsDict = matchedErrors.ToDictionary(
-                    e => e.VendorCode,
-                    e => e.Errors ?? new List<string>()
-                );
+                var latestErrorsByVendor = matchedErrors
+                    .GroupBy(e => e.VendorCode)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g
+                            .OrderByDescending(e => e.UpdateAt) // сортировка по времени, свежие вверх
+                            .First().Errors ?? new List<string>() // берём только одну последнюю ошибку
+                    );
 
-                return new WbApiResult{
+                return new WbApiResult
+                {
                     Error = true,
                     ErrorText = "Ошибка при обновлении товаров",
-                    AdditionalErrors = errorsDict
+                    AdditionalErrors = latestErrorsByVendor
                 };
             }
 
