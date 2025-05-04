@@ -175,7 +175,7 @@ public class WildberriesService : WildberriesBaseService
     private async Task<WbApiResult> SearchAndAddSuccessfulAsync(List<string> vendorCodes, int accountId){
         var wbClient = await GetWbClientAsync(accountId);
         var errors = new Dictionary<string, List<string>>();
-        await Task.Delay(10000);
+        await Task.Delay(5000);
         foreach (var vendorCode in vendorCodes){
             try{
                 var content = await CreateSearchRequestContentByVendorCode(textSearch: vendorCode);
