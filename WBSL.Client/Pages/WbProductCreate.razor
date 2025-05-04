@@ -133,61 +133,59 @@
 
         <MudDivider Class="my-6"/>
         <MudText Typo="Typo.h6">Мапинг значений характеристик</MudText>
-        
-   <MudTable Items="CharacteristicValueMappings">
-    <HeaderContent>
-        <MudTh>Характеристика</MudTh>
-        <MudTh>Значение из SimaLand</MudTh>
-        <MudTh>Значение для Wildberries</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd>@context.CharacteristicName</MudTd>
-        <MudTd>
-            <MudTextField @bind-Value="context.SimalandValue"
-                          ReadOnly="true"
-                          Placeholder="значение из SimaLand" />
-        </MudTd>
-        <MudTd>
-            @if (IsAutocompleteSupported(context.CharacteristicName))
-            {
-                <!-- Оставляем автокомплит для «Цвет», «Пол», «Страна производства» и т.п. -->
-            <MudAutocomplete T="string"
-                             Value="context.WildberriesValue"
-                             ValueChanged="@(val => OnAutocompleteValueChanged(val, context))"
-                             Dense="true"
-                             MinCharacters="1"
-                             Placeholder="значение для WB"
-                             SearchFunc="(q, ct) => SearchCharacteristicValues(context.CharacteristicName, q, ct)"
-                             ToStringFunc="x => x" />
-            }
-            else
-            {
-                // if (string.IsNullOrWhiteSpace(context.WildberriesValue))
-                // {
-                //     context.WildberriesValue = CharacteristicValueMappings
-                //         .Where(m => m.CharacteristicName == context.CharacteristicName)
-                //         .Select(m => m.SimalandValue)
-                //         .Distinct()
-                //         .FirstOrDefault() ?? string.Empty;
-                // }
-                <!-- Выпадающий список со всеми значениями из SimaLand -->
-                <MudSelect T="string"
-                           @bind-Value="context.WildberriesValue"
-                           Dense="true"
-                           Placeholder="значение для WB">
-                    <MudSelectItem Value="@string.Empty">– не выбрано –</MudSelectItem>
-                    @foreach (var option in CharacteristicValueMappings
-                                             .Where(m => m.CharacteristicName == context.CharacteristicName)
-                                             .Select(m => m.SimalandValue)
-                                             .Distinct())
-                    {
-                        <MudSelectItem Value="@option">@option</MudSelectItem>
+
+        <MudTable Items="CharacteristicValueMappings">
+            <HeaderContent>
+                <MudTh>Характеристика</MudTh>
+                <MudTh>Значение из SimaLand</MudTh>
+                <MudTh>Значение для Wildberries</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.CharacteristicName</MudTd>
+                <MudTd>
+                    <MudTextField @bind-Value="context.SimalandValue"
+                                  ReadOnly="true"
+                                  Placeholder="значение из SimaLand"/>
+                </MudTd>
+                <MudTd>
+                    @if (IsAutocompleteSupported(context.CharacteristicName)){
+                        <!-- Оставляем автокомплит для «Цвет», «Пол», «Страна производства» и т.п. -->
+                        <MudAutocomplete T="string"
+                                         Value="context.WildberriesValue"
+                                         ValueChanged="@(val => OnAutocompleteValueChanged(val, context))"
+                                         Dense="true"
+                                         MinCharacters="1"
+                                         Placeholder="значение для WB"
+                                         SearchFunc="(q, ct) => SearchCharacteristicValues(context.CharacteristicName, q, ct)"
+                                         ToStringFunc="x => x"/>
                     }
-                </MudSelect>
-            }
-        </MudTd>
-    </RowTemplate>
-</MudTable>
+                    else{
+                        if (string.IsNullOrWhiteSpace(context.WildberriesValue)){
+                            context.WildberriesValue = CharacteristicValueMappings
+                                .Where(m => m.CharacteristicName == context.CharacteristicName)
+                                .Select(m => m.SimalandValue)
+                                .Distinct()
+                                .FirstOrDefault() ?? string.Empty;
+                        }
+
+                        <!-- Выпадающий список со всеми значениями из SimaLand -->
+                        <MudSelect T="string"
+                                   Value="context.WildberriesValue"
+                                   ValueChanged="val => OnWildberriesValueChanged(val, context)"
+                                   Dense="true"
+                                   Placeholder="значение для WB">
+                            <MudSelectItem Value="@("null")">– не выбрано –</MudSelectItem>
+                            @foreach (var option in CharacteristicValueMappings
+                                          .Where(m => m.CharacteristicName == context.CharacteristicName)
+                                          .Select(m => m.SimalandValue)
+                                          .Distinct()){
+                                <MudSelectItem Value="@option">@option</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
 
 
         <MudButton OnClick="SendToBackend" Variant="Variant.Filled" Color="Color.Success" Class="mt-4">
@@ -294,10 +292,10 @@
                 $"api/Wildberries/characteristics/{SelectedChildCategory.Id}/{SelectedWbAccount.Id}") ?? new();
 
             CharacteristicValueMappings = GenerateValueMappings(SimalandAttributes);
-            
+
             var savedCharacteristicMappings = await CharacteristicMappingHelper.LoadFromLocalStorageAsync(JS);
             CharacteristicMappingHelper.MergeWithSavedMappings(CharacteristicValueMappings, savedCharacteristicMappings);
-            
+
             FieldMappingHelper.MergeCharacteristicMappings(Mappings, _characteristicInfos);
             FieldMappingHelper.SanitizeMappings(Mappings, SimalandAttributes);
 
@@ -347,12 +345,20 @@
             Snackbar.Add("Выберите категории и маппинг", Severity.Warning);
             return;
         }
-
+        
+        var cleanedCharacteristicValueMappings = CharacteristicValueMappings
+            .Select(m => new CharacteristicValueMapping
+            {
+                CharacteristicName = m.CharacteristicName,
+                SimalandValue = m.SimalandValue,
+                WildberriesValue = m.WildberriesValue == "null" ? string.Empty : m.WildberriesValue
+            })
+            .ToList();
         var dto = new CategoryMappingRequest{
             WildberriesCategoryId = SelectedChildCategory.Id,
             SimalandCategoryName = SelectedSimalandAttribute,
             Mappings = Mappings,
-            CharacteristicValueMappings = CharacteristicValueMappings
+            CharacteristicValueMappings = cleanedCharacteristicValueMappings
         };
 
         try{
@@ -467,13 +473,11 @@
         if (SelectedChildCategory == null)
             return;
     }
-    
-    private async Task OnAutocompleteValueChanged(string newValue, CharacteristicValueMapping context)
-    {
+
+    private async Task OnAutocompleteValueChanged(string newValue, CharacteristicValueMapping context){
         context.WildberriesValue = newValue;
 
-        var mapping = new CharacteristicValueMapping
-        {
+        var mapping = new CharacteristicValueMapping{
             CharacteristicName = context.CharacteristicName,
             SimalandValue = context.SimalandValue,
             WildberriesValue = newValue
@@ -542,4 +546,9 @@
         };
     }
 
+    private async Task OnWildberriesValueChanged(string newValue, CharacteristicValueMapping context){
+        context.WildberriesValue = newValue;
+    }
+
 }
+
