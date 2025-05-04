@@ -162,14 +162,14 @@
             }
             else
             {
-                if (string.IsNullOrWhiteSpace(context.WildberriesValue))
-                {
-                    context.WildberriesValue = CharacteristicValueMappings
-                        .Where(m => m.CharacteristicName == context.CharacteristicName)
-                        .Select(m => m.SimalandValue)
-                        .Distinct()
-                        .FirstOrDefault() ?? string.Empty;
-                }
+                // if (string.IsNullOrWhiteSpace(context.WildberriesValue))
+                // {
+                //     context.WildberriesValue = CharacteristicValueMappings
+                //         .Where(m => m.CharacteristicName == context.CharacteristicName)
+                //         .Select(m => m.SimalandValue)
+                //         .Distinct()
+                //         .FirstOrDefault() ?? string.Empty;
+                // }
                 <!-- Выпадающий список со всеми значениями из SimaLand -->
                 <MudSelect T="string"
                            @bind-Value="context.WildberriesValue"
