@@ -175,11 +175,10 @@ public class WildberriesService : WildberriesBaseService
     private async Task<WbApiResult> SearchAndAddSuccessfulAsync(List<string> vendorCodes, int accountId){
         var wbClient = await GetWbClientAsync(accountId);
         var errors = new Dictionary<string, List<string>>();
-
+        await Task.Delay(10000);
         foreach (var vendorCode in vendorCodes){
             try{
                 var content = await CreateSearchRequestContentByVendorCode(textSearch: vendorCode);
-                await Task.Delay(2000);
                 var response = await wbClient.PostAsync("/content/v2/get/cards/list", content);
                 response.EnsureSuccessStatusCode();
 
@@ -198,7 +197,7 @@ public class WildberriesService : WildberriesBaseService
                     await _productService.SaveProductsToDatabaseAsync(_db, new List<WbProductCard>{ entity }, accountId); 
                 }
                 else{
-                    errors[vendorCode] = new List<string>{ "Card not found in response" };
+                    errors[vendorCode] = new List<string>{ "Card not found in response, no photo uploaded" };
                 }
             }
             catch (Exception ex){
