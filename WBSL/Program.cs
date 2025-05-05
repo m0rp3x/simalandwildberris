@@ -104,6 +104,7 @@ builder.Services
         return new RateLimitedAuthHandler(a, "SimaLand");
     });
 
+System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
 
 builder.Services.AddHttpClient("Wildberries",

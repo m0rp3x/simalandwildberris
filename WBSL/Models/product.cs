@@ -45,5 +45,7 @@ public partial class product
 
     public string? trademark_name { get; set; }
     public string? country_name { get; set; }
+    public string? unit_name{ get; set; }
+    public string material_names { get; set; } = "";
     public virtual ICollection<product_attribute> product_attributes { get; set; } = new List<product_attribute>();
 }

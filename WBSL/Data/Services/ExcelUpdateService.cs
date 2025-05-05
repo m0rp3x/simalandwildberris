@@ -13,28 +13,47 @@ public class ExcelUpdateService
         _context = context;
     }
 
-    public async Task<int> UpdateProductNamesAsync(List<ProductNameUpdateDto> updates)
+    public async Task<List<long>> UpdateProductNamesAsync(List<ProductNameUpdateDto> updates)
     {
         var sids = updates.Select(u => u.Sid).ToList();
-        var products = _context.Set<product>().Where(p => sids.Contains(p.sid)).ToList();
 
-        int updatedCount = 0;
+        var products = await _context.Set<product>()
+            .Where(p => sids.Contains(p.sid))
+            .ToListAsync();
+
+        var updated = new List<long>();
 
         foreach (var product in products)
         {
             var update = updates.FirstOrDefault(u => u.Sid == product.sid);
-            if (update != null && product.name != update.Name)
+            if (update == null) continue;
+
+            bool changed = false;
+
+            if (product.name != update.Name)
             {
                 product.name = update.Name;
-                updatedCount++;
+                changed = true;
             }
+
+            if (product.qty_multiplier != update.QtyMultiplier)
+            {
+                product.qty_multiplier = update.QtyMultiplier;
+                changed = true;
+            }
+
+            if (changed)
+                updated.Add(product.sid);
         }
 
-        if (updatedCount > 0)
+        if (updated.Any())
             await _context.SaveChangesAsync();
 
-        return updatedCount;
+        return updated;
     }
+
+
+
     
     
     public async Task<byte[]> ExportAllProductsToExcelAsync()
@@ -47,12 +66,15 @@ public class ExcelUpdateService
         // Заголовки
         worksheet.Cell(1, 1).Value = "Артикул";
         worksheet.Cell(1, 2).Value = "Наименование";
+        worksheet.Cell(1, 3).Value = "Наименование";
 
         int row = 2;
         foreach (var p in products)
         {
             worksheet.Cell(row, 1).Value = p.sid;
             worksheet.Cell(row, 2).Value = p.name;
+            worksheet.Cell(row, 3).Value = p.qty_multiplier;
+            
             row++;
         }
 

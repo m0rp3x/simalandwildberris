@@ -17,8 +17,6 @@ public class BalanceUpdateScheduler : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {                  
-        return;
-        return;
         List<BalanceUpdateRule> rules = new();
         DateTime lastRulesUpdate = DateTime.MinValue;
         
@@ -51,6 +49,7 @@ public class BalanceUpdateScheduler : BackgroundService
     }
     private async Task ProcessRule(BalanceUpdateRule rule, CancellationToken ct)
     {
+        return;
         var now = DateTime.UtcNow;
 
         if (!ShouldRunNow(rule, now))

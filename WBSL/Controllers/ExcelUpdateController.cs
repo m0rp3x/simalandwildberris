@@ -14,13 +14,18 @@ public class ExcelUpdateController : ControllerBase
     {
         _productService = productService;
     }
-
     [HttpPost("update-names")]
     public async Task<IActionResult> UpdateNames([FromBody] List<ProductNameUpdateDto> updates)
     {
-        var updatedCount = await _productService.UpdateProductNamesAsync(updates);
-        return Ok(new { Updated = updatedCount });
+        var updatedSids = await _productService.UpdateProductNamesAsync(updates);
+        return Ok(new
+        {
+            updated = updatedSids.Count,
+            updatedSids
+        });
     }
+
+
     
     [HttpGet("export")]
     public async Task<IActionResult> ExportAllProducts()

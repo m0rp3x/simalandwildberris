@@ -1,5 +1,8 @@
-﻿namespace WBSL.Data.Models;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
+namespace WBSL.Data.Models;
+
+[NotMapped]
 public class BalanceUpdateRule
 {
     public int Id { get; set; } // Обязательно первичный ключ

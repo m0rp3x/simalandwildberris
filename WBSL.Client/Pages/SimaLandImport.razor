@@ -170,6 +170,7 @@
                 ["Категория"] = p.category_name,
                 ["Опт. цена"] = p.wholesale_price,
                 ["Розн. цена"] = p.price,
+                ["Мин. количество заказа"] = p.qty_multiplier,
                 ["НДС"] = p.vat,
                 ["Торговая марка"] = p.trademark_name,
                 ["Страна"] = p.country_name,
@@ -424,6 +425,9 @@
         public string? trademark_name{ get; set; }
         public string? country_name{ get; set; }
         public string? unit_name{ get; set; }
+        [JsonPropertyName("material_names")]
+        public string material_names { get; set; } = "";
+
         public List<ProductAttribute> Attributes{ get; set; } = new();
     }
  

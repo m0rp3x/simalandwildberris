@@ -69,4 +69,9 @@
     <_ContentIncludedByDefault Remove="wwwroot\10857994\10857994_0.jpg" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <Folder Include="Migrations\" />
+  </ItemGroup>
+
 </Project>

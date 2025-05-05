@@ -67,6 +67,8 @@ public partial class QPlannerDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("WbDimensions_pkey");
         });
+        modelBuilder.Entity<BalanceUpdateRule>().ToTable("balance_update_rules", t => t.ExcludeFromMigrations());
+
 
         modelBuilder.Entity<WbPhoto>(entity =>
         {

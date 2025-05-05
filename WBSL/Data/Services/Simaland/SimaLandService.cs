@@ -295,7 +295,7 @@ namespace WBSL.Services
 
         private async Task<Dictionary<string, JsonElement>?> FetchProductAsync(HttpClient client, long sid, CancellationToken cancellationToken)
         {
-            var resp = await client.GetAsync($"item/?sid={sid}&expand=description,stocks,barcodes,attrs,category,trademark,country,unit,category_id,min_qty", cancellationToken);
+            var resp = await client.GetAsync($"item/?sid={sid}&expand=description,stocks,barcodes,attrs,category,trademark,country,unit_id,category_id,min_qty,materials", cancellationToken);
             JsonElement product;
 
             if (resp.IsSuccessStatusCode)
@@ -316,6 +316,8 @@ namespace WBSL.Services
 
             // обогащаем и вытаскиваем всё остальное
             await EnrichCategory(client, dict, sid, cancellationToken);
+            await EnrichUnit(client, dict, sid, cancellationToken);
+            await EnrichMaterials(client, dict, sid, cancellationToken);
             ExtractTrademarkCountryUnit(product, dict);
             ExtractBarcodes(dict);
             ExtractPhotos(product, dict);
@@ -335,6 +337,52 @@ namespace WBSL.Services
                 dict["attrs"] = arr;
             return dict;
         }
+        private Task EnrichMaterials(HttpClient client, Dictionary<string, JsonElement> d, long sid, CancellationToken cancellationToken)
+        {
+            if (!d.TryGetValue("materials", out var materialsElem) || materialsElem.ValueKind != JsonValueKind.Array)
+                return Task.CompletedTask;
+
+            var materialNames = materialsElem
+                .EnumerateArray()
+                .Where(m => m.TryGetProperty("name", out _))
+                .Select(m => m.GetProperty("name").GetString())
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .ToList();
+
+            if (materialNames.Count > 0)
+            {
+                var joined = string.Join(", ", materialNames);
+                d["material_names"] = JsonSerializer.SerializeToElement(joined);
+            }
+
+            return Task.CompletedTask;
+        }
+
+
+        private async Task EnrichUnit(HttpClient client, Dictionary<string, JsonElement> d, long sid, CancellationToken cancellationToken)
+        {
+            if (!d.TryGetValue("unit_id", out var uidElem) || uidElem.ValueKind != JsonValueKind.Number)
+                return;
+
+            var unitId = uidElem.GetInt32();
+
+            try
+            {
+                var r = await client.GetAsync($"unit/{unitId}", cancellationToken);
+                if (!r.IsSuccessStatusCode) return;
+
+                var doc = JsonDocument.Parse(await r.Content.ReadAsStringAsync(cancellationToken));
+                if (doc.RootElement.TryGetProperty("name", out var nameElem))
+                {
+                    d["unit_name"] = nameElem;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unit fetch error for SID {Sid}, unit_id {UnitId}", sid, unitId);
+            }
+        }
+
 
         private bool TryExtract(JsonDocument doc, out JsonElement elem)
         {
@@ -387,8 +435,6 @@ namespace WBSL.Services
                 d["trademark_name"] = tn;
             if (e.TryGetProperty("country", out var c) && c.ValueKind == JsonValueKind.Object && c.TryGetProperty("name", out var cn))
                 d["country_name"] = cn;
-            if (e.TryGetProperty("unit", out var u) && u.ValueKind == JsonValueKind.Object && u.TryGetProperty("name", out var un))
-                d["unit_name"] = un;
         }
 
         private void ExtractBarcodes(Dictionary<string, JsonElement> d)
