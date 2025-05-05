@@ -107,9 +107,15 @@ public class PriceCalculatorService
 
         var totalFixedCosts = settingsDto.HandlingCost + settingsDto.PackagingCost + settingsDto.SalaryCost + logisticsCost;
         var totalCommissionPercent = settingsDto.PlannedDiscountPercent + settingsDto.RedemptionLossPercent + commissionPercent;
-
+        decimal? denominator = (100m - totalCommissionPercent) / 100m;
+        if (denominator <= 0)
+        {
+            throw new InvalidOperationException(
+                $"Сумма всех % ({totalCommissionPercent:F2}%) должна быть меньше 100%."
+            );
+        }
         var basePrice = effectivePurchasePrice + (effectivePurchasePrice * settingsDto.MarginPercent / 100m) + totalFixedCosts;
-        var finalPrice = basePrice / ((100m - totalCommissionPercent) / 100m);
+        var finalPrice = basePrice / denominator;
 
         return Task.FromResult(Math.Round((decimal)finalPrice, 0));
     }

@@ -73,7 +73,7 @@
                                   Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudCheckBox T="bool" @bind-Checked="Settings.IsMinimal"
+                    <MudCheckBox T="bool" @bind-Value="Settings.IsMinimal"
                                  Label="Минимальное количество"
                                  Variant="Variant.Filled" />
                 </MudItem>
@@ -124,24 +124,41 @@
             return;
         }
         
-        var response = await Http.PostAsJsonAsync($"api/wildberries/updateWbPrices/{_selectedAccount.Id}", Settings);
-
-        if (response.IsSuccessStatusCode)
+        var response = await Http.PostAsJsonAsync(
+            $"api/wildberries/updateWbPrices/{_selectedAccount.Id}",
+            Settings
+        );
+        if (!response.IsSuccessStatusCode)
         {
-            var success = await response.Content.ReadFromJsonAsync<bool>();
-
-            if (success)
-            {
-                await DialogService.ShowMessageBox("Успех", $"Настройки для аккаунта {_selectedAccount.Name} сохранены.");
-            }
-            else
-            {
-                Snackbar.Add("Ошибка при сохранении настроек. Сервер вернул false.", Severity.Error);
-            }
+            Snackbar.Add($"Ошибка при обновлении цен: {response.StatusCode}", Severity.Error);
+            return;
         }
-        else
+        
+        var resultDto = await response.Content
+            .ReadFromJsonAsync<PricePushResult>();
+
+        if (resultDto == null)
         {
-            Snackbar.Add($"Ошибка при сохранении настроек: {response.StatusCode}", Severity.Error);
+            Snackbar.Add("Не удалось разобрать ответ от сервера.", Severity.Error);
+            return;
+        }
+
+        // Показываем, сколько цен успешно отправлено
+        Snackbar.Add(
+            $"Успешно обновлено цен: {resultDto.UploadedCount}.",
+            Severity.Success
+        );
+
+        // И для каждого товара с ошибкой расчёта — отдельное сообщение
+        if (resultDto.CalculationErrors.Any())
+        {
+            foreach (var err in resultDto.CalculationErrors)
+            {
+                Snackbar.Add(
+                    $"Ошибка расчёта для товара {err.NmId}: {err.ErrorMessage}",
+                    Severity.Warning
+                );
+            }
         }
     }
 
