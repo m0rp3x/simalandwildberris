@@ -114,6 +114,7 @@ public class WildberriesMappingService
                 .Select(a => a.value_text?.Trim())
                 .Where(v => !string.IsNullOrWhiteSpace(v))
                 .Distinct()
+                .Take(3) 
                 .ToList();
 
             if (values.Count == 0)

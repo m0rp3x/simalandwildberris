@@ -160,13 +160,13 @@
                                          ToStringFunc="x => x"/>
                     }
                     else{
-                        if (string.IsNullOrWhiteSpace(context.WildberriesValue)){
-                            context.WildberriesValue = CharacteristicValueMappings
-                                .Where(m => m.CharacteristicName == context.CharacteristicName)
-                                .Select(m => m.SimalandValue)
-                                .Distinct()
-                                .FirstOrDefault() ?? string.Empty;
-                        }
+                        var options = CharacteristicValueMappings
+                            .Where(m => m.CharacteristicName == context.CharacteristicName)
+                            .Select(m => m.SimalandValue.ToLowerInvariant())
+                            .Distinct()
+                            .ToList();
+                        if (string.IsNullOrWhiteSpace(context.WildberriesValue))
+                            context.WildberriesValue = options.FirstOrDefault() ?? string.Empty;
 
                         <!-- Выпадающий список со всеми значениями из SimaLand -->
                         <MudSelect T="string"
@@ -175,10 +175,7 @@
                                    Dense="true"
                                    Placeholder="значение для WB">
                             <MudSelectItem Value="@("null")">– не выбрано –</MudSelectItem>
-                            @foreach (var option in CharacteristicValueMappings
-                                          .Where(m => m.CharacteristicName == context.CharacteristicName)
-                                          .Select(m => m.SimalandValue)
-                                          .Distinct()){
+                            @foreach (var option in options){
                                 <MudSelectItem Value="@option">@option</MudSelectItem>
                             }
                         </MudSelect>
@@ -247,6 +244,7 @@
     private static readonly HashSet<string> _autocompleteFields = new(){
         "Цвет",
         "Пол",
+        "Для кого",
         "Страна производства"
     };
 
@@ -256,7 +254,11 @@
         SelectedSimaAccount != null;
 
     private bool IsAutocompleteSupported(string name)
-        => _autocompleteFields.Contains(name, StringComparer.OrdinalIgnoreCase);
+    {
+        if (name.StartsWith("Цвет", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return _autocompleteFields.Contains(name, StringComparer.OrdinalIgnoreCase);
+    }
 
     string BuildQuery(params (string key, string? value)[] parameters) =>
         string.Join("&", parameters.Select(p => $"{p.key}={Uri.EscapeDataString(p.value ?? string.Empty)}"));
@@ -266,7 +268,14 @@
             _accounts = await ProductService.LoadAccountsAsync();
         }
     }
-
+    private string MapCharacteristicName(string name)
+    {
+        if (name.StartsWith("Цвет", StringComparison.OrdinalIgnoreCase))
+            return "Цвет";
+        if (string.Equals(name, "Для кого", StringComparison.OrdinalIgnoreCase))
+            return "Пол";
+        return name;
+    }
     private async Task CheckCategoryMapping(){
         _checkPerformed = false;
 
@@ -285,12 +294,18 @@
 
                 SelectedSimalandAttribute = simalandAttrName;
             }
-
-            SimalandAttributes = await Client.GetFromJsonAsync<List<SimalandAttributeDto>>($"api/simaland/attributes?categoryName={SelectedSimalandAttribute}") ?? new();
-
+            
+            var response = await Client.GetAsync($"api/simaland/attributes?categoryName={SelectedSimalandAttribute}");
+            if (response.IsSuccessStatusCode){
+                SimalandAttributes = await response.Content.ReadFromJsonAsync<List<SimalandAttributeDto>>() ?? new();
+            }
+            else{
+                Snackbar.Add("Характеристики с SimaLand не найдены, выберите вручную", Severity.Warning);
+            }
+            
             _characteristicInfos = await Client.GetFromJsonAsync<List<WbAdditionalCharacteristicDto>>(
                 $"api/Wildberries/characteristics/{SelectedChildCategory.Id}/{SelectedWbAccount.Id}") ?? new();
-
+            
             CharacteristicValueMappings = GenerateValueMappings(SimalandAttributes);
 
             var savedCharacteristicMappings = await CharacteristicMappingHelper.LoadFromLocalStorageAsync(JS);
@@ -298,7 +313,7 @@
 
             FieldMappingHelper.MergeCharacteristicMappings(Mappings, _characteristicInfos);
             FieldMappingHelper.SanitizeMappings(Mappings, SimalandAttributes);
-
+            
             _checkPerformed = true;
         }
         catch (Exception ex){
@@ -345,10 +360,9 @@
             Snackbar.Add("Выберите категории и маппинг", Severity.Warning);
             return;
         }
-        
+
         var cleanedCharacteristicValueMappings = CharacteristicValueMappings
-            .Select(m => new CharacteristicValueMapping
-            {
+            .Select(m => new CharacteristicValueMapping{
                 CharacteristicName = m.CharacteristicName,
                 SimalandValue = m.SimalandValue,
                 WildberriesValue = m.WildberriesValue == "null" ? string.Empty : m.WildberriesValue
@@ -486,21 +500,29 @@
         await CharacteristicMappingHelper.UpsertMappingAsync(JS, mapping);
     }
 
-    private async Task<IEnumerable<string>> SearchCharacteristicValues(string characteristicName, string query, CancellationToken token){
-        try{
+    private async Task<IEnumerable<string>> SearchCharacteristicValues(
+        string characteristicName,
+        string query,
+        CancellationToken token)
+    {
+        try
+        {
             if (SelectedWbAccount == null)
                 return Enumerable.Empty<string>();
 
-            var encodedName = Uri.EscapeDataString(characteristicName);
+            // применяем маппинг
+            var mappedName   = MapCharacteristicName(characteristicName);
+            var encodedName  = Uri.EscapeDataString(mappedName);
             var encodedQuery = Uri.EscapeDataString(query);
-            var accountId = SelectedWbAccount.Id;
+            var accountId    = SelectedWbAccount.Id;
 
             var url = $"api/Wildberries/char-values?name={encodedName}&query={encodedQuery}&accountId={accountId}";
             var response = await Client.GetFromJsonAsync<List<string>>(url, token);
 
-            return response ?? new List<string>();
+            return response ?? Enumerable.Empty<string>();
         }
-        catch{
+        catch
+        {
             return Enumerable.Empty<string>();
         }
     }
@@ -551,4 +573,3 @@
     }
 
 }
-
