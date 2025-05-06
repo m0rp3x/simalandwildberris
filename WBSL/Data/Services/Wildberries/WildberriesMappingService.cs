@@ -28,18 +28,17 @@ public class WildberriesMappingService
 
                 switch (mapping.Type){
                     case FieldMappingType.Text:
-                        if (mapping.WbFieldName == "Title") 
-                        {
+                        if (mapping.WbFieldName == "Title"){
                             var title = value?.ToString() ?? "";
                             product.Title = title.Length > 60 ? title.Substring(0, 60) : title;
                         }
-                        else if (mapping.WbFieldName == "Description")
-                        {
+                        else if (mapping.WbFieldName == "Description"){
                             var desc = value?.ToString() ?? "";
                             desc = desc.Replace("&nbsp;", " ").Replace("\u00A0", " ");
                             product.Description = desc;
                         }
                         else if (mapping.WbFieldName == "Brand") product.Brand = value?.ToString() ?? "";
+
                         break;
 
                     case FieldMappingType.Dimension:
@@ -66,15 +65,14 @@ public class WildberriesMappingService
                         var parsedValue = ParseCharValue(value);
                         string rawName = mapping.SourceProperty ?? "";
                         string characteristicName;
-                        
-                        if (rawName.StartsWith("Attr_", StringComparison.OrdinalIgnoreCase) && rawName.Length > 5)
-                        {
+
+                        if (rawName.StartsWith("Attr_", StringComparison.OrdinalIgnoreCase) && rawName.Length > 5){
                             characteristicName = rawName.Substring(5);
                         }
-                        else
-                        {
+                        else{
                             characteristicName = rawName;
                         }
+
                         parsedValue = SubstituteCharacteristicValue(parsedValue, characteristicName,
                             request.CharacteristicValueMappings);
 
@@ -105,8 +103,7 @@ public class WildberriesMappingService
     }
 
     private object? ExtractValue(product sima, string source){
-        if (source.StartsWith("Attr_"))
-        {
+        if (source.StartsWith("Attr_")){
             var attrName = source.Replace("Attr_", "");
 
             var values = sima.product_attributes
@@ -114,7 +111,7 @@ public class WildberriesMappingService
                 .Select(a => a.value_text?.Trim())
                 .Where(v => !string.IsNullOrWhiteSpace(v))
                 .Distinct()
-                .Take(3) 
+                .Take(3)
                 .ToList();
 
             if (values.Count == 0)
@@ -140,8 +137,15 @@ public class WildberriesMappingService
                     return new List<string>{ value.ToString() ?? "" };
                 }
                 else{
+                    if (value is IEnumerable<string> rawList){
+                        return rawList
+                                   .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))
+                               ?? "";
+                    }
+
                     return value.ToString() ?? "";
                 }
+
 
             case WbCharacteristicDataType.Number:
                 if (isList){
@@ -153,13 +157,11 @@ public class WildberriesMappingService
                             .ToList();
                         return numbers;
                     }
-                    else if (int.TryParse(value.ToString(), out var singleIntList))
-                    {
-                        return new List<int> { singleIntList };
+                    else if (int.TryParse(value.ToString(), out var singleIntList)){
+                        return new List<int>{ singleIntList };
                     }
-                    else if (decimal.TryParse(value.ToString(), out var dVal))
-                    {
-                        return new List<int> { (int)Math.Round(dVal) };
+                    else if (decimal.TryParse(value.ToString(), out var dVal)){
+                        return new List<int>{ (int)Math.Round(dVal) };
                     }
                 }
                 else{
@@ -190,8 +192,7 @@ public class WildberriesMappingService
         }
 
         if (value is List<string> list){
-            return list.Select(item =>
-            {
+            return list.Select(item => {
                 var mapping = substitutions
                     .FirstOrDefault(x =>
                         x.CharacteristicName.Equals(characteristicName, StringComparison.OrdinalIgnoreCase) &&
@@ -215,12 +216,10 @@ public class WildberriesMappingService
         }
     }
 
-    private bool IsEmpty(object? value)
-    {
+    private bool IsEmpty(object? value){
         if (value == null) return true;
 
-        return value switch
-        {
+        return value switch{
             string s => string.IsNullOrWhiteSpace(s),
 
             IEnumerable<string> list => !list.Any(x => !string.IsNullOrWhiteSpace(x)),
@@ -246,10 +245,8 @@ public class WildberriesMappingService
             : 0;
     }
 
-    private object ParseCharValue(object? raw)
-    {
-        switch (raw)
-        {
+    private object ParseCharValue(object? raw){
+        switch (raw){
             case null:
                 return "";
 
@@ -262,10 +259,10 @@ public class WildberriesMappingService
 
             case string str:
                 var parts = str
-                    .Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Split(new[]{ ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
                     .Where(v => !string.IsNullOrWhiteSpace(v))
-                    .Take(3) 
+                    .Take(3)
                     .ToList();
 
                 return parts.Count > 1 ? parts : parts.FirstOrDefault() ?? "";

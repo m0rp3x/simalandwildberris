@@ -140,8 +140,7 @@ public class WildberriesService : WildberriesBaseService
             }
         }
 
-        return new WbApiExtendedResult
-        {
+        return new WbApiExtendedResult{
             Result = MergeResults(allResults),
             SuccessfulCount = allSuccessVendorCodes.Count,
             SuccessfulVendorCodes = allSuccessVendorCodes
@@ -174,37 +173,100 @@ public class WildberriesService : WildberriesBaseService
 
     private async Task<WbApiResult> SearchAndAddSuccessfulAsync(List<string> vendorCodes, int accountId){
         var wbClient = await GetWbClientAsync(accountId);
-        var errors = new Dictionary<string, List<string>>();
         await Task.Delay(5000);
-        foreach (var vendorCode in vendorCodes){
-            try{
-                var content = await CreateSearchRequestContentByVendorCode(textSearch: vendorCode);
-                var response = await wbClient.PostAsync("/content/v2/get/cards/list", content);
-                response.EnsureSuccessStatusCode();
 
-                var apiResponse = await response.Content.ReadFromJsonAsync<WbApiResponse>();
-                var card = apiResponse?.Cards?.FirstOrDefault();
+        var fetchTasks = vendorCodes.Select(vendorCode => Task.Run(async () => {
+            WbApiResponse? apiResponse = null;
+            string? fetchError = null;
 
-                if (card != null){
-                    var entity = WbProductCardMapToDomain.MapToDomain(card);
+            for (int attempt = 1; attempt <= 3; attempt++){
+                try{
+                    var content = await CreateSearchRequestContentByVendorCode(textSearch: vendorCode);
+                    var response = await wbClient.PostAsync("/content/v2/get/cards/list", content);
+                    response.EnsureSuccessStatusCode();
 
-                    var photoUploadResult = await TrySendPhotosToWbAsync(entity.NmID, vendorCode, wbClient);
+                    apiResponse = await response.Content
+                        .ReadFromJsonAsync<WbApiResponse>();
 
-                    if (photoUploadResult?.Error == true){
-                        errors[vendorCode] = new List<string>{ $"Photo upload error: {photoUploadResult.ErrorText}" };
+                    // если нашли карточку — выходим из retry
+                    if (apiResponse?.Cards?.FirstOrDefault() is not null){
+                        fetchError = null;
+                        break;
                     }
 
-                    await _productService.SaveProductsToDatabaseAsync(_db, new List<WbProductCard>{ entity }, accountId); 
+                    fetchError = "Card not found, retrying…";
                 }
-                else{
-                    errors[vendorCode] = new List<string>{ "Card not found in response, no photo uploaded" };
+                catch (Exception ex){
+                    fetchError = $"Attempt {attempt} exception: {ex.Message}";
                 }
-            }
-            catch (Exception ex){
-                errors[vendorCode] = new List<string>{ $"Exception: {ex.Message}" };
+
+                // delay перед следующей попыткой
+                await Task.Delay(TimeSpan.FromSeconds(5));
             }
 
-            await Task.Delay(300); // слегка притормозим чтобы не задосить WB
+            return (vendorCode, apiResponse, fetchError);
+        })).ToList();
+
+        var fetchResults = await Task.WhenAll(fetchTasks);
+
+        var toProcess = new List<(string vendorCode, WbProductCard entity)>();
+        var errors = new Dictionary<string, List<string>>();
+
+        foreach (var (vendorCode, apiResponse, fetchError) in fetchResults){
+            var card = apiResponse?.Cards?.FirstOrDefault();
+            if (card != null){
+                var entity = WbProductCardMapToDomain.MapToDomain(card);
+                toProcess.Add((vendorCode, entity));
+            }
+            else{
+                errors[vendorCode] = new List<string>{ fetchError ?? "Card not found after retries" };
+            }
+        }
+
+        var photoTasks = toProcess.Select(item => Task.Run(async () => {
+            string? photoError = null;
+
+            for (int attempt = 1; attempt <= 3; attempt++){
+                var photoResult = await TrySendPhotosToWbAsync(
+                    item.entity.NmID,
+                    item.vendorCode,
+                    wbClient);
+
+                if (photoResult?.Error != true){
+                    photoError = null;
+                    break;
+                }
+
+                photoError = $"Photo upload error: {photoResult.ErrorText}";
+                await Task.Delay(TimeSpan.FromSeconds(5));
+            }
+
+            return (item.vendorCode, photoError);
+        })).ToList();
+
+        var photoResults = await Task.WhenAll(photoTasks);
+
+        foreach (var (vendorCode, photoError) in photoResults){
+            if (photoError != null){
+                if (!errors.ContainsKey(vendorCode))
+                    errors[vendorCode] = new List<string>();
+                errors[vendorCode].Add(photoError);
+            }
+        }
+
+        foreach (var (vendorCode, entity) in toProcess){
+            try{
+                await _productService
+                    .SaveProductsToDatabaseAsync(
+                        _db,
+                        new List<WbProductCard>{ entity },
+                        accountId);
+            }
+            catch (Exception ex){
+                if (!errors.ContainsKey(vendorCode))
+                    errors[vendorCode] = new List<string>();
+                errors[vendorCode].Add($"DB save error: {ex.Message}");
+            }
         }
 
         if (errors.Any()){
@@ -461,8 +523,7 @@ public class WildberriesService : WildberriesBaseService
                             .First().Errors ?? new List<string>() // берём только одну последнюю ошибку
                     );
 
-                return new WbApiResult
-                {
+                return new WbApiResult{
                     Error = true,
                     ErrorText = "Ошибка при обновлении товаров",
                     AdditionalErrors = latestErrorsByVendor
