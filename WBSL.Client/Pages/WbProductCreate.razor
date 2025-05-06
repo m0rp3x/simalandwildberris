@@ -136,7 +136,7 @@
 
         <MudTable Items="CharacteristicValueMappings">
             <HeaderContent>
-                <MudTh>Характеристика</MudTh>
+                <MudTh>Наименование характеристики на сималенде</MudTh>
                 <MudTh>Значение из SimaLand</MudTh>
                 <MudTh>Значение для Wildberries</MudTh>
             </HeaderContent>
@@ -166,7 +166,7 @@
                             .Distinct()
                             .ToList();
                         if (string.IsNullOrWhiteSpace(context.WildberriesValue))
-                            context.WildberriesValue = options.FirstOrDefault() ?? string.Empty;
+                            context.WildberriesValue = GetBestMatch(options, context.SimalandValue);
 
                         <!-- Выпадающий список со всеми значениями из SimaLand -->
                         <MudSelect T="string"
@@ -313,7 +313,9 @@
 
             FieldMappingHelper.MergeCharacteristicMappings(Mappings, _characteristicInfos);
             FieldMappingHelper.SanitizeMappings(Mappings, SimalandAttributes);
-            
+
+            CharacteristicValueMappings.Sort((a, b) =>
+                string.Compare(a.CharacteristicName, b.CharacteristicName, StringComparison.OrdinalIgnoreCase));
             _checkPerformed = true;
         }
         catch (Exception ex){
@@ -563,7 +565,7 @@
 
     private IEnumerable<FieldMapping> GetGroupedContexts(string groupKey){
         return groupKey switch{
-            "Characteristic" => Mappings.Where(m => m.Type == FieldMappingType.Characteristic),
+            "Characteristic" => Mappings.Where(m => m.Type == FieldMappingType.Characteristic).OrderBy(x=>x.DisplayName),
             "Text" => Mappings.Where(m => m.Type == FieldMappingType.Text),
             "Dimension" => Mappings.Where(m => m.Type == FieldMappingType.Dimension),
             _ => Enumerable.Empty<FieldMapping>()
@@ -573,5 +575,25 @@
     private async Task OnWildberriesValueChanged(string newValue, CharacteristicValueMapping context){
         context.WildberriesValue = newValue;
     }
+    
+    private string GetBestMatch(IEnumerable<string> options, string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+            return options.FirstOrDefault() ?? string.Empty;
 
+        var lowerSrc = source.Trim().ToLowerInvariant();
+
+        // 1) точное совпадение
+        var exact = options.FirstOrDefault(o => 
+            o.Equals(lowerSrc, StringComparison.OrdinalIgnoreCase));
+        if (exact != null) return exact;
+
+        // 2) вхождение
+        var contains = options.FirstOrDefault(o =>
+            lowerSrc.Contains(o) || o.Contains(lowerSrc));
+        if (contains != null) return contains;
+
+        // 3) fallback
+        return options.FirstOrDefault() ?? string.Empty;
+    }
 }

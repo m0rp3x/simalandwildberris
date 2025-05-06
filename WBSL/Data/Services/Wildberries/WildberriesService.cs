@@ -223,13 +223,33 @@ public class WildberriesService : WildberriesBaseService
             }
         }
 
+        var sids = toProcess
+            .Select(x => long.Parse(x.vendorCode))
+            .ToList();
+
+        var photosData = await _db.products
+            .Where(p => sids.Contains(p.sid))
+            .Select(p => new{ p.sid, p.photo_urls })
+            .ToListAsync();
+
+        var photoUrlsByVendor = photosData
+            .ToDictionary(
+                x => x.sid.ToString(),
+                x => x.photo_urls ?? new List<string>()
+            );
+
         var photoTasks = toProcess.Select(item => Task.Run(async () => {
             string? photoError = null;
-
+            
+            var urls = photoUrlsByVendor.TryGetValue(item.vendorCode, out var list)
+                ? list
+                : new List<string>();
+            
             for (int attempt = 1; attempt <= 3; attempt++){
                 var photoResult = await TrySendPhotosToWbAsync(
                     item.entity.NmID,
                     item.vendorCode,
+                    urls,
                     wbClient);
 
                 if (photoResult?.Error != true){
@@ -409,30 +429,24 @@ public class WildberriesService : WildberriesBaseService
         public int PaidLimits{ get; set; }
     }
 
-    private async Task<WbApiResult?> TrySendPhotosToWbAsync(long nmId, string vendorCode, HttpClient wbClient){
+    private async Task<WbApiResult?> TrySendPhotosToWbAsync(
+        long nmId,
+        string vendorCode,
+        List<string> photoUrls,
+        HttpClient wbClient){
         try{
-            var product = await _db.products
-                .Where(p => p.sid == long.Parse(vendorCode))
-                .FirstOrDefaultAsync();
-
-            if (product?.photo_urls is not{ Count: > 0 })
+            if (photoUrls.Count == 0)
                 return null;
 
-            var payload = new{
-                nmId = nmId,
-                data = product.photo_urls
-            };
+            var payload = new{ nmId, data = photoUrls };
 
             var content = JsonContent.Create(payload);
             var response = await wbClient.PostAsync("/content/v3/media/save", content);
             var apiResult = await response.Content.ReadFromJsonAsync<WbApiResult>();
 
-            // если ошибка в теле ответа — возвращаем
-            if (apiResult?.Error == true){
-                return apiResult;
-            }
-
-            return null;
+            return apiResult?.Error == true
+                ? apiResult
+                : null;
         }
         catch (Exception ex){
             return new WbApiResult{
