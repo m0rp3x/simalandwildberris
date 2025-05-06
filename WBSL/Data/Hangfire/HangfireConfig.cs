@@ -1,6 +1,5 @@
 ﻿using Hangfire;
 using Hangfire.PostgreSql;
-using WBSL.Data.Services.Simaland;
 using WBSL.Data.Services.Wildberries;
 
 namespace WBSL.Data.Hangfire;

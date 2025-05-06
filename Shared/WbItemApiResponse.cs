@@ -49,6 +49,8 @@ public class SimalandProductDto
     public string? trademark_name{ get; set; }
     [Display(Name = "Страна производства")]
     public string? country_name{ get; set; }
+    [Display(Name = "Состав")]
+    public string? material_names{ get; set; }
     public string? unit_name{ get; set; }
     public List<ProductAttribute> Attributes{ get; set; } = new();
 }

@@ -262,9 +262,10 @@ public class WildberriesMappingService
 
             case string str:
                 var parts = str
-                    .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                    .Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
                     .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .Take(3) 
                     .ToList();
 
                 return parts.Count > 1 ? parts : parts.FirstOrDefault() ?? "";

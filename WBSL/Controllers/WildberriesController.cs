@@ -64,10 +64,17 @@ public class WildberriesController : ControllerBase
     }
     
     [HttpGet("char-values")]
-    public async Task<IActionResult> GetCharacteristicValues([FromQuery] string name, [FromQuery] string query, [FromQuery] int accountId)
+    public async Task<IActionResult> GetCharacteristicValues([FromQuery] string name, [FromQuery] string? query, [FromQuery] int accountId)
     {
         var allValues = await _characteristicsService.GetCharacteristicValuesAsync(name, accountId);
 
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            var resultAll = allValues
+                .Distinct()
+                .Take(50);
+            return Ok(resultAll);
+        }
         var filtered = allValues
             .Where(v => v.Contains(query, StringComparison.OrdinalIgnoreCase))
             .Distinct()

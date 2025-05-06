@@ -154,7 +154,7 @@
                                          Value="context.WildberriesValue"
                                          ValueChanged="@(val => OnAutocompleteValueChanged(val, context))"
                                          Dense="true"
-                                         MinCharacters="1"
+                                         MinCharacters="0"
                                          Placeholder="значение для WB"
                                          SearchFunc="(q, ct) => SearchCharacteristicValues(context.CharacteristicName, q, ct)"
                                          ToStringFunc="x => x"/>
@@ -507,13 +507,15 @@
     {
         try
         {
-            if (SelectedWbAccount == null)
-                return Enumerable.Empty<string>();
-
-            // применяем маппинг
-            var mappedName   = MapCharacteristicName(characteristicName);
+            var mappedName   = MapCharacteristicName(characteristicName) ?? string.Empty;
             var encodedName  = Uri.EscapeDataString(mappedName);
-            var encodedQuery = Uri.EscapeDataString(query);
+            
+            var safeQuery    = query ?? string.Empty;
+            var encodedQuery = Uri.EscapeDataString(safeQuery);
+            if (encodedQuery == null){
+                encodedQuery = string.Empty;
+            }
+                
             var accountId    = SelectedWbAccount.Id;
 
             var url = $"api/Wildberries/char-values?name={encodedName}&query={encodedQuery}&accountId={accountId}";
@@ -521,7 +523,7 @@
 
             return response ?? Enumerable.Empty<string>();
         }
-        catch
+        catch(Exception e)
         {
             return Enumerable.Empty<string>();
         }
