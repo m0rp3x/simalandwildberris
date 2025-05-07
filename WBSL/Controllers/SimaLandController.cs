@@ -91,7 +91,7 @@ public class SimaLandController : ControllerBase
         return Ok(new { products = info.Products, attributes = info.Attributes });
     }
 
-
+    [RequestSizeLimit(100_000_000)] // 100 MB
     [HttpPost("store")]
     public async Task<IActionResult> StoreProductsAndAttributes([FromBody] StoreRequest request)
     {

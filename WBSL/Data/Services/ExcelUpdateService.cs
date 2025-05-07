@@ -42,6 +42,19 @@ public class ExcelUpdateService
                 changed = true;
             }
 
+            if (product.unit_name != update.UnitName)
+            {
+                product.unit_name = update.UnitName;
+                changed = true;
+            }
+
+            if (product.description != update.Description)
+            {
+                product.description = update.Description;
+                changed = true;
+            }
+
+
             if (changed)
                 updated.Add(product.sid);
         }
@@ -51,6 +64,7 @@ public class ExcelUpdateService
 
         return updated;
     }
+
 
 
 
@@ -66,7 +80,9 @@ public class ExcelUpdateService
         // Заголовки
         worksheet.Cell(1, 1).Value = "Артикул";
         worksheet.Cell(1, 2).Value = "Наименование";
-        worksheet.Cell(1, 3).Value = "Наименование";
+        worksheet.Cell(1, 3).Value = "Минимальная партия";
+        worksheet.Cell(1, 4).Value = "Единица Измеренения";
+        worksheet.Cell(1, 5).Value = "Описание";
 
         int row = 2;
         foreach (var p in products)
@@ -74,6 +90,8 @@ public class ExcelUpdateService
             worksheet.Cell(row, 1).Value = p.sid;
             worksheet.Cell(row, 2).Value = p.name;
             worksheet.Cell(row, 3).Value = p.qty_multiplier;
+            worksheet.Cell(row, 4).Value = p.unit_name;
+            worksheet.Cell(row, 5).Value = p.description;
             
             row++;
         }

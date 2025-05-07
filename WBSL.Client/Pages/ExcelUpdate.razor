@@ -23,19 +23,31 @@
             <MudDivider Class="my-2" />
             <MudText Typo="Typo.subtitle2">Найдено @updates.Count товаров для обновления:</MudText>
             <div style="max-height: 400px; overflow-y: auto;">
-                <MudTable Items="updates" Dense="true" Bordered="true" Hover="true" Class="mt-2">
+                <MudTable ServerData="LoadServerData"
+                          RowsPerPage="50"
+                          Bordered="true"
+                          Hover="true"
+                          Dense="true"
+                          Class="mt-2">
+
                     <HeaderContent>
                         <MudTh>Артикул</MudTh>
                         <MudTh>Наименование</MudTh>
-                        <MudTh>Мин. заказ</MudTh> <!-- 👈 добавлено -->
+                        <MudTh>Мин. заказ</MudTh>
+                        <MudTh>Ед. изм.</MudTh>
+                        <MudTh>Описание</MudTh>
                     </HeaderContent>
+
                     <RowTemplate>
                         <MudTd DataLabel="Артикул">@context.Sid</MudTd>
                         <MudTd DataLabel="Наименование">@context.Name</MudTd>
-                        <MudTd DataLabel="Мин. заказ">@context.QtyMultiplier</MudTd> <!-- 👈 добавлено -->
+                        <MudTd DataLabel="Мин. заказ">@context.QtyMultiplier</MudTd>
+                        <MudTd DataLabel="Ед. изм.">@context.UnitName</MudTd>
+                        <MudTd DataLabel="Описание">@context.Description</MudTd>
                     </RowTemplate>
-
                 </MudTable>
+
+
             </div>
 
 
@@ -55,8 +67,24 @@
 @code {
     private string status = "";
     private List<ProductNameUpdateDto> updates = new();
+    
+    private Task<TableData<ProductNameUpdateDto>> LoadServerData(TableState state, CancellationToken token)
+    {
+        var data = updates
+            .Skip(state.Page * state.PageSize)
+            .Take(state.PageSize)
+            .ToList();
 
- private async Task HandleFile(InputFileChangeEventArgs e)
+        return Task.FromResult(new TableData<ProductNameUpdateDto>
+        {
+            Items = data,
+            TotalItems = updates.Count
+        });
+    }
+
+
+    
+private async Task HandleFile(InputFileChangeEventArgs e)
 {
     updates.Clear();
     status = "";
@@ -66,7 +94,8 @@
         var file = e.File;
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
-        using var input = file.OpenReadStream();
+        using var input = file.OpenReadStream(maxAllowedSize: 100 * 1024 * 1024); // 100 MB
+
         using var memoryStream = new MemoryStream();
         await input.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
@@ -91,8 +120,14 @@
 
         int sidIndex = table.Columns["Артикул"].Ordinal;
         int nameIndex = table.Columns["Наименование"].Ordinal;
-        int qtyIndex = table.Columns.Contains("Мин. количество заказа") 
-            ? table.Columns["Мин. количество заказа"].Ordinal 
+        int qtyIndex = table.Columns.Contains("Минимальная партия") 
+            ? table.Columns["Минимальная партия"].Ordinal 
+            : -1;
+        int unitIndex = table.Columns.Contains("Единица Измеренения")
+            ? table.Columns["Единица Измеренения"].Ordinal
+            : -1;
+        int descIndex = table.Columns.Contains("Описание")
+            ? table.Columns["Описание"].Ordinal
             : -1;
 
         for (int i = 0; i < table.Rows.Count; i++)
@@ -111,22 +146,27 @@
                     qty = parsedQty;
             }
 
+            string? unit = null;
+            if (unitIndex != -1)
+                unit = table.Rows[i][unitIndex]?.ToString()?.Trim();
+
+            string? description = null;
+            if (descIndex != -1)
+                description = table.Rows[i][descIndex]?.ToString()?.Trim();
+
             updates.Add(new ProductNameUpdateDto
             {
                 Sid = sid,
                 Name = nameRaw,
-                QtyMultiplier = qty
+                QtyMultiplier = qty,
+                UnitName = unit,
+                Description = description // 👈 добавлено
             });
         }
 
-        if (updates.Count == 0)
-        {
-            status = "⚠️ Не найдено ни одной валидной строки.";
-        }
-        else
-        {
-            status = $"✅ Найдено строк: {updates.Count}";
-        }
+        status = updates.Count == 0
+            ? "⚠️ Не найдено ни одной валидной строки."
+            : $"✅ Найдено строк: {updates.Count}";
     }
     catch (Exception ex)
     {
@@ -135,51 +175,53 @@
 }
 
 
-    private async Task SendUpdates()
+
+private async Task SendUpdates()
+{
+    try
     {
-        try
+        var response = await Http.PostAsJsonAsync("api/excelupdate/update-names", updates);
+
+        if (response.IsSuccessStatusCode)
         {
-            var response = await Http.PostAsJsonAsync("api/excelupdate/update-names", updates);
+            var json = await response.Content.ReadAsStringAsync();
 
-            if (response.IsSuccessStatusCode)
+            try
             {
-                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
 
-                try
+                if (doc.RootElement.TryGetProperty("updatedSids", out var sidsElement) && sidsElement.ValueKind == JsonValueKind.Array)
                 {
-                    using var doc = JsonDocument.Parse(json);
+                    var updatedSids = sidsElement.EnumerateArray().Select(x => x.GetInt64()).ToHashSet();
 
-                    if (doc.RootElement.TryGetProperty("updatedSids", out var sidsElement) && sidsElement.ValueKind == JsonValueKind.Array)
+                    if (updates != null)
                     {
-                        var updatedSids = sidsElement.EnumerateArray().Select(x => x.GetInt64()).ToHashSet();
-
-                        var updatedOnly = updates.Where(x => updatedSids.Contains(x.Sid)).ToList();
-                        updates = updatedOnly;
-
-                        int updated = updatedSids.Count;
-                        status = $"✅ Обновлено товаров: {updated}";
-                    }
-                    else
-                    {
-                        status = $"⚠️ Ответ сервера не содержит список 'updatedSids'. Ответ: {json}";
+                        updates = updates.Where(x => updatedSids.Contains(x.Sid)).ToList();
                     }
 
+                    status = $"✅ Обновлено товаров: {updatedSids.Count}";
                 }
-                catch (Exception parseEx)
+                else
                 {
-                    status = $"❌ Не удалось разобрать JSON: {parseEx.Message}. Ответ сервера: {json}";
+                    status = $"⚠️ Ответ сервера не содержит список 'updatedSids'. Ответ: {json}";
                 }
             }
-            else
+            catch (Exception parseEx)
             {
-                status = $"❌ Ошибка от сервера: {(int)response.StatusCode} {response.StatusCode}";
+                status = $"❌ Не удалось разобрать JSON: {parseEx.Message}. Ответ сервера: {json}";
             }
         }
-        catch (Exception ex)
+        else
         {
-            status = $"❌ Ошибка отправки: {ex.Message}";
+            status = $"❌ Ошибка от сервера: {(int)response.StatusCode} {response.StatusCode}";
         }
     }
+    catch (Exception ex)
+    {
+        status = $"❌ Ошибка отправки: {ex.Message}";
+    }
+}
+
 
 
     private async Task DownloadExcel()
@@ -207,6 +249,9 @@
         public long Sid { get; set; }
         public string Name { get; set; } = string.Empty;
         public int? QtyMultiplier { get; set; } // 👈 добавлено
+        public string? UnitName { get; set; } // 👈 добавлено
+        public string? Description { get; set; } // 👈 добавлено
+
     }
 
 }
