@@ -1,4 +1,6 @@
-﻿using Shared;
+﻿using System.Collections;
+using System.Globalization;
+using Shared;
 using WBSL.Models;
 
 namespace WBSL.Data.Services.Wildberries;
@@ -80,6 +82,7 @@ public class WildberriesMappingService
                             parsedValue = ConvertValueToExpectedType(
                                 parsedValue,
                                 mapping.CharacteristicDataType.Value,
+                                charId,
                                 mapping.MaxCount
                             );
                         }
@@ -127,56 +130,109 @@ public class WildberriesMappingService
         return prop?.GetValue(sima);
     }
 
-    private object ConvertValueToExpectedType(object value, WbCharacteristicDataType dataType, int? maxCount){
+    private object ConvertValueToExpectedType(
+        object value,
+        WbCharacteristicDataType dataType,
+        int charId,
+        int? maxCount)
+    {
         bool isList = maxCount.HasValue && maxCount.Value > 1;
 
-        switch (dataType){
+        switch (dataType)
+        {
             case WbCharacteristicDataType.String:
-                if (isList){
-                    if (value is List<string> strList) return strList;
-                    return new List<string>{ value.ToString() ?? "" };
-                }
-                else{
-                    if (value is IEnumerable<string> rawList){
-                        return rawList
-                                   .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))
-                               ?? "";
-                    }
-
-                    return value.ToString() ?? "";
-                }
-
+                return ConvertToStrings(value, isList);
 
             case WbCharacteristicDataType.Number:
-                if (isList){
-                    if (value is List<string> rawList){
-                        var numbers = rawList
-                            .Select(v => int.TryParse(v, out var d) ? (int?)d : null)
-                            .Where(d => d.HasValue)
-                            .Select(d => d.Value)
-                            .ToList();
-                        return numbers;
-                    }
-                    else if (int.TryParse(value.ToString(), out var singleIntList)){
-                        return new List<int>{ singleIntList };
-                    }
-                    else if (decimal.TryParse(value.ToString(), out var dVal)){
-                        return new List<int>{ (int)Math.Round(dVal) };
-                    }
-                }
-                else{
-                    if (int.TryParse(value.ToString(), out var singleInt))
-                        return singleInt;
-                    else if (decimal.TryParse(value.ToString(), out var dVal))
-                        return (int)Math.Round(dVal);
-                }
+                return ConvertToNumbers(value, isList, charId);
 
-                break;
+            default:
+                return value;
         }
-
-        return value; // fallback, если не удалось преобразовать
     }
 
+    // -------------------- Вспомогательные методы --------------------
+
+    private static object ConvertToStrings(object value, bool isList){
+        if (isList){
+            // Если передали IEnumerable (но не string) — приводим каждый элемент
+            if (value is IEnumerable raw && !(value is string)){
+                return raw
+                    .Cast<object>()
+                    .Select(o => o?.ToString() ?? "")
+                    .ToList();
+            }
+
+            // Иначе — одиночный элемент упаковываем в список
+            return new List<string>{ value?.ToString() ?? "" };
+        }
+        else{
+            // Для одиночного берём первый не-пустой из коллекции (если это IEnumerable)
+            if (value is IEnumerable raw && !(value is string)){
+                return raw
+                           .Cast<object>()
+                           .Select(o => o?.ToString() ?? "")
+                           .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s))
+                       ?? "";
+            }
+
+            // Иначе — просто строка
+            return value?.ToString() ?? "";
+        }
+    }
+
+    private static object ConvertToNumbers(object value, bool isList, int charId){
+        bool isSpecialDecimal = charId == 90673 || charId == 90675;
+
+        if (isList){
+            // Получаем последовательность объектов (или одиночный в виде одного элемента)
+            var seq = (value is IEnumerable raw && !(value is string))
+                ? raw.Cast<object>()
+                : new[]{ value };
+
+            if (isSpecialDecimal){
+                // [ decimal ], округлённые до 1 знака
+                return seq
+                    .Select(ToDecimalRound1)
+                    .ToList();
+            }
+
+            return seq
+                .Select(ToInt)
+                .ToList();
+        }
+
+        return isSpecialDecimal
+            ? (object)ToDecimalRound1(value)
+            : ToInt(value);
+    }
+
+    private static decimal ToDecimalRound1(object v){
+        decimal d = v switch{
+            decimal x => x,
+            double x => (decimal)x,
+            int x => x,
+            long x => x,
+            string s when decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var z)
+                => z,
+            _ => 0m
+        };
+        return Math.Round(d, 1);
+    }
+
+    private static int ToInt(object v){
+        // Парсим в decimal и округляем до целого
+        decimal d = v switch{
+            decimal x => x,
+            double x => (decimal)x,
+            int x => x,
+            long x => x,
+            string s when decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var z)
+                => z,
+            _ => 0m
+        };
+        return (int)Math.Round(d);
+    }
 
     private object SubstituteCharacteristicValue(object value, string characteristicName,
         List<CharacteristicValueMapping> substitutions){

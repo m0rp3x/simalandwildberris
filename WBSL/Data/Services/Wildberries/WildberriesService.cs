@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Shared;
 using WBSL.Data.HttpClientFactoryExt;
@@ -235,7 +236,9 @@ public class WildberriesService : WildberriesBaseService
         var photoUrlsByVendor = photosData
             .ToDictionary(
                 x => x.sid.ToString(),
-                x => x.photo_urls ?? new List<string>()
+                x => (x.photo_urls ?? new List<string>())
+                    .OrderBy(GetPhotoIndex)
+                    .ToList()
             );
 
         var photoTasks = toProcess.Select(item => Task.Run(async () => {
@@ -704,4 +707,38 @@ public class WildberriesService : WildberriesBaseService
         var json = JsonSerializer.Serialize(requestData);
         return new StringContent(json, Encoding.UTF8, "application/json");
     }
+    int GetPhotoIndex(string url)
+    {
+        const string marker = "/items/";
+        
+        int pos = url.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (pos < 0) 
+            return int.MaxValue;          
+
+        pos += marker.Length;              // встали на цифру id
+        // пропускаем сам id
+        int slashAfterId = url.IndexOf('/', pos);
+        if (slashAfterId < 0) 
+            return int.MaxValue;
+
+        int indexStart = slashAfterId + 1; // начало индекса
+        // ищем конец – либо следующий '/', либо начало query-string
+        int slashAfterIndex = url.IndexOf('/', indexStart);
+        int qPos = url.IndexOfAny(new[] { '?', '&' }, indexStart);
+        int end = slashAfterIndex > 0 
+            ? slashAfterIndex 
+            : (qPos > 0 
+                ? qPos 
+                : url.Length);
+
+        int len = end - indexStart;
+        if (len <= 0) 
+            return int.MaxValue;
+        
+        string idxStr = url.Substring(indexStart, len);
+        return int.TryParse(idxStr, out var idx) 
+            ? idx 
+            : int.MaxValue;
+    }
+
 }
