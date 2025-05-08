@@ -143,20 +143,25 @@
             return;
         }
 
-        // Показываем, сколько цен успешно отправлено
         Snackbar.Add(
-            $"Успешно обновлено цен: {resultDto.UploadedCount}.",
-            Severity.Success
+            $"Из {resultDto.TotalCount} цен успешно обновлено {resultDto.SuccessCount}. " +
+            $"{(resultDto.FailedCount > 0 ? $"Не удалось обновить {resultDto.FailedCount}." : "")}",
+            resultDto.FailedCount == 0 ? Severity.Success : Severity.Warning
         );
 
-        // И для каждого товара с ошибкой расчёта — отдельное сообщение
-        if (resultDto.CalculationErrors.Any())
+        if (resultDto.Errors.Any())
         {
-            foreach (var err in resultDto.CalculationErrors)
+            foreach (var batchErr in resultDto.Errors)
             {
+                // Можно номер пачки + размер + статус + текст ошибки
                 Snackbar.Add(
-                    $"Ошибка расчёта для товара {err.NmId}: {err.ErrorMessage}",
-                    Severity.Warning
+                    $"Пачка №{batchErr.BatchIndex + 1} ({batchErr.BatchSize} шт.) — " +
+                    $"код {batchErr.StatusCode}: {batchErr.ErrorText}",
+                    Severity.Error,
+                    config =>
+                    {
+                        config.VisibleStateDuration = 10_000;
+                    }
                 );
             }
         }

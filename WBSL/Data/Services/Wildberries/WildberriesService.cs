@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Net;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
@@ -176,37 +177,59 @@ public class WildberriesService : WildberriesBaseService
         var wbClient = await GetWbClientAsync(accountId);
         await Task.Delay(5000);
 
-        var fetchTasks = vendorCodes.Select(vendorCode => Task.Run(async () => {
-            WbApiResponse? apiResponse = null;
-            string? fetchError = null;
+        const int MaxParallelism = 5;
+        var throttler = new SemaphoreSlim(MaxParallelism);
 
-            for (int attempt = 1; attempt <= 3; attempt++){
-                try{
-                    var content = await CreateSearchRequestContentByVendorCode(textSearch: vendorCode);
-                    var response = await wbClient.PostAsync("/content/v2/get/cards/list", content);
-                    response.EnsureSuccessStatusCode();
+        var fetchTasks = vendorCodes.Select(async vendorCode => {
+            // ждём «слот» для нового запроса
+            await throttler.WaitAsync();
+            try{
+                WbApiResponse? apiResponse = null;
+                string? fetchError = null;
 
-                    apiResponse = await response.Content
-                        .ReadFromJsonAsync<WbApiResponse>();
+                const int maxAttempts = 3;
+                int attempts = 0;
 
-                    // если нашли карточку — выходим из retry
-                    if (apiResponse?.Cards?.FirstOrDefault() is not null){
-                        fetchError = null;
-                        break;
+                while (attempts < maxAttempts){
+                    try{
+                        var content = await CreateSearchRequestContentByVendorCode(textSearch: vendorCode);
+                        var response = await wbClient.PostAsync("/content/v2/get/cards/list", content);
+                        
+                        if (response.StatusCode == (HttpStatusCode)429){
+                            var retryAfter = response.Headers.RetryAfter?.Delta
+                                             ?? TimeSpan.FromSeconds(5);
+                            fetchError = $"429 on attempt {attempts + 1}, retrying after {retryAfter.TotalSeconds}s";
+                            await Task.Delay(retryAfter);
+                            continue;
+                        }
+                        
+                        attempts++;
+
+                        response.EnsureSuccessStatusCode();
+
+                        apiResponse = await response.Content
+                            .ReadFromJsonAsync<WbApiResponse>();
+                        
+                        if (apiResponse?.Cards?.FirstOrDefault() is not null){
+                            fetchError = null;
+                            break;
+                        }
+
+                        fetchError = "Card not found, retrying…";
                     }
-
-                    fetchError = "Card not found, retrying…";
+                    catch (Exception ex){
+                        attempts++;
+                        fetchError = $"Attempt {attempts} exception: {ex.Message}";
+                        await Task.Delay(TimeSpan.FromSeconds(5));
+                    }
                 }
-                catch (Exception ex){
-                    fetchError = $"Attempt {attempt} exception: {ex.Message}";
-                }
-
-                // delay перед следующей попыткой
-                await Task.Delay(TimeSpan.FromSeconds(5));
+                
+                return (vendorCode, apiResponse, fetchError);
             }
-
-            return (vendorCode, apiResponse, fetchError);
-        })).ToList();
+            finally{
+                throttler.Release();
+            }
+        }).ToList();
 
         var fetchResults = await Task.WhenAll(fetchTasks);
 
@@ -241,31 +264,27 @@ public class WildberriesService : WildberriesBaseService
                     .ToList()
             );
 
-        var photoTasks = toProcess.Select(item => Task.Run(async () => {
-            string? photoError = null;
-            
-            var urls = photoUrlsByVendor.TryGetValue(item.vendorCode, out var list)
-                ? list
-                : new List<string>();
-            
-            for (int attempt = 1; attempt <= 3; attempt++){
-                var photoResult = await TrySendPhotosToWbAsync(
+        const int MaxPhotoParallelism = 5;
+        var photoThrottler = new SemaphoreSlim(MaxPhotoParallelism);
+
+        var photoTasks = toProcess.Select(async item => {
+            await photoThrottler.WaitAsync();
+            try{
+                var urls = photoUrlsByVendor
+                    .GetValueOrDefault(item.vendorCode, new List<string>());
+
+                var result = await TrySendPhotosToWbAsync(
                     item.entity.NmID,
                     item.vendorCode,
                     urls,
                     wbClient);
 
-                if (photoResult?.Error != true){
-                    photoError = null;
-                    break;
-                }
-
-                photoError = $"Photo upload error: {photoResult.ErrorText}";
-                await Task.Delay(TimeSpan.FromSeconds(5));
+                return (item.vendorCode, result?.ErrorText);
             }
-
-            return (item.vendorCode, photoError);
-        })).ToList();
+            finally{
+                photoThrottler.Release();
+            }
+        }).ToList();
 
         var photoResults = await Task.WhenAll(photoTasks);
 
@@ -437,29 +456,59 @@ public class WildberriesService : WildberriesBaseService
         string vendorCode,
         List<string> photoUrls,
         HttpClient wbClient){
-        try{
-            if (photoUrls.Count == 0)
-                return null;
+        if (photoUrls.Count == 0)
+            return null;
 
-            var payload = new{ nmId, data = photoUrls };
+        var payload = new{ nmId, data = photoUrls };
+        var content = JsonContent.Create(payload);
 
-            var content = JsonContent.Create(payload);
-            var response = await wbClient.PostAsync("/content/v3/media/save", content);
-            var apiResult = await response.Content.ReadFromJsonAsync<WbApiResult>();
+        const int maxAttempts = 3;
+        int attempt = 0;
 
-            return apiResult?.Error == true
-                ? apiResult
-                : null;
-        }
-        catch (Exception ex){
-            return new WbApiResult{
-                Error = true,
-                ErrorText = $"Exception during photo upload: {ex.Message}",
-                AdditionalErrors = new Dictionary<string, List<string>>{
-                    { vendorCode, new List<string>{ "Exception in TrySendPhotosToWbAsync" } }
+        while (true){
+            try{
+                var response = await wbClient.PostAsync("/content/v3/media/save", content);
+
+                if (response.StatusCode == (HttpStatusCode)429){
+                    var delay = response.Headers.RetryAfter?.Delta
+                                ?? TimeSpan.FromSeconds(5);
+                    await Task.Delay(delay);
+                    continue;
                 }
-            };
+
+                response.EnsureSuccessStatusCode();
+
+                var apiResult = await response.Content
+                    .ReadFromJsonAsync<WbApiResult>();
+
+                return apiResult?.Error == true
+                    ? apiResult
+                    : null;
+            }
+            catch (HttpRequestException) when (++attempt < maxAttempts){
+                await Task.Delay(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception ex){
+                return new WbApiResult{
+                    Error = true,
+                    ErrorText = $"Exception during photo upload: {ex.Message}",
+                    AdditionalErrors = new Dictionary<string, List<string>>{
+                        { vendorCode, new List<string>{ ex.GetType().Name } }
+                    }
+                };
+            }
+
+            if (attempt >= maxAttempts)
+                break;
         }
+
+        return new WbApiResult{
+            Error = true,
+            ErrorText = $"Failed after {maxAttempts} attempts",
+            AdditionalErrors = new Dictionary<string, List<string>>{
+                { vendorCode, new List<string>{ "Max retries reached" } }
+            }
+        };
     }
 
     private async Task<int> GetWbLimitsAsync(HttpClient wbClient){
@@ -707,38 +756,37 @@ public class WildberriesService : WildberriesBaseService
         var json = JsonSerializer.Serialize(requestData);
         return new StringContent(json, Encoding.UTF8, "application/json");
     }
-    int GetPhotoIndex(string url)
-    {
-        const string marker = "/items/";
-        
-        int pos = url.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-        if (pos < 0) 
-            return int.MaxValue;          
 
-        pos += marker.Length;              // встали на цифру id
+    int GetPhotoIndex(string url){
+        const string marker = "/items/";
+
+        int pos = url.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (pos < 0)
+            return int.MaxValue;
+
+        pos += marker.Length; // встали на цифру id
         // пропускаем сам id
         int slashAfterId = url.IndexOf('/', pos);
-        if (slashAfterId < 0) 
+        if (slashAfterId < 0)
             return int.MaxValue;
 
         int indexStart = slashAfterId + 1; // начало индекса
         // ищем конец – либо следующий '/', либо начало query-string
         int slashAfterIndex = url.IndexOf('/', indexStart);
-        int qPos = url.IndexOfAny(new[] { '?', '&' }, indexStart);
-        int end = slashAfterIndex > 0 
-            ? slashAfterIndex 
-            : (qPos > 0 
-                ? qPos 
+        int qPos = url.IndexOfAny(new[]{ '?', '&' }, indexStart);
+        int end = slashAfterIndex > 0
+            ? slashAfterIndex
+            : (qPos > 0
+                ? qPos
                 : url.Length);
 
         int len = end - indexStart;
-        if (len <= 0) 
+        if (len <= 0)
             return int.MaxValue;
-        
+
         string idxStr = url.Substring(indexStart, len);
-        return int.TryParse(idxStr, out var idx) 
-            ? idx 
+        return int.TryParse(idxStr, out var idx)
+            ? idx
             : int.MaxValue;
     }
-
 }

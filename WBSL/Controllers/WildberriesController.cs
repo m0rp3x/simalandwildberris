@@ -91,8 +91,12 @@ public class WildberriesController : ControllerBase
     }
     
     [HttpPost("updateWbPrices/{wbAccountId:int}")]
-    public async Task<IActionResult> UpdateProduct([FromBody] PriceCalculatorSettingsDto settingsDto, int wbAccountId){
-        var result = await _wildberriesPriceService.PushPricesToWildberriesAsync(settingsDto, wbAccountId);
+    public async Task<IActionResult> UpdateProduct(
+        [FromBody] PriceCalculatorSettingsDto settingsDto,
+        int wbAccountId)
+    {
+        var result = await _wildberriesPriceService
+            .PushPricesToWildberriesAsync(settingsDto, wbAccountId);
 
         return Ok(result);
     }
@@ -114,7 +118,7 @@ public class WildberriesController : ControllerBase
         
         var filteredSids = simaSidsInCategory
             .Except(existingWbSids)
-            .Take(1000)
+            .Take(10000)
             .Select(s => long.TryParse(s, out var id) ? id : (long?)null)
             .Where(id => id.HasValue)
             .Select(id => id!.Value)

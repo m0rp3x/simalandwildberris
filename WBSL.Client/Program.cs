@@ -29,7 +29,7 @@ builder.Services.AddScoped(sp =>
     return new HttpClient(handlerChain)
     {
         BaseAddress = new Uri(builder.HostEnvironment.BaseAddress),
-        Timeout = TimeSpan.FromMinutes(10)
+        Timeout = TimeSpan.FromMinutes(30)
     };
 });
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
