@@ -85,7 +85,7 @@ public class PriceCalculatorService
         if (product == null)
             return Task.FromResult(0m);
 
-        var purchasePrice = product.price ?? 0m;
+        var purchasePrice = product.wholesale_price ?? 0m;
         
         var effectivePurchasePrice = settingsDto.IsMinimal
             ? purchasePrice * product.qty_multiplier
@@ -117,7 +117,7 @@ public class PriceCalculatorService
         var basePrice = effectivePurchasePrice + (effectivePurchasePrice * settingsDto.MarginPercent / 100m) + totalFixedCosts;
         var finalPrice = basePrice / denominator;
 
-        return Task.FromResult(Math.Round((decimal)finalPrice, 0));
+        return Task.FromResult(Math.Round((decimal)finalPrice, 1));
     }
 
     public Task<int> CalculateDiscountAsync(long nmId)

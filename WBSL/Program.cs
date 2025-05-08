@@ -97,7 +97,10 @@ builder.Services.AddSingleton<PriceCalculatorSettingsDto>(); // Настройк
 builder.Services.AddScoped<PriceCalculatorService>(); // Сам сервис калькулятора цен
 
 builder.Services
-    .AddHttpClient("SimaLand", client => { client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/"); })
+    .AddHttpClient("SimaLand", client => {
+        client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/");
+        client.Timeout = TimeSpan.FromMinutes(10);
+    })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("SimaLand"))
     .AddHttpMessageHandler(sp => {
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("SimaLand");
@@ -108,7 +111,10 @@ System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Inst
 
 
 builder.Services.AddHttpClient("Wildberries",
-        client => { client.BaseAddress = new Uri("https://content-api.wildberries.ru"); })
+        client => {
+            client.BaseAddress = new Uri("https://content-api.wildberries.ru");
+            client.Timeout = TimeSpan.FromMinutes(10);
+        })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerries"))
     .AddHttpMessageHandler(sp => {
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerries");
@@ -116,7 +122,10 @@ builder.Services.AddHttpClient("Wildberries",
     });
 
 builder.Services.AddHttpClient("WildBerriesMarketPlace",
-        client => { client.BaseAddress = new Uri("https://marketplace-api.wildberries.ru"); })
+        client => {
+            client.BaseAddress = new Uri("https://marketplace-api.wildberries.ru");
+            client.Timeout = TimeSpan.FromMinutes(10);
+        })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerriesMarketPlace"))
     .AddHttpMessageHandler(sp => {
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesMarketPlace");
@@ -124,7 +133,10 @@ builder.Services.AddHttpClient("WildBerriesMarketPlace",
     });
 
 builder.Services.AddHttpClient("WildBerriesDiscountPrices",
-        client => { client.BaseAddress = new Uri("https://discounts-prices-api.wildberries.ru"); })
+        client => {
+            client.BaseAddress = new Uri("https://discounts-prices-api.wildberries.ru");
+            client.Timeout = TimeSpan.FromMinutes(10);
+        })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerriesDiscountPrices"))
     .AddHttpMessageHandler(sp => {
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesDiscountPrices");
@@ -132,7 +144,10 @@ builder.Services.AddHttpClient("WildBerriesDiscountPrices",
     });
 
 builder.Services.AddHttpClient("WildBerriesCommonApi",
-        client => { client.BaseAddress = new Uri("https://common-api.wildberries.ru/"); })
+        client => {
+            client.BaseAddress = new Uri("https://common-api.wildberries.ru/");
+            client.Timeout = TimeSpan.FromMinutes(10);
+        })
     .AddHttpMessageHandler(sp => new HttpClientNameHandler("WildBerriesCommonApi"))
     .AddHttpMessageHandler(sp => {
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesCommonApi");
