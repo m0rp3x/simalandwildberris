@@ -165,12 +165,13 @@
                 ["Артикул"] = p.sid,
                 ["Наименование"] = p.name,
                 ["Описание"] = p.description,
+                ["Минимальная партия"] = p.qty_multiplier,         // ✅ название как в Excel
+                ["Единица Измеренения"] = p.unit_name,                // ✅ добавлено
                 ["Ш×В×Г"] = $"{p.width}×{p.height}×{p.depth}",
                 ["Упаковка"] = $"{p.box_depth}×{p.box_width}×{p.box_height}",
                 ["Категория"] = p.category_name,
                 ["Опт. цена"] = p.wholesale_price,
                 ["Розн. цена"] = p.price,
-                ["Мин. количество заказа"] = p.qty_multiplier,
                 ["НДС"] = p.vat,
                 ["Торговая марка"] = p.trademark_name,
                 ["Страна"] = p.country_name,

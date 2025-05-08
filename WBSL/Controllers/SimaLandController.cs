@@ -151,14 +151,26 @@ public class SimaLandController : ControllerBase
         var workbook = new ClosedXML.Excel.XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Товары");
 
+        // Базовые поля в нужном порядке
         var headerCols = new List<string>
         {
-            "Артикул", "Наименование", "Описание", "Ш×В×Г", "Упаковка", "Категория",
-            "Мин. количество заказа", // 👈 вот сюда вставляем
-            "Опт. цена", "Розн. цена", "НДС", "Торговая марка", "Страна", "Фото"
+            "Артикул",
+            "Наименование",
+            "Описание",
+            "Минимальная партия",             // 👈 QtyMultiplier
+            "Единица Измеренения",              // 👈 UnitName
+            "Ш×В×Г",
+            "Упаковка",
+            "Категория",
+            "Опт. цена",
+            "Розн. цена",
+            "НДС",
+            "Торговая марка",
+            "Страна",
+            "Фото"
         };
 
-
+        // Собираем динамически атрибуты (если есть)
         var allAttrNames = new HashSet<string>();
         foreach (var p in productsData)
         {
@@ -169,11 +181,13 @@ public class SimaLandController : ControllerBase
             }
         }
 
-        headerCols.AddRange(allAttrNames);
+        headerCols.AddRange(allAttrNames); // Добавляем дополнительные столбцы-атрибуты
 
+        // Заголовки
         for (int i = 0; i < headerCols.Count; i++)
             worksheet.Cell(1, i + 1).Value = headerCols[i];
 
+        // Данные
         int row = 2;
         foreach (var p in productsData)
         {
@@ -194,6 +208,7 @@ public class SimaLandController : ControllerBase
         return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             "simaland-products.xlsx");
     }
+
 
     [HttpPost("download-photos")]
     public async Task<IActionResult> DownloadPhotos([FromBody] List<product> products)
