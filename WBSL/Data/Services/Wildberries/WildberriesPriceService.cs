@@ -48,23 +48,34 @@ public class WildberriesPriceService : WildberriesBaseService
                     BatchIndex = -1,
                     BatchSize = 1,
                     StatusCode = -1,
-                    ErrorText = $"Calculation error for NmId={nmId}: {ex.Message}"
+                    ErrorText = $"Ошибка вычисления цены для NmID={nmId}. {ex.Message}"
                 });
+                result.FailedCount++;
+                continue;
+            }
+            catch (KeyNotFoundException ex){
+                result.Errors.Add(new BatchError{
+                    BatchIndex = -1,
+                    BatchSize = 1,
+                    StatusCode = -1,
+                    ErrorText = $"Правило маржи не найдено для товара NMID={nmId}: {ex.Message}"
+                });
+                result.FailedCount++;
                 continue;
             }
 
             if (price == 0)
                 continue;
 
-            int roundedPrice = (int)Math.Ceiling(price); 
-            payloadData.Add(new {
-                nmId     = nmId,
-                price    = roundedPrice,
+            int roundedPrice = (int)Math.Ceiling(price);
+            payloadData.Add(new{
+                nmId = nmId,
+                price = roundedPrice,
                 discount = settingsDto.PlannedDiscountPercent
             });
         }
 
-        result.TotalCount = payloadData.Count;
+        result.TotalCount = nmIds.Count;
         if (result.TotalCount == 0)
             return result;
 
@@ -85,11 +96,11 @@ public class WildberriesPriceService : WildberriesBaseService
         var batchResults = await Task.WhenAll(batchTasks);
 
         var errors = batchResults.Where(e => e != null)!.Select(e => e!).ToList();
-        result.Errors = errors;
+        result.Errors.AddRange(errors);
 
         var failedCount = errors.Sum(e => e.BatchSize);
-        result.FailedCount = failedCount;
-        result.SuccessCount = result.TotalCount - failedCount;
+        result.FailedCount += failedCount;
+        result.SuccessCount = result.TotalCount - result.FailedCount;
 
         return result;
 

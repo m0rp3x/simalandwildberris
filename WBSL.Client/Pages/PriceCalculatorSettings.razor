@@ -75,14 +75,6 @@
                                   Required="true"/>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="Settings.MarginPercent"
-                                  Label="Маржа (%)"
-                                  Variant="Variant.Filled"
-                                  Immediate="true"
-                                  For="@(() => Settings.MarginPercent)"
-                                  Required="true"/>
-                </MudItem>
-                <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="Settings.RedemptionLossPercent"
                                   Label="Процент невыкупа (%)"
                                   Variant="Variant.Filled"
@@ -106,7 +98,7 @@
                                   For="@(() => Settings.PlannedDiscountPercent)"
                                   Required="true"/>
                 </MudItem>
-                <MudItem xs="12" sm="6">
+                <MudItem xs="12" sm="12">
                     <MudCheckBox T="bool" @bind-Value="Settings.IsMinimal"
                                  Label="Минимальное количество"
                                  Variant="Variant.Filled"/>

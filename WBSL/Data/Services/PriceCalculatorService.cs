@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Shared;
 using WBSL.Data;
+using WBSL.Data.Extensions;
+using WBSL.Data.Models;
 using WBSL.Data.Services.Wildberries;
 using WBSL.Models;
 
@@ -10,7 +12,8 @@ public class PriceCalculatorService
     private readonly BoxTariffService _boxTariffService;
     private readonly QPlannerDbContext _db;
     private PriceCalculatorSettingsDto _settings;
-
+    private List<MarginRule> _marginRules;
+    
     public PriceCalculatorService(QPlannerDbContext db, CommissionService commissionService,
         BoxTariffService boxTariffService)
     {
@@ -27,6 +30,11 @@ public class PriceCalculatorService
     
     public async Task<List<long>> PrepareCalculationDataAsync(int accountId, int categoryId)
     {
+        _marginRules = await _db.Set<MarginRule>()
+            .AsNoTracking()
+            .OrderBy(r => r.PriceFrom)
+            .ToListAsync();
+        
         _productCards = await _db.WbProductCards
             .AsNoTracking()
             .Where(x => x.externalaccount_id == accountId && x.SubjectID == categoryId)
@@ -70,6 +78,15 @@ public class PriceCalculatorService
 
         return matchedNmIds;
     }
+    
+    public decimal GetMarginPercent(decimal? price)
+    {
+        if (_marginRules == null)
+            throw new InvalidOperationException("Margin rules not loaded. Call LoadRulesAsync first.");
+
+        return _marginRules.GetRateForPrice(price.Value);
+    }
+    
     public Task<decimal> CalculatePriceAsync(long nmId, PriceCalculatorSettingsDto settingsDto, int accountId)
     {
         var productCard = _productCards.FirstOrDefault(p => p.NmID == nmId);
@@ -86,7 +103,9 @@ public class PriceCalculatorService
             return Task.FromResult(0m);
 
         var purchasePrice = product.wholesale_price ?? 0m;
-        
+
+        var marginPercent = GetMarginPercent(purchasePrice);
+
         var effectivePurchasePrice = settingsDto.IsMinimal
             ? purchasePrice * product.qty_multiplier
             : purchasePrice;
@@ -115,7 +134,7 @@ public class PriceCalculatorService
                 $"Сумма всех % ({totalCommissionPercent:F2}%) должна быть меньше 100%."
             );
         }
-        var basePrice = effectivePurchasePrice + (effectivePurchasePrice * settingsDto.MarginPercent / 100m) + totalFixedCosts;
+        var basePrice = effectivePurchasePrice + (effectivePurchasePrice * marginPercent / 100m) + totalFixedCosts;
         var finalPrice = basePrice / commissionDenominator / discountDenominator;
 
         return Task.FromResult(Math.Round((decimal)finalPrice, 1));

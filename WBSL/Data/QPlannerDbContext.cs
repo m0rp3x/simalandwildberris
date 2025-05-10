@@ -40,6 +40,8 @@ public partial class QPlannerDbContext : DbContext
 
     public virtual DbSet<wildberries_parrent_category> wildberries_parrent_categories { get; set; }
     public virtual DbSet<BalanceUpdateRule> BalanceUpdateRules { get; set; }
+    
+    public virtual DbSet<MarginRule> MarginRules { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,6 +54,32 @@ public partial class QPlannerDbContext : DbContext
             entity.ToTable("WbCharacteristic");
 
             entity.Property(e => e.Value).HasColumnType("jsonb");
+        });
+        
+        modelBuilder.Entity<MarginRule>(entity =>
+        {
+            entity.ToTable("margin_rules");
+            
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .UseIdentityAlwaysColumn();
+            
+            entity.Property(e => e.PriceFrom)
+                .HasColumnName("price_from")
+                .HasColumnType("numeric")
+                .IsRequired();
+
+            entity.Property(e => e.PriceTo)
+                .HasColumnName("price_to")
+                .HasColumnType("numeric")
+                .IsRequired();
+
+            entity.Property(e => e.RatePct)
+                .HasColumnName("rate_pct")
+                .HasPrecision(5, 2)
+                .IsRequired();
         });
 
         modelBuilder.Entity<WbCursor>(entity =>
