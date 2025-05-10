@@ -25,11 +25,11 @@ public class PriceCalculatorService
     private (decimal BasePrice1, decimal LiterPrice) _boxTariffs;
     private Dictionary<int, decimal?> _commissionPercents;
     
-    public async Task<List<long>> PrepareCalculationDataAsync(int accountId)
+    public async Task<List<long>> PrepareCalculationDataAsync(int accountId, int categoryId)
     {
         _productCards = await _db.WbProductCards
             .AsNoTracking()
-            .Where(x => x.externalaccount_id == accountId)
+            .Where(x => x.externalaccount_id == accountId && x.SubjectID == categoryId)
             .ToListAsync();
 
         var sids = _productCards
@@ -106,16 +106,17 @@ public class PriceCalculatorService
             : 0m;
 
         var totalFixedCosts = settingsDto.HandlingCost + settingsDto.PackagingCost + settingsDto.SalaryCost + logisticsCost;
-        var totalCommissionPercent = settingsDto.PlannedDiscountPercent + settingsDto.RedemptionLossPercent + commissionPercent;
-        decimal? denominator = (100m - totalCommissionPercent) / 100m;
-        if (denominator <= 0)
+        var totalCommissionPercent = settingsDto.RedemptionLossPercent + commissionPercent;
+        decimal? commissionDenominator = (100m - totalCommissionPercent) / 100m;
+        decimal? discountDenominator = (100m - settingsDto.AddedDiscountPercent) / 100m;
+        if (commissionDenominator <= 0 || discountDenominator <= 0)
         {
             throw new InvalidOperationException(
                 $"Сумма всех % ({totalCommissionPercent:F2}%) должна быть меньше 100%."
             );
         }
         var basePrice = effectivePurchasePrice + (effectivePurchasePrice * settingsDto.MarginPercent / 100m) + totalFixedCosts;
-        var finalPrice = basePrice / denominator;
+        var finalPrice = basePrice / commissionDenominator / discountDenominator;
 
         return Task.FromResult(Math.Round((decimal)finalPrice, 1));
     }

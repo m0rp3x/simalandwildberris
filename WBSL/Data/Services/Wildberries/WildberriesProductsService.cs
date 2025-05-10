@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Shared;
@@ -16,6 +18,9 @@ public class WildberriesProductsService : WildberriesBaseService
     private readonly QPlannerDbContext _db;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly int maxRetries = 3;
+
+    private static readonly ConcurrentDictionary<int, SemaphoreSlim> _syncLocks
+        = new ConcurrentDictionary<int, SemaphoreSlim>();
 
     public WildberriesProductsService(
         PlatformHttpClientFactory httpFactory,
@@ -37,84 +42,112 @@ public class WildberriesProductsService : WildberriesBaseService
 
         var results = await Task.WhenAll(tasks);
 
+
         return results.ToList();
     }
 
     private async Task<ProductsSyncResult> SyncProductsForAccountAsync(int accountId){
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
+        var semaphore = _syncLocks.GetOrAdd(accountId, _ => new SemaphoreSlim(1, 1));
+        await semaphore.WaitAsync();
+        try{
+            var syncStartedAt = DateTime.UtcNow;
 
-        int totalRequests = 0;
-        int totalCards = 0;
-        int fetchErrorCount = 0;
-        int saveErrorCount = 0;
-        string updatedAt = string.Empty;
-        long? nmID = null;
-        int totalAvailable = 1;
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
 
-        do{
-            try{
-                var (response, cardsCount) = await FetchProductsBatchAsync(updatedAt, nmID, accountId);
-                totalRequests++;
-                totalCards += cardsCount;
+            int totalRequests = 0;
+            int totalCards = 0;
+            int fetchErrorCount = 0;
+            int saveErrorCount = 0;
+            string updatedAt = string.Empty;
+            long? nmID = null;
+            int totalAvailable = 1;
 
+            do{
                 try{
-                    var batch = response.Cards.Select(card => WbProductCardMapToDomain.MapToDomain(card)).ToList();
-                    await SaveProductsToDatabaseAsync(db, batch, accountId);
-                }
-                catch (Exception saveEx){
-                    saveErrorCount++;
-                    if (saveErrorCount >= 3){
-                        return new ProductsSyncResult(
-                            ProductsCount: totalCards,
-                            RequestsCount: totalRequests,
-                            FetchErrorsCount: fetchErrorCount,
-                            SaveErrorsCount: saveErrorCount,
-                            IsFatalError: true,
-                            FatalErrorMessage: $"Failed to save batches. Error: {saveEx.Message}"
-                        );
+                    var (response, cardsCount) = await FetchProductsBatchAsync(updatedAt, nmID, accountId);
+                    totalRequests++;
+                    totalCards += cardsCount;
+
+                    updatedAt = response.Cursor.UpdatedAt.ToString("o");
+                    nmID = response.Cursor.NmID;
+                    totalAvailable = response.Cursor.Total;
+                    try{
+                        var batch = response.Cards.Select(card => WbProductCardMapToDomain.MapToDomain(card)).ToList();
+                        await SaveProductsToDatabaseAsync(db, batch, accountId, syncStartedAt);
                     }
+                    catch (Exception saveEx){
+                        saveErrorCount++;
+                        if (saveErrorCount >= 3){
+                            return new ProductsSyncResult(
+                                ProductsCount: totalCards,
+                                RequestsCount: totalRequests,
+                                FetchErrorsCount: fetchErrorCount,
+                                SaveErrorsCount: saveErrorCount,
+                                IsFatalError: true,
+                                FatalErrorMessage: $"Failed to save batches. Error: {saveEx.Message}"
+                            );
+                        }
 
-                    await Task.Delay(1000);
-                    continue;
+                        await Task.Delay(3000);
+                    }
                 }
+                catch (FetchFailedException fetchEx){
+                    return new ProductsSyncResult(
+                        ProductsCount: totalCards,
+                        RequestsCount: totalRequests,
+                        FetchErrorsCount: fetchErrorCount + 1,
+                        SaveErrorsCount: saveErrorCount,
+                        IsFatalError: true,
+                        FatalErrorMessage: $"Failed to fetch batch: {fetchEx.Message}"
+                    );
+                }
+                catch (Exception ex){
+                    return new ProductsSyncResult(
+                        ProductsCount: totalCards,
+                        RequestsCount: totalRequests,
+                        FetchErrorsCount: fetchErrorCount,
+                        SaveErrorsCount: saveErrorCount,
+                        IsFatalError: true,
+                        FatalErrorMessage: $"Unhandled exception: {ex.Message}"
+                    );
+                }
+            } while (ShouldFetchNextBatch(totalAvailable));
 
-                updatedAt = response.Cursor.UpdatedAt.ToString("o");
-                nmID = response.Cursor.NmID;
-                totalAvailable = response.Cursor.Total;
+            var toDelete = await db.WbProductCards
+                .Where(p =>
+                    p.externalaccount_id == accountId
+                    && p.LastSeenAt < syncStartedAt
+                )
+                .ToListAsync();
+            if (toDelete.Any()){
+                db.WbProductCards.RemoveRange(toDelete);
+                await db.SaveChangesAsync();
             }
-            catch (FetchFailedException fetchEx){
-                return new ProductsSyncResult(
-                    ProductsCount: totalCards,
-                    RequestsCount: totalRequests,
-                    FetchErrorsCount: fetchErrorCount + 1,
-                    SaveErrorsCount: saveErrorCount,
-                    IsFatalError: true,
-                    FatalErrorMessage: $"Failed to fetch batch: {fetchEx.Message}"
-                );
-            }
-            catch (Exception ex){
-                return new ProductsSyncResult(
-                    ProductsCount: totalCards,
-                    RequestsCount: totalRequests,
-                    FetchErrorsCount: fetchErrorCount,
-                    SaveErrorsCount: saveErrorCount,
-                    IsFatalError: true,
-                    FatalErrorMessage: $"Unhandled exception: {ex.Message}"
-                );
-            }
-        } while (ShouldFetchNextBatch(totalAvailable));
 
-        return new ProductsSyncResult(totalCards, totalRequests);
+            return new ProductsSyncResult(totalCards, totalRequests);
+        }
+        finally{
+            semaphore.Release();
+            if (semaphore.CurrentCount == 1)
+                _syncLocks.TryRemove(accountId, out _);
+        }
     }
 
-    public async Task SaveProductsToDatabaseAsync(QPlannerDbContext db,List<WbProductCard> productsToSave, int externalAccountId){
+    public async Task SaveProductsToDatabaseAsync(
+        QPlannerDbContext db,
+        List<WbProductCard> productsToSave,
+        int externalAccountId,
+        DateTime syncStartedAt){
         if (!productsToSave.Any())
             return;
 
         await using var transaction = await db.Database.BeginTransactionAsync();
 
         try{
+            await ProcessCharacteristicsAsync(db, productsToSave);
+            await ProcessSizesAndSkusAsync(db, productsToSave);
+
             var existingProductIds = await db.WbProductCards
                 .Where(p => productsToSave.Select(x => x.NmID).Contains(p.NmID))
                 .Select(p => p.NmID)
@@ -123,46 +156,52 @@ public class WildberriesProductsService : WildberriesBaseService
             var existingEntities = await db.WbProductCards
                 .Include(p => p.WbPhotos)
                 .Include(p => p.WbProductCardCharacteristics)
-                .Include(x => x.SizeChrts)
+                .Include(p => p.SizeChrts)
                 .Where(p => existingProductIds.Contains(p.NmID))
                 .ToListAsync();
 
             var newProducts = productsToSave
                 .Where(p => !existingProductIds.Contains(p.NmID))
+                .GroupBy(p => p.NmID)
+                .Select(g => g.First())
                 .ToList();
 
             var existingProducts = productsToSave
                 .Where(p => existingProductIds.Contains(p.NmID))
                 .ToList();
 
-            await ProcessCharacteristicsAsync(productsToSave);
-            await ProcessSizesAndSkusAsync(productsToSave);
-
             if (newProducts.Any()){
-                foreach (var product in newProducts){
-                    product.externalaccount_id = externalAccountId;
-                }
+                newProducts.ForEach(p => {
+                    p.externalaccount_id = externalAccountId;
+                    p.LastSeenAt = syncStartedAt;
+                    p.SizeChrts = new List<WbSize>();
+                });
                 await db.WbProductCards.AddRangeAsync(newProducts);
             }
 
-            foreach (var product in existingProducts){
-                product.externalaccount_id = externalAccountId;
-                var existing = existingEntities.FirstOrDefault(p => p.NmID == product.NmID);
+            foreach (var prod in existingProducts){
+                prod.externalaccount_id = externalAccountId;
 
-                if (existing != null){
-                    db.Entry(existing).CurrentValues.SetValues(product);
+                var exist = existingEntities.FirstOrDefault(e => e.NmID == prod.NmID);
+                if (exist == null) continue;
 
-                    db.WbPhotos.RemoveRange(existing.WbPhotos);
-                    existing.WbPhotos = product.WbPhotos;
+                exist.LastSeenAt = syncStartedAt;
 
-                    db.WbProductCardCharacteristics.RemoveRange(existing.WbProductCardCharacteristics);
-                    existing.WbProductCardCharacteristics = product.WbProductCardCharacteristics;
-                }
+                // Перезапись коллекций
+                db.WbPhotos.RemoveRange(exist.WbPhotos);
+                exist.WbPhotos = prod.WbPhotos;
+
+                db.WbProductCardCharacteristics.RemoveRange(exist.WbProductCardCharacteristics);
+                exist.WbProductCardCharacteristics = prod.WbProductCardCharacteristics;
             }
 
             await db.SaveChangesAsync();
 
+            await LinkSizesToProductsAsync(db, productsToSave);
+
             await transaction.CommitAsync();
+
+            db.ChangeTracker.Clear();
         }
         catch (Exception ex){
             await transaction.RollbackAsync();
@@ -170,31 +209,75 @@ public class WildberriesProductsService : WildberriesBaseService
         }
     }
 
-    private async Task ProcessSizesAndSkusAsync(List<WbProductCard> products){
-        var allChrtIds = products
+    private async Task ProcessSizesAndSkusAsync(
+        QPlannerDbContext db,
+        List<WbProductCard> products){
+        var allSizes = products
             .SelectMany(p => p.SizeChrts)
-            .Select(s => s.ChrtID)
+            .GroupBy(s => s.ChrtID)
+            .Select(g => new WbSize {
+                ChrtID = g.Key,
+                Value  = g.First().Value
+            })
+            .ToList();
+
+        if (!allSizes.Any()) return;
+
+        // 1) Возьмём существующие
+        var ids = allSizes.Select(s => s.ChrtID).ToList();
+        var existing = await db.WbSizes
+            .Where(s => ids.Contains(s.ChrtID))
+            .ToListAsync();
+
+        // 2) Обновим их
+        foreach (var ex in existing)
+        {
+            ex.Value = allSizes.First(s => s.ChrtID == ex.ChrtID).Value;
+        }
+
+        // 3) Добавим новые
+        var toInsert = allSizes
+            .Where(s => !existing.Any(e => e.ChrtID == s.ChrtID))
+            .ToList();
+
+        if (toInsert.Any())
+            await db.WbSizes.AddRangeAsync(toInsert);
+
+        // 4) Сохраним всё
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Добавляет в таблицу WbProductCardSizes (ProductNmID ↔ SizeChrtID) 
+    /// только тех связей, которых ещё нет.
+    /// </summary>
+    private async Task LinkSizesToProductsAsync(
+        QPlannerDbContext db,
+        List<WbProductCard> products){
+        var tuples = products
+            .SelectMany(p => p.SizeChrts.Select(s => (ProductNmID: p.NmID, SizeChrID: s.ChrtID)))
             .Distinct()
             .ToList();
 
-        var existingSizes = await _db.WbSizes
-            .Where(s => allChrtIds.Contains(s.ChrtID))
-            .ToListAsync();
+        if (!tuples.Any())
+            return;
 
-        foreach (var size in products.SelectMany(p => p.SizeChrts)){
-            var existingSize = existingSizes.FirstOrDefault(s => s.ChrtID == size.ChrtID);
-            if (existingSize == null) continue;
+        var valuesClause = string.Join(",", tuples
+            .Select(t => $"({t.ProductNmID},{t.SizeChrID})"));
 
-            existingSize.Value = size.Value;
+        // 3) Выполняем INSERT … ON CONFLICT DO NOTHING
+        var sql = $@"
+INSERT INTO ""WbProductCardSizes"" (""ProductNmID"", ""SizeChrtID"")
+VALUES {valuesClause}
+ON CONFLICT (""ProductNmID"", ""SizeChrtID"") DO NOTHING;";
 
-            size.ChrtID = 0;
-        }
-
-        await _db.SaveChangesAsync();
+        await db.Database.ExecuteSqlRawAsync(sql);
     }
 
-    private async Task ProcessCharacteristicsAsync(List<WbProductCard> products){
-        var allCharacteristics = products
+    private async Task ProcessCharacteristicsAsync(
+        QPlannerDbContext db,
+        List<WbProductCard> products){
+        var allChars = products
             .SelectMany(p => p.WbProductCardCharacteristics)
             .Select(pc => pc.Characteristic)
             .Where(c => c != null)
@@ -202,26 +285,26 @@ public class WildberriesProductsService : WildberriesBaseService
             .Select(g => g.First())
             .ToList();
 
-        var existingCharIds = await _db.WbCharacteristics
-            .Where(c => allCharacteristics.Select(x => x.Id).Contains(c.Id))
+        var existingCharIds = await db.WbCharacteristics
+            .Where(c => allChars.Select(x => x.Id).Contains(c.Id))
             .Select(c => c.Id)
             .ToListAsync();
 
-        var newCharacteristics = allCharacteristics
+        var newChars = allChars
             .Where(c => !existingCharIds.Contains(c.Id))
             .ToList();
 
-        if (newCharacteristics.Any()){
-            await _db.WbCharacteristics.AddRangeAsync(newCharacteristics);
-            await _db.SaveChangesAsync();
+        if (newChars.Any()){
+            await db.WbCharacteristics.AddRangeAsync(newChars);
+            await db.SaveChangesAsync();
         }
 
-        foreach (var product in products){
-            foreach (var pc in product.WbProductCardCharacteristics){
-                pc.Characteristic = null;
-            }
-        }
+        // Сбрасываем ссылку, чтобы не дублировать в SaveChanges
+        foreach (var product in products)
+        foreach (var pc in product.WbProductCardCharacteristics)
+            pc.Characteristic = null;
     }
+
 
     private bool ShouldFetchNextBatch(int totalCardsFetched){
         return Math.Abs(totalCardsFetched) % 100 == 0;

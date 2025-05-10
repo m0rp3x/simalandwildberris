@@ -15,7 +15,12 @@ public class PriceCalculatorSettingsDto
     [Required]
     public decimal RedemptionLossPercent { get; set; } = 3m; // Процент невыкупа
     [Required]
-    public decimal PlannedDiscountPercent { get; set; } = 60m; // Планируемая скидка
+    public decimal PlannedDiscountPercent { get; set; } = 60m; 
+    [Required]
+    public decimal AddedDiscountPercent { get; set; } = 10m; // Добавленная скидка
     [Required]
     public bool IsMinimal { get; set; } = false;
+    [Required]
+    [Range(1, int.MaxValue)]
+    public int WildberriesCategoryId { get; set; } = 0;
 }

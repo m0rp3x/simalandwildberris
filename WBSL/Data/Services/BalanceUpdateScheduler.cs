@@ -10,10 +10,27 @@ public class BalanceUpdateScheduler : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     
+    private volatile bool _enabled = true;
     public BalanceUpdateScheduler(IServiceScopeFactory scopeFactory)
     {
         _scopeFactory = scopeFactory;
     }
+    
+    /// <summary>
+    /// Текущее состояние автозапуска.
+    /// </summary>
+    public bool Enabled => _enabled;
+    
+    /// <summary>
+    /// Установить состояние автозапуска в память.
+    /// </summary>
+    public Task SetEnabledAsync(bool enabled)
+    {
+        _enabled = enabled;
+        Console.WriteLine($"[Scheduler] Balance updates enabled = {_enabled}");
+        return Task.CompletedTask;
+    }
+    
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {                  
@@ -24,9 +41,14 @@ public class BalanceUpdateScheduler : BackgroundService
         {
             try
             {
+                if (!_enabled)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
+                    continue;
+                }
                 var now = DateTime.UtcNow;
 
-                if ((now - lastRulesUpdate) > TimeSpan.FromMinutes(30))
+                if ((now - lastRulesUpdate) > TimeSpan.FromMinutes(5))
                 {
                     using var scope = _scopeFactory.CreateScope();
                     var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
@@ -49,7 +71,6 @@ public class BalanceUpdateScheduler : BackgroundService
     }
     private async Task ProcessRule(BalanceUpdateRule rule, CancellationToken ct)
     {
-        return;
         var now = DateTime.UtcNow;
 
         if (!ShouldRunNow(rule, now))

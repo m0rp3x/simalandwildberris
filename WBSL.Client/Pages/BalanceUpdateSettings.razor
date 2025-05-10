@@ -1,0 +1,114 @@
+﻿@page "/balance-update-settings"
+@using Shared
+@using Shared.Enums
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PageTitle>Настройки обновления баланса</PageTitle>
+
+<MudPaper Class="pa-6 mx-auto mt-8" Style="max-width:600px;" Elevation="4">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h5">⚙️ Автообновление остатков</MudText>
+
+        <MudForm>
+            <MudSwitch T="bool" @bind-Value="_enabled"
+                       Label="Авто-обновление баланса"
+                       Disabled="@(!_initialized)" />
+
+            <MudButton OnClick="SaveSettings"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Disabled="@(!_initialized)">
+                Сохранить
+            </MudButton>
+        </MudForm>
+
+        <MudDivider Class="my-4" />
+
+        <MudText Typo="Typo.h5">🗑 Обнулить остатки</MudText>
+
+        <!-- Выбор аккаунта -->
+        <MudSelect T="ExternalAccount"
+                   @bind-Value="_selectedAccount"
+                   Label="Выберите аккаунт"
+                   Variant="Variant.Outlined"
+                   FullWidth
+                   Disabled="!_initialized">
+            @foreach (var acct in _accounts)
+            {
+            <MudSelectItem Value="acct">@acct.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudButton OnClick="ResetBalances"
+                   Variant="Variant.Outlined"
+                   Color="Color.Error"
+                   Disabled="!_initialized || _selectedAccount == null">
+            Обнулить остатки
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private bool _initialized;
+    private bool _enabled;
+        
+    private List<ExternalAccount> _accounts = new();
+    private ExternalAccount? _selectedAccount;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        if (!OperatingSystem.IsBrowser()){
+            return;
+        }
+        var resp = await Http.GetFromJsonAsync<Dictionary<string, bool>>("api/scheduler/balance-enabled");
+        if (resp != null && resp.TryGetValue("enabled", out var e))
+            _enabled = e;
+        _initialized = true;
+        
+        var all = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts")
+                  ?? new List<ExternalAccount>();
+        _accounts = all
+            .Where(x => x.Platform == ExternalAccountType.Wildberries.ToString())
+            .ToList();
+        
+        StateHasChanged();
+    }
+    
+    private async Task ResetBalances()
+    {
+        if (_selectedAccount == null) return;
+
+        var resp = await Http.PostAsync(
+            $"api/scheduler/balance-reset/{_selectedAccount.Id}",
+            null
+        );
+        if (resp.IsSuccessStatusCode)
+        {
+            var result = await resp.Content.ReadFromJsonAsync<Dictionary<string, int>>();
+            var count = result?.GetValueOrDefault("resetCount") ?? 0;
+            Snackbar.Add(
+                $"Остатки по аккаунту «{_selectedAccount.Name}» обнулены: {count} товаров.",
+                Severity.Success
+            );
+        }
+        else
+        {
+            Snackbar.Add($"Не удалось обнулить: {resp.StatusCode}", Severity.Error);
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        var response = await Http.PostAsJsonAsync("api/scheduler/balance-enabled", _enabled);
+        if (response.IsSuccessStatusCode)
+        {
+            var statusText = _enabled ? "включено" : "отключено";
+            Snackbar.Add($"Авто-обновление остатков {statusText}.", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add($"Ошибка при сохранении: {response.StatusCode}", Severity.Error);
+        }
+    }
+}

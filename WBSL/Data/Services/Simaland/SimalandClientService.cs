@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
+using Shared.Enums;
+using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Models;
 
 namespace WBSL.Data.Services.Simaland;
@@ -10,10 +12,12 @@ namespace WBSL.Data.Services.Simaland;
 public class SimalandClientService
 {
     private readonly QPlannerDbContext _db;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public SimalandClientService(
-        QPlannerDbContext db){
+        QPlannerDbContext db, IServiceScopeFactory scopeFactory){
         _db = db;
+        _scopeFactory = scopeFactory;
     }
 
     private class ProductInfo
@@ -72,7 +76,8 @@ public class SimalandClientService
                     }
 
                     if (bag.Count >= batchSize){
-                        await SaveBatchAndPushToWB(bag.ToList(), wildberriesClient, ct, warehouseId, externalAccountIds);
+                        await SaveBatchAndPushToWB(bag.ToList(), wildberriesClient, ct, warehouseId,
+                            externalAccountIds);
                         bag = new ConcurrentBag<ProductInfo>();
                     }
 
@@ -90,8 +95,97 @@ public class SimalandClientService
             await SaveBatchAndPushToWB(bag.ToList(), wildberriesClient, ct, warehouseId, externalAccountIds);
     }
 
-    private async Task SaveBatchAndPushToWB(List<ProductInfo> batch, 
-        HttpClient wbClient, 
+    public async Task<int> ResetBalancesInWbAsync(int externalAccountId, CancellationToken ct){
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
+        var factory = scope.ServiceProvider.GetRequiredService<PlatformHttpClientFactory>();
+
+        var wbCards = await db.WbProductCards
+            .Include(c => c.SizeChrts)
+            .Where(c => c.externalaccount_id == externalAccountId)
+            .ToListAsync(ct);
+
+        if (wbCards.Count == 0)
+            return 0;
+
+        var warehouseId = await db.external_accounts
+            .Where(x => x.id == externalAccountId)
+            .Select(x => x.warehouseid)
+            .FirstOrDefaultAsync(ct);
+
+        var wbClient = await factory.CreateClientAsync(
+            ExternalAccountType.WildBerriesMarketPlace,
+            externalAccountId);
+
+        const int batchSize = 1000;
+        var totalSent = 0;
+        for (int i = 0; i < wbCards.Count; i += batchSize){
+            var batch = wbCards
+                .Skip(i)
+                .Take(batchSize)
+                .ToList();
+
+            var stocks = new List<object>();
+
+            foreach (var card in batch){
+                var firstSize = card.SizeChrts
+                    .Select(sc => sc.Value)
+                    .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+                if (firstSize == null)
+                    continue;
+
+                var sku = firstSize
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .FirstOrDefault();
+                if (string.IsNullOrEmpty(sku))
+                    continue;
+
+                stocks.Add(new{
+                    sku = sku,
+                    amount = 0
+                });
+            }
+
+            if (stocks.Count == 0){
+                Console.WriteLine("No stocks to update to Wildberries in this batch.");
+                continue; // не return, чтобы пройти все батчи
+            }
+
+            var payload = new{ stocks };
+            var content = new StringContent(
+                JsonSerializer.Serialize(payload),
+                Encoding.UTF8,
+                "application/json"
+            );
+
+            HttpResponseMessage response;
+            try{
+                response = await wbClient.PutAsync(
+                    $"/api/v3/stocks/{warehouseId}",
+                    content,
+                    ct
+                );
+            }
+            catch (Exception ex){
+                Console.WriteLine($"Error sending batch starting at index {i}: {ex}");
+                continue;
+            }
+
+            if (response.IsSuccessStatusCode)
+                Console.WriteLine($"Successfully updated {stocks.Count} stocks as zero.");
+            else{
+                var errorContent = await response.Content.ReadAsStringAsync(ct);
+                Console.WriteLine($"Failed to update stocks: {response.StatusCode} {errorContent}");
+            }
+
+            totalSent += stocks.Count;
+        }
+
+        return totalSent;
+    }
+
+    private async Task SaveBatchAndPushToWB(List<ProductInfo> batch,
+        HttpClient wbClient,
         CancellationToken ct,
         int warehouseId,
         List<int> externalAccountIds){
@@ -116,7 +210,8 @@ public class SimalandClientService
         }
     }
 
-    private async Task UpdateStocksOnWildberries(List<ProductInfo> batch, HttpClient wbClient, CancellationToken ct, int warehouseId, List<int> externalAccountIds){
+    private async Task UpdateStocksOnWildberries(List<ProductInfo> batch, HttpClient wbClient, CancellationToken ct,
+        int warehouseId, List<int> externalAccountIds){
         try{
             var productSids = batch.Select(p => p.Sid).ToList();
 
@@ -124,14 +219,14 @@ public class SimalandClientService
                 .AsNoTracking()
                 .Where(p => productSids.Contains(p.sid))
                 .ToListAsync(cancellationToken: ct);
-            
+
             var productVendorCodes = productSids.Select(sid => sid.ToString()).ToList();
 
             var wbProductCards = await _db.WbProductCards
                 .AsNoTracking()
                 .Include(x => x.SizeChrts)
-                .Where(wb => productVendorCodes.Contains(wb.VendorCode) 
-                             && wb.externalaccount_id.HasValue 
+                .Where(wb => productVendorCodes.Contains(wb.VendorCode)
+                             && wb.externalaccount_id.HasValue
                              && externalAccountIds.Contains(wb.externalaccount_id.Value))
                 .ToListAsync(cancellationToken: ct);
 
@@ -151,12 +246,12 @@ public class SimalandClientService
                 var firstSize = wbCard.SizeChrts.FirstOrDefault();
                 if (firstSize == null || string.IsNullOrWhiteSpace(firstSize.Value)) continue;
 
-                var skuParts = firstSize.Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var skuParts = firstSize.Value.Split(',',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 var sku = skuParts.FirstOrDefault();
                 if (string.IsNullOrEmpty(sku)) continue;
 
-                stocks.Add(new
-                {
+                stocks.Add(new{
                     sku = sku,
                     amount = lots
                 });
@@ -172,7 +267,7 @@ public class SimalandClientService
             };
 
             var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            
+
 
             var response = await wbClient.PutAsync($"/api/v3/stocks/{warehouseId}", content, ct);
 

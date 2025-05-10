@@ -91,7 +91,10 @@ builder.Services.AddScoped<ISimaLandService, SimaLandService>();
 builder.Services.AddScoped<ExcelUpdateService>();
 
 builder.Services.AddScoped<SimalandClientService>();
-builder.Services.AddHostedService<BalanceUpdateScheduler>();
+
+builder.Services.AddSingleton<BalanceUpdateScheduler>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<BalanceUpdateScheduler>());
+
 builder.Services.AddSingleton<PriceCalculatorSettingsDto>(); // Настройки (одни на всё приложение)
 
 builder.Services.AddScoped<PriceCalculatorService>(); // Сам сервис калькулятора цен

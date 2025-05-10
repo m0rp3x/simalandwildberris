@@ -40,4 +40,6 @@ public partial class WbProductCard
     public virtual ICollection<WbDimension> Dimensions { get; set; } = new List<WbDimension>();
 
     public virtual ICollection<WbSize> SizeChrts { get; set; } = new List<WbSize>();
+
+    public DateTime LastSeenAt { get; set; }
 }

@@ -12,13 +12,39 @@
     <MudStack Spacing="3">
         <MudText Typo="Typo.h5">⚙️ Настройки калькулятора цен</MudText>
 
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="6" lg="6">
+                <MudAutocomplete T="WbCategoryDto"
+                                 Label="Родительская категория"
+                                 SearchFunc="(q, t) => SearchBaseCategories(q, t)"
+                                 ToStringFunc="@(x => x?.Name)"
+                                 @bind-Value="SelectedBaseCategory"
+                                 Dense="true"
+                                 Class="mt-2 w-100"
+                                 MaxItems="1000" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="6" lg="6">
+                <MudAutocomplete T="WbCategoryDto"
+                                 Label="Дочерняя категория"
+                                 SearchFunc="(q, t) => SearchChildCategories(q, t)"
+                                 ToStringFunc="@(x => x?.Name ?? String.Empty)"
+                                 Value="SelectedChildCategory"
+                                 Dense="true"
+                                 Class="mt-2 w-100"
+                                 MaxItems="1000"
+                                 Disabled="@(SelectedBaseCategory is null)"
+                                 ValueChanged="OnCategorySelected" />
+            </MudItem>
+            <!-- При необходимости добавьте ещё столбцы под другие настройки -->
+        </MudGrid>
+        
         <MudSelect T="ExternalAccount"
                    @bind-Value="_selectedAccount"
                    Label="Выберите аккаунт"
                    Variant="Variant.Outlined"
                    FullWidth>
             @foreach (var acct in _accounts){
-                <MudSelectItem Value="@acct">@acct.Name</MudSelectItem>     
+                <MudSelectItem Value="@acct">@acct.Name</MudSelectItem>
             }
         </MudSelect>
 
@@ -30,7 +56,7 @@
                                   Variant="Variant.Filled"
                                   Immediate="true"
                                   For="@(() => Settings.HandlingCost)"
-                                  Required="true" />
+                                  Required="true"/>
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="Settings.PackagingCost"
@@ -38,7 +64,7 @@
                                   Variant="Variant.Filled"
                                   Immediate="true"
                                   For="@(() => Settings.PackagingCost)"
-                                  Required="true" />
+                                  Required="true"/>
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="Settings.SalaryCost"
@@ -46,7 +72,7 @@
                                   Variant="Variant.Filled"
                                   Immediate="true"
                                   For="@(() => Settings.SalaryCost)"
-                                  Required="true" />
+                                  Required="true"/>
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="Settings.MarginPercent"
@@ -54,7 +80,7 @@
                                   Variant="Variant.Filled"
                                   Immediate="true"
                                   For="@(() => Settings.MarginPercent)"
-                                  Required="true" />
+                                  Required="true"/>
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="Settings.RedemptionLossPercent"
@@ -62,29 +88,37 @@
                                   Variant="Variant.Filled"
                                   Immediate="true"
                                   For="@(() => Settings.RedemptionLossPercent)"
-                                  Required="true" />
+                                  Required="true"/>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Settings.AddedDiscountPercent"
+                                  Label="Скидка добавленная (%)"
+                                  Variant="Variant.Filled"
+                                  Immediate="true"
+                                  For="@(() => Settings.AddedDiscountPercent)"
+                                  Required="true"/>
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="Settings.PlannedDiscountPercent"
-                                  Label="Планируемая скидка (%)"
+                                  Label="Планируемая скидка (%) на вб"
                                   Variant="Variant.Filled"
                                   Immediate="true"
                                   For="@(() => Settings.PlannedDiscountPercent)"
-                                  Required="true" />
+                                  Required="true"/>
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudCheckBox T="bool" @bind-Value="Settings.IsMinimal"
                                  Label="Минимальное количество"
-                                 Variant="Variant.Filled" />
+                                 Variant="Variant.Filled"/>
                 </MudItem>
             </MudGrid>
 
-            <MudDivider Class="my-4" />
+            <MudDivider Class="my-4"/>
 
             <MudButton OnClick="Submit"
                        Variant="Variant.Filled"
                        Color="Color.Primary"
-                       Disabled="_selectedAccount == null">
+                       Disabled="SaveDisabled">
                 Сохранить
             </MudButton>
         </MudForm>
@@ -97,7 +131,13 @@
     private ExternalAccount? _selectedAccount;
     private List<ExternalAccount> _accounts = new();
     private bool _initialized = false;
-
+    private bool _checkPerformed = false;
+    
+    private WbCategoryDto? SelectedBaseCategory;
+    private WbCategoryDto? SelectedChildCategory;
+    
+    private bool SaveDisabled => _selectedAccount == null || !_checkPerformed;
+    
     protected override async Task OnAfterRenderAsync(bool firstRender){
         if (firstRender && !_initialized){
             _initialized = true;
@@ -117,11 +157,54 @@
         var accounts = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts") ?? new List<ExternalAccount>();
         _accounts = accounts.Where(x=>x.Platform == ExternalAccountType.Wildberries.ToString()).ToList();
     }
+    
+    string BuildQuery(params (string key, string? value)[] parameters) =>
+        string.Join("&", parameters.Select(p => $"{p.key}={Uri.EscapeDataString(p.value ?? string.Empty)}"));
 
+    private async Task<IEnumerable<WbCategoryDto>> SearchBaseCategories(string? value, CancellationToken token){
+        var query = BuildQuery(("query", value));
+        var url = $"api/wildberries/parentCategories?{query}";
+
+        var result = await Http.GetFromJsonAsync<List<WbCategoryDto>>(url, token);
+        return result ?? Enumerable.Empty<WbCategoryDto>();
+    }
+    
+    private async Task<IEnumerable<WbCategoryDto>> SearchChildCategories(string value, CancellationToken token){
+        if (SelectedBaseCategory == null)
+            return Enumerable.Empty<WbCategoryDto>();
+
+        var baseId = SelectedBaseCategory.Id;
+        var query = BuildQuery(("query", value), ("parentId", baseId.ToString()));
+        var url = $"api/wildberries/childCategories?{query}";
+
+        var result = await Http.GetFromJsonAsync<List<WbCategoryDto>>(
+            url, token);
+
+        return result ?? Enumerable.Empty<WbCategoryDto>();
+    }
+    
+    private void OnCategorySelected(WbCategoryDto obj){
+        SelectedChildCategory = obj;
+        if (SelectedChildCategory == null)
+            return;
+        _checkPerformed = true;
+        StateHasChanged();
+
+        
+    }
+    
     private async Task SaveSettings(){
         if (_selectedAccount == null){
             Snackbar.Add("Выберите аккаунт перед сохранением.", Severity.Warning);
             return;
+        }
+
+        if (SelectedChildCategory == null){
+            Snackbar.Add("Выберите категорию Wildberries перед сохранением.", Severity.Warning);
+            return;
+        }
+        else{
+            Settings.WildberriesCategoryId = SelectedChildCategory.Id;
         }
         
         var response = await Http.PostAsJsonAsync(

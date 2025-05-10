@@ -34,7 +34,7 @@ public class WildberriesPriceService : WildberriesBaseService
         var result = new PricePushResult();
 
         var client = await GetWbClientAsync(accountId, isSync);
-        var nmIds = await _priceCalculator.PrepareCalculationDataAsync(accountId);
+        var nmIds = await _priceCalculator.PrepareCalculationDataAsync(accountId, settingsDto.WildberriesCategoryId);
 
         var payloadData = new List<object>();
         foreach (var nmId in nmIds){

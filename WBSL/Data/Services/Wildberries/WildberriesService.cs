@@ -175,7 +175,7 @@ public class WildberriesService : WildberriesBaseService
 
     private async Task<WbApiResult> SearchAndAddSuccessfulAsync(List<string> vendorCodes, int accountId){
         var wbClient = await GetWbClientAsync(accountId);
-        await Task.Delay(5000);
+        await Task.Delay(15000);
 
         const int MaxParallelism = 5;
         var throttler = new SemaphoreSlim(MaxParallelism);
@@ -216,6 +216,7 @@ public class WildberriesService : WildberriesBaseService
                         }
 
                         fetchError = "Card not found, retrying…";
+                        await Task.Delay(TimeSpan.FromSeconds(3));
                     }
                     catch (Exception ex){
                         attempts++;
@@ -302,7 +303,7 @@ public class WildberriesService : WildberriesBaseService
                     .SaveProductsToDatabaseAsync(
                         _db,
                         new List<WbProductCard>{ entity },
-                        accountId);
+                        accountId, DateTime.UtcNow);
             }
             catch (Exception ex){
                 if (!errors.ContainsKey(vendorCode))
