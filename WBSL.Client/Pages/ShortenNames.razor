@@ -1,0 +1,322 @@
+﻿@page "/shorten"
+@using System.Text.Json
+@using Shared
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudPaper Class="pa-4 mx-auto" Style="max-width:600px">
+    <MudText Typo="Typo.h5">Сокращение полей товаров</MudText>
+
+    @if (!countsLoaded)
+    {
+        <MudProgressCircular Indeterminate="true" Class="my-4" />
+    }
+    else
+    {
+        <MudRadioGroup T="string"
+                       @bind-Value="field"
+                       Row="true"
+                       Label="Что обрабатывать?">
+            <MudRadio T="string" Value="name">
+                Название (@nameCount)
+            </MudRadio>
+            <MudRadio T="string" Value="description">
+                Описание (@descCount)
+            </MudRadio>
+            <MudRadio T="string" Value="fillEmpty">
+                Заполнить пустое описание
+            </MudRadio>
+        </MudRadioGroup>
+    }
+
+    <MudTextField T="string"
+                  @bind-Value="Prompt"
+                  Label="Промпт для AI"
+                  Lines="2"
+                  FullWidth="true"
+                  Class="mt-4"
+                  Immediate="false"
+                  OnBlur="OnPromptBlur" />
+
+    <MudButton OnClick="StartJob"
+               Disabled="isRunning || !countsLoaded"
+               Color="Color.Primary"
+               Class="mt-4">
+        @(isRunning ? "Обработка…" : "Начать")
+    </MudButton>
+
+     <MudButton Color="Color.Success"
+                             OnClick="ApplyAndContinue"
+                             Disabled="isSaving || result == null || !result.Any()"
+                             Class="mt-2">
+             @(isSaving ? "Сохраняем…" : "Сохранить")
+         </MudButton>
+
+    @if (jobId.HasValue)
+    {
+        <MudProgressLinear Value="GetPercent()"
+                           BufferValue="100"
+                           Height="20"
+                           Rounded="true"
+                           Class="my-4" />
+        <MudText Typo="Typo.subtitle1">@processed / @total</MudText>
+    }
+
+    @if (result is not null)
+    {
+        <MudTable Items="result"
+                  Dense="true"
+                  FixedHeader="true"
+                  Height="400px"  
+            Class="mt-4">
+            <HeaderContent>
+                <MudTh>SID</MudTh>
+                <MudTh>Поле</MudTh>
+                <MudTh>Старое</MudTh>
+                <MudTh>Новое</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="SID">@context.Sid</MudTd>
+                <MudTd DataLabel="Field">@context.Field</MudTd>
+                <MudTd DataLabel="Old">@context.OldValue</MudTd>
+                <MudTd DataLabel="New">@context.NewValue</MudTd>
+            </RowTemplate>
+        </MudTable>
+
+    }
+</MudPaper>
+
+@code {
+    private bool countsLoaded;
+    private int nameCount;
+    private int descCount;
+    private string field = "name";
+    private string Prompt = "Сократи до 60 символов, сохрани смысл, цвет и размер в см";
+    public string name = "name";
+    public string description = "description";
+    public string fillEmpty = "fillEmpty";
+    private bool isRunning;
+    private Guid? jobId;
+    private int total;
+    private int processed;
+    private List<ShortenedDto>? result;
+
+    private bool isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCounts();
+    }
+
+    private async Task OnPromptBlur(FocusEventArgs _)
+    {
+        await LoadCounts();
+    }
+
+    private async Task LoadCounts()
+    {
+        countsLoaded = false;
+        StateHasChanged();
+        try
+        {
+            var generateIfEmpty = field == "fillEmpty";
+            var apiField        = generateIfEmpty ? "description" : field;
+
+            var uri = $"/api/gpt/shorten-counts" +
+                      $"?prompt={Uri.EscapeDataString(Prompt)}" +
+                      $"&field={apiField}" +
+                      $"&generateIfEmpty={generateIfEmpty}";
+
+            var counts = await Http.GetFromJsonAsync<CountsDto>(uri);
+            nameCount = counts?.NameCount ?? 0;
+            descCount = counts?.DescriptionCount ?? 0;
+        }
+        catch
+        {
+        }
+        finally
+        {
+            countsLoaded = true;
+            StateHasChanged();
+        }
+    }
+
+    
+    private async Task ApplyAndContinue()
+    {
+        if (!jobId.HasValue) return;
+        isSaving = true;
+        try
+        {
+            // 1) Сохраняем текущие правки
+            var resp = await Http.PostAsync($"/api/gpt/apply-shorten/{jobId}", null);
+            resp.EnsureSuccessStatusCode();
+            var json    = await resp.Content.ReadFromJsonAsync<JsonElement>();
+            var applied = json.GetProperty("Applied").GetInt32();
+
+            // 2) Обновляем счётчики оставшихся
+            await LoadCounts();
+
+            // 3) Если что-то осталось — запускаем новую обработку
+            var remaining = field == "fillEmpty" 
+                ? descCount 
+                : (field == "name" ? nameCount : descCount);
+
+            if (remaining > 0)
+            {
+
+                // повторяем StartJob
+                await StartJob();
+            }
+            else
+            {
+                Snackbar.Add("Все записи обработаны!", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+
+
+    private async Task StartJob()
+    {
+        isRunning = true;
+        result    = null;
+        jobId     = null;
+        total     = processed = 0;
+
+        var generateIfEmpty = field == "fillEmpty";
+        var apiField        = generateIfEmpty ? "description" : field;
+
+        try
+        {
+            var payload = new
+            {
+                Prompt,
+                Field = apiField,
+                GenerateIfEmpty = generateIfEmpty
+            };
+
+            var resp = await Http.PostAsJsonAsync("/api/gpt/start-shorten-job", payload);
+            resp.EnsureSuccessStatusCode();
+
+            var jr    = await resp.Content.ReadFromJsonAsync<StartJobResponse>();
+            jobId     = jr?.JobId;
+
+            _ = PollProgress();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Ошибка старта задачи: {ex.Message}", Severity.Error);
+            isRunning = false;
+        }
+    }
+
+    private async Task PollProgress()
+    {
+        if (!jobId.HasValue)
+        {
+            isRunning = false;
+            return;
+        }
+
+        ProgressDto p;
+        do
+        {
+            p = await Http.GetFromJsonAsync<ProgressDto>($"/api/gpt/shorten-progress/{jobId}");
+            if (p == null)
+            {
+                Snackbar.Add("Job not found", Severity.Error);
+                isRunning = false;
+                return;
+            }
+
+            total     = p.Total;
+            processed = p.Processed;
+            StateHasChanged();
+
+            await Task.Delay(500);
+        }
+        while (p.Status == "Running");
+
+        if (p.Status == "Failed")
+        {
+            isRunning = false;
+            return;
+        }
+
+        try
+        {
+            var r = await Http.GetFromJsonAsync<ResultDto>($"/api/gpt/shorten-result/{jobId}");
+            if (r?.Products != null)
+            {
+                result = r.Products
+                    .Select(el => JsonSerializer.Deserialize<ShortenedDto>(el.GetRawText())!)
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+        }
+
+        isRunning = false;
+        StateHasChanged();
+    }
+
+    private async Task ApplyChanges()
+    {
+        if (!jobId.HasValue) return;
+        isSaving = true;
+        try
+        {
+            var resp = await Http.PostAsync($"/api/gpt/apply-shorten/{jobId}", null);
+            resp.EnsureSuccessStatusCode();
+
+            var json    = await resp.Content.ReadFromJsonAsync<JsonElement>();
+            var applied = json.GetProperty("Applied").GetInt32();
+            Snackbar.Add($"В базу записано изменений: {applied}", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private double GetPercent() =>
+        total > 0 ? processed / (double)total * 100 : 0;
+
+    // DTOs
+    private class CountsDto
+    {
+        public int NameCount { get; set; }
+        public int DescriptionCount { get; set; }
+    }
+
+    private class StartJobResponse { public Guid JobId { get; set; } }
+
+    private class ProgressDto
+    {
+        public int Total { get; set; }
+        public int Processed { get; set; }
+        public string Status { get; set; } = "";
+    }
+
+    private class ResultDto { public List<JsonElement> Products { get; set; } = new(); }
+
+    private class ShortenedDto
+    {
+        public long Sid { get; set; }
+        public string Field { get; set; } = "";
+        public string OldValue { get; set; } = "";
+        public string NewValue { get; set; } = "";
+    }
+}

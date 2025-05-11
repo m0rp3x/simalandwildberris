@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Shared;
 using WBSL.Client.Data.Services;
+using WBSL.Data.Client;
 using WBSL.Data.Config;
 using WBSL.Data.Handlers;
 using WBSL.Data.Hangfire;
@@ -17,14 +18,19 @@ using WBSL.Data.Services;
 using WBSL.Data.Services.Simaland;
 using WBSL.Data.Services.Wildberries;
 using WBSL.Services;
-
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add MudBlazor services
 builder.Services.AddMudServices();
-builder.Services.AddDbContext<QPlannerDbContext>(options => {
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
+// регистрируем сам контекст (для синхронных кейсов)
+builder.Services.AddDbContext<QPlannerDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// регистрируем фабрику — с контекстом в Scoped/Transient и опциями в Singleton
+
+
 // Hangfire
 builder.Services.AddHangfireWithJobs(builder.Configuration);
 builder.Services.AddCoreAdmin();
@@ -156,6 +162,14 @@ builder.Services.AddHttpClient("WildBerriesCommonApi",
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesCommonApi");
         return new RateLimitedAuthHandler(a, "WildBerriesCommonApi");
     });
+
+// using Microsoft.Extensions.DependencyInjection;
+builder.Services.AddHttpClient<IChadGptClient, ChadGptClient>(client =>
+{
+    client.BaseAddress = new Uri("https://ask.chadgpt.ru/api/public/gpt-4o-mini");
+});
+builder.Services.AddScoped<ProductShortenerService>();
+
 
 builder.Services.Remove(
     builder.Services.FirstOrDefault(d =>
