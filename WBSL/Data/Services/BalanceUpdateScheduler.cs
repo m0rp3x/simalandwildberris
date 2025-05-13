@@ -71,7 +71,6 @@ public class BalanceUpdateScheduler : BackgroundService
     }
     private async Task ProcessRule(BalanceUpdateRule rule, CancellationToken ct)
     {
-        return;
         var now = DateTime.UtcNow;
 
         if (!ShouldRunNow(rule, now))

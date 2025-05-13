@@ -29,7 +29,8 @@ public class GptController : ControllerBase
     public record PromptRequest(string Prompt, string Field, int MaxLength,bool GenerateIfEmpty = false);   
     public record StartJobResponse(Guid JobId);
     
-    public record CountsDto(int NameCount, int DescriptionCount);
+    public record CountsDto(int NameCount, int DescriptionCount, int EmptyDescriptions);
+
 
 
     [HttpPost("start-shorten-job")]
@@ -120,33 +121,23 @@ public class GptController : ControllerBase
         [FromQuery] string field = "name",
         [FromQuery] bool generateIfEmpty = false)
     {
-        // 1) Парсим maxLen из prompt
         int maxLen = 60;
         var match = Regex.Match(prompt, @"до\s*(\d+)\s*символ", RegexOptions.IgnoreCase);
         if (match.Success && int.TryParse(match.Groups[1].Value, out var parsed))
             maxLen = parsed;
 
-        // 2) Считаем nameCount
         var nameCount = _db.products.Count(p => p.name.Length > maxLen);
 
-        // 3) Считаем descCount всегда — либо пустые, либо длинные
-        int descCount;
-        if (generateIfEmpty)
-        {
-            // пустые описания
-            descCount = _db.products.Count(p => string.IsNullOrWhiteSpace(p.description));
-        }
-        else
-        {
-            // только ненулевые и длиннее maxLen
-            descCount = _db.products.Count(p =>
-                p.description != null &&
-                p.description.Length > maxLen
-            );
-        }
+        var descCount = _db.products.Count(p =>
+            (!generateIfEmpty && p.description != null && p.description.Length > maxLen) ||
+            (generateIfEmpty && string.IsNullOrWhiteSpace(p.description))
+        );
 
-        return Ok(new CountsDto(nameCount, descCount));
+        var emptyDescCount = _db.products.Count(p => string.IsNullOrWhiteSpace(p.description));
+
+        return Ok(new CountsDto(nameCount, descCount, emptyDescCount));
     }
+
 
 
 

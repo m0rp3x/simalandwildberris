@@ -24,7 +24,7 @@
                 Описание (@descCount)
             </MudRadio>
             <MudRadio T="string" Value="fillEmpty">
-                Заполнить пустое описание
+                Заполнить пустое описание (@emptyDescCount)
             </MudRadio>
         </MudRadioGroup>
     }
@@ -90,6 +90,7 @@
     private bool countsLoaded;
     private int nameCount;
     private int descCount;
+    private int emptyDescCount;
     private string field = "name";
     private string Prompt = "Сократи до 60 символов, сохрани смысл, цвет и размер в см";
     public string name = "name";
@@ -129,7 +130,8 @@
 
             var counts = await Http.GetFromJsonAsync<CountsDto>(uri);
             nameCount = counts?.NameCount ?? 0;
-            descCount = counts?.DescriptionCount ?? 0;
+            emptyDescCount = counts?.EmptyDescriptions ?? 0;
+            
         }
         catch
         {
@@ -299,6 +301,7 @@
     {
         public int NameCount { get; set; }
         public int DescriptionCount { get; set; }
+        public int EmptyDescriptions { get; set; }
     }
 
     private class StartJobResponse { public Guid JobId { get; set; } }
