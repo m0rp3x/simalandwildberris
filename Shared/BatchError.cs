@@ -5,6 +5,15 @@ public class WbCreateBatchError
     public int BatchIndex{ get; set; }
     public List<string> VendorCodes{ get; set; } = new();
     public string ErrorText{ get; set; } = "";
+    public Dictionary<string, List<string>> AdditionalErrors { get; set; } = 
+        new Dictionary<string, List<string>>();
+    
+    public string FlattenedErrors =>
+        string.Join(", ",
+            AdditionalErrors
+                .SelectMany(kvp => kvp.Value)
+                .Distinct()
+        );
 }
 
 public class WbCreateApiExtendedResult

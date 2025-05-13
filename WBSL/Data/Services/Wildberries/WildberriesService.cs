@@ -1,7 +1,6 @@
 ﻿using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Shared;
 using WBSL.Data.HttpClientFactoryExt;
@@ -16,6 +15,7 @@ public class WildberriesService : WildberriesBaseService
     private readonly QPlannerDbContext _db;
     private readonly IDbContextFactory<QPlannerDbContext> _contextFactory;
     private readonly WildberriesProductsService _productService;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public WildberriesService(PlatformHttpClientFactory httpFactory, WildberriesProductsService productService,
         QPlannerDbContext db, IDbContextFactory<QPlannerDbContext> contextFactory) : base(httpFactory){
@@ -94,59 +94,152 @@ public class WildberriesService : WildberriesBaseService
         }
     }
 
-    public async Task<WbApiExtendedResult> CreteWbItemsAsync(List<WbCreateVariantInternalDto> itemsToCreate,
+    public async Task<WbCreateApiExtendedResult> CreteWbItemsAsync(List<WbCreateVariantInternalDto> itemsToCreate,
         int accountId){
         if (itemsToCreate.Count == 0){
-            return new WbApiExtendedResult{
+            return new WbCreateApiExtendedResult{
                 Result = new WbApiResult(),
                 SuccessfulCount = 0
             };
         }
 
+        var extended = new WbCreateApiExtendedResult();
+        if (itemsToCreate.Count == 0)
+            return extended;
+
         var wbClient = await GetWbClientAsync(accountId);
 
         var batches = SplitIntoCreateBatches(itemsToCreate);
-        var allResults = new List<WbApiResult>();
-        var allSuccessVendorCodes = new List<string>();
 
-        foreach (var batch in batches){
-            var response = await SendCreateRequestAsync(batch, wbClient);
-            await Task.Delay(TimeSpan.FromSeconds(2));
-
+        for (var i = 0; i < batches.Count; i++){
+            var batch = batches[i];
             var vendorCodes = batch.SelectMany(x => x.Variants).Select(y => y.VendorCode).ToList();
-            var result = await ParseWbErrorsAsync(response, vendorCodes, wbClient);
-            allResults.Add(result);
-
-            if (!result.Error){
-                allSuccessVendorCodes.AddRange(vendorCodes);
-                var saveResult = await SearchAndAddSuccessfulAsync(vendorCodes, accountId);
-                if (saveResult.Error){
-                    allResults.Add(saveResult);
-                }
+            WbUpdateResponse response;
+            WbApiResult result;
+            try{
+                response = await SendCreateRequestAsync(batch, wbClient);
+                await Task.Delay(TimeSpan.FromSeconds(5));
             }
-            else{
-                if (result.AdditionalErrors != null && result.AdditionalErrors.Any()){
-                    var failedVendorCodes = result.AdditionalErrors.Keys.ToHashSet();
-                    var successVendorCodes = vendorCodes
-                        .Where(v => !failedVendorCodes.Contains(v))
-                        .ToList();
+            catch (HttpRequestException ex){
+                // Сетевая ошибка или 5xx, поймали до парсинга
+                extended.BatchErrors.Add(new WbCreateBatchError{
+                    BatchIndex = i,
+                    VendorCodes = vendorCodes,
+                    ErrorText = $"Ошибка при создани WB: {ex.Message}"
+                });
+                continue;
+            }
 
-                    if (successVendorCodes.Any()){
-                        allSuccessVendorCodes.AddRange(successVendorCodes);
-                        var saveResult = await SearchAndAddSuccessfulAsync(successVendorCodes, accountId);
-                        if (saveResult.Error){
-                            allResults.Add(saveResult);
+            if ((int)response.Response.StatusCode >= 500){
+                var raw500 = await response.Response.Content.ReadAsStringAsync();
+                extended.BatchErrors.Add(new WbCreateBatchError{
+                    BatchIndex = i,
+                    VendorCodes = vendorCodes,
+                    ErrorText = $"WB вернул {response.Response.StatusCode}: {raw500}"
+                });
+                continue;
+            }
+
+            if (!response.Response.IsSuccessStatusCode){
+                var raw = await response.Response.Content.ReadAsStringAsync();
+
+                try{
+                    using var doc = JsonDocument.Parse(raw);
+                    var root = doc.RootElement;
+
+                    // Если у нас стандартный WB-ответ с “error”: true
+                    if (root.TryGetProperty("error", out var eProp) && eProp.GetBoolean()){
+                        // Основной текст
+                        var errorText = root.TryGetProperty("errorText", out var et)
+                            ? et.GetString()
+                            : $"WB вернул {(int)response.Response.StatusCode}";
+
+                        // AdditionalErrors → Dictionary<string,List<string>>
+                        var addErrs = new Dictionary<string, List<string>>();
+                        if (root.TryGetProperty("additionalErrors", out var ae) &&
+                            ae.ValueKind == JsonValueKind.Object){
+                            foreach (var prop in ae.EnumerateObject()){
+                                if (prop.Value.ValueKind == JsonValueKind.Array){
+                                    var list = prop.Value
+                                        .EnumerateArray()
+                                        .Select(x => x.GetString() ?? "")
+                                        .ToList();
+                                    addErrs[prop.Name] = list;
+                                }
+                            }
                         }
+
+                        extended.BatchErrors.Add(new WbCreateBatchError{
+                            BatchIndex = i,
+                            VendorCodes = vendorCodes,
+                            ErrorText = errorText,
+                            AdditionalErrors = addErrs
+                        });
+                        continue;
                     }
+                }
+                catch (JsonException){
+                    
+                }
+
+                // Fallback: сыро
+                extended.BatchErrors.Add(new WbCreateBatchError{
+                    BatchIndex = i,
+                    VendorCodes = vendorCodes,
+                    ErrorText = $"WB вернул {(int)response.Response.StatusCode}: {raw}"
+                });
+                continue;
+            }
+
+            result = await ParseWbErrorsAsync(response, vendorCodes, wbClient);
+
+            if (result.Error){
+                var mainText = result.ErrorText ?? "Неизвестная ошибка из WB";
+
+                // 2) И захватим per-vendor словарь (может быть null)
+                var addErrs = result.AdditionalErrors ??
+                              new Dictionary<string, List<string>>();
+
+                extended.BatchErrors.Add(new WbCreateBatchError{
+                    BatchIndex = i,
+                    VendorCodes = vendorCodes,
+                    ErrorText = mainText,
+                    AdditionalErrors = addErrs
+                });
+            }
+
+            var succeeded = !result.Error
+                ? vendorCodes
+                : vendorCodes.Except((IEnumerable<string>)result.AdditionalErrors?.Keys ?? Array.Empty<string>())
+                    .ToList();
+
+            extended.SuccessfulVendorCodes.AddRange(succeeded);
+
+            if (succeeded.Any()){
+                var saveResult = await SearchAndAddSuccessfulAsync(succeeded, accountId);
+                if (saveResult.Error){
+                    extended.BatchErrors.Add(new WbCreateBatchError{
+                        BatchIndex = i,
+                        VendorCodes = succeeded,
+                        ErrorText = saveResult.ErrorText ?? "Ошибка при сохранении успешных карточек"
+                    });
                 }
             }
         }
 
-        return new WbApiExtendedResult{
-            Result = MergeResults(allResults),
-            SuccessfulCount = allSuccessVendorCodes.Count,
-            SuccessfulVendorCodes = allSuccessVendorCodes
+        extended.Result = new WbApiResult{
+            Error = extended.BatchErrors.Count > 0,
+            ErrorText = extended.BatchErrors.Count > 0
+                ? "Ошибки при загрузке одной или нескольких групп товаров"
+                : null,
+            AdditionalErrors = extended.BatchErrors
+                .ToDictionary(
+                    be => $"Batch[{be.BatchIndex}]",
+                    be => new List<string>{ be.ErrorText }
+                )
         };
+        extended.SuccessfulCount = extended.SuccessfulVendorCodes.Count;
+        return extended;
     }
 
     private async Task<WbApiResult?> CheckLimits(HttpClient wbClient, int accountId){
@@ -194,7 +287,7 @@ public class WildberriesService : WildberriesBaseService
                     try{
                         var content = await CreateSearchRequestContentByVendorCode(textSearch: vendorCode);
                         var response = await wbClient.PostAsync("/content/v2/get/cards/list", content);
-                        
+
                         if (response.StatusCode == (HttpStatusCode)429){
                             var retryAfter = response.Headers.RetryAfter?.Delta
                                              ?? TimeSpan.FromSeconds(5);
@@ -202,14 +295,14 @@ public class WildberriesService : WildberriesBaseService
                             await Task.Delay(retryAfter);
                             continue;
                         }
-                        
+
                         attempts++;
 
                         response.EnsureSuccessStatusCode();
 
                         apiResponse = await response.Content
                             .ReadFromJsonAsync<WbApiResponse>();
-                        
+
                         if (apiResponse?.Cards?.FirstOrDefault() is not null){
                             fetchError = null;
                             break;
@@ -224,7 +317,7 @@ public class WildberriesService : WildberriesBaseService
                         await Task.Delay(TimeSpan.FromSeconds(5));
                     }
                 }
-                
+
                 return (vendorCode, apiResponse, fetchError);
             }
             finally{
@@ -265,7 +358,7 @@ public class WildberriesService : WildberriesBaseService
                     .ToList()
             );
 
-        const int MaxPhotoParallelism = 5;
+        const int MaxPhotoParallelism = 4;
         var photoThrottler = new SemaphoreSlim(MaxPhotoParallelism);
 
         var photoTasks = toProcess.Select(async item => {
@@ -324,6 +417,115 @@ public class WildberriesService : WildberriesBaseService
             Error = false
         };
     }
+    
+    
+    public async Task<string> StartRetrySendPhotosJob(
+        IEnumerable<string> vendorCodes,
+        int accountId,
+        CancellationToken cancellationToken = default)
+    {
+        
+        List<(string VendorCode, long NmId, List<string> PhotoUrls)> toProcess;
+        using (var db = await _contextFactory.CreateDbContextAsync())
+        {
+            var cards = await db.WbProductCards
+                .AsNoTracking()
+                .Where(c => vendorCodes.Contains(c.VendorCode))
+                .Select(c => new 
+                {
+                    c.VendorCode,
+                    c.NmID
+                })
+                .ToListAsync(cancellationToken);
+            
+            var codes = vendorCodes
+                .Select(vc => long.TryParse(vc, out var n) ? (long?)n : null)
+                .Where(n => n.HasValue)
+                .Select(n => n!.Value)
+                .ToList();
+            var products = await db.products
+                .AsNoTracking()
+                .Where(p => codes.Contains(p.sid))
+                .Select(p => new { p.sid, p.photo_urls })
+                .ToListAsync(cancellationToken);
+            toProcess = cards
+                .Select(c =>
+                {
+                    var photos = products
+                                     .FirstOrDefault(p => p.sid.ToString() == c.VendorCode)
+                                     ?.photo_urls
+                                 ?? new List<string>();
+
+                    return (
+                        VendorCode: c.VendorCode!,
+                        NmId:       c.NmID,
+                        PhotoUrls:  photos.OrderBy(GetPhotoIndex).ToList()
+                    );
+                })
+                // отбрасываем все, у кого нет фото
+                .Where(x => x.PhotoUrls.Any())
+                .ToList();
+        }
+        
+        var jobId = ProgressStore.CreateJob(toProcess.Count);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var errors = new Dictionary<string, List<string>>();
+                var count  = 0;
+                var client = await GetWbClientAsync(accountId);
+
+                var throttler = new SemaphoreSlim(4);
+                var tasks = toProcess.Select(async item =>
+                {
+                    await throttler.WaitAsync();
+                    try
+                    {
+                        var res = await TrySendPhotosToWbAsync(
+                            item.NmId, item.VendorCode, item.PhotoUrls, client);
+                        if (res?.Error == true)
+                            errors[item.VendorCode] = 
+                                res.AdditionalErrors?.SelectMany(kv => kv.Value).ToList()
+                             ?? new List<string>{res.ErrorText!};
+                    }
+                    finally
+                    {
+                        count++;
+                        ProgressStore.UpdateProgress(jobId);
+                        throttler.Release();
+                    }
+                }).ToList();
+
+                await Task.WhenAll(tasks);
+
+                // 3) Собираем итоговый WbApiResult:
+                var total   = toProcess.Count;
+                var failed  = errors.Count;
+                var success = total - failed;
+                var result = new WbApiResult
+                {
+                    Error            = failed > 0,
+                    ErrorText        = failed > 0 ? "Часть фото не загрузилась" : "",
+                    AdditionalErrors = failed > 0 ? errors : null,
+                    TotalCount       = total,
+                    SuccessCount     = success,
+                    ErrorCount       = failed
+                };
+
+                ProgressStore.CompleteJob(jobId, result);
+            }
+            catch(Exception)
+            {
+                ProgressStore.FailJob(jobId);
+            }
+        });
+
+        return jobId.ToString();
+    }
+
+    
 
     public async Task<List<WbCategoryDto>> SearchCategoriesAsync(string? query, int baseSubjectId){
         var baseCategory = await _db.wildberries_categories
@@ -459,15 +661,15 @@ public class WildberriesService : WildberriesBaseService
         HttpClient wbClient){
         if (photoUrls.Count == 0)
             return null;
-
-        var payload = new{ nmId, data = photoUrls };
-        var content = JsonContent.Create(payload);
-
+        
         const int maxAttempts = 3;
         int attempt = 0;
 
         while (true){
             try{
+                var payload = new{ nmId, data = photoUrls };
+                var content = JsonContent.Create(payload);
+                
                 var response = await wbClient.PostAsync("/content/v3/media/save", content);
 
                 if (response.StatusCode == (HttpStatusCode)429){
@@ -524,7 +726,8 @@ public class WildberriesService : WildberriesBaseService
         return limitResponse?.Data?.FreeLimits ?? 0 + limitResponse?.Data?.PaidLimits ?? 0;
     }
 
-    private async Task<WbApiResult> ParseWbErrorsAsync(WbUpdateResponse response, List<string> vendorCodes,
+    private async Task<WbApiResult> ParseWbErrorsAsync(WbUpdateResponse response,
+        List<string> vendorCodes,
         HttpClient wbClient){
         var responseContent = await response.Response.Content.ReadAsStringAsync();
 

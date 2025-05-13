@@ -22,10 +22,26 @@
 
         <MudExpansionPanels>
             <MudExpansionPanel Text="Детали ошибок">
-                @foreach (var err in LastWbResult.AdditionalErrors){
-                    <MudText Color="Color.Error">
-                        <b>@err.Key:</b> @string.Join(", ", err.Value)
-                    </MudText>
+                @if (_wbResultExtended?.BatchErrors?.Any() == true){
+                    @foreach (var batchErr in _wbResultExtended.BatchErrors){
+                        <MudText Color="Color.Error" Class="mb-2">
+                            <b>Группа @((batchErr.BatchIndex + 1)) (коды: @string.Join(", ", batchErr.VendorCodes)):</b>
+                            @batchErr.ErrorText
+                        </MudText>
+
+                        @if (batchErr.AdditionalErrors?.Any() == true){
+                            <MudText Color="Color.Warning" Class="ml-4">
+                                Дефекты:
+                                @string.Join("; ",
+                                    batchErr.AdditionalErrors
+                                        .SelectMany(kvp => kvp.Value)
+                                        .Distinct())
+                            </MudText>
+                        }
+                    }
+                }
+                else{
+                    <MudText>Ошибок не обнаружено.</MudText>
                 }
             </MudExpansionPanel>
         </MudExpansionPanels>
@@ -239,6 +255,7 @@
     private List<SimalandAttributeDto> SimalandAttributes = new();
     private List<CharacteristicValueMapping> CharacteristicValueMappings = new();
     private WbApiResult? LastWbResult;
+    private WbCreateApiExtendedResult? _wbResultExtended;
     private string? LastWbSummary;
 
     private static readonly HashSet<string> _autocompleteFields = new(){
@@ -253,8 +270,7 @@
         SelectedWbAccount != null &&
         SelectedSimaAccount != null;
 
-    private bool IsAutocompleteSupported(string name)
-    {
+    private bool IsAutocompleteSupported(string name){
         if (name.StartsWith("Цвет", StringComparison.OrdinalIgnoreCase))
             return true;
         return _autocompleteFields.Contains(name, StringComparer.OrdinalIgnoreCase);
@@ -268,14 +284,15 @@
             _accounts = await ProductService.LoadAccountsAsync();
         }
     }
-    private string MapCharacteristicName(string name)
-    {
+
+    private string MapCharacteristicName(string name){
         if (name.StartsWith("Цвет", StringComparison.OrdinalIgnoreCase))
             return "Цвет";
         if (string.Equals(name, "Для кого", StringComparison.OrdinalIgnoreCase))
             return "Пол";
         return name;
     }
+
     private async Task CheckCategoryMapping(){
         _checkPerformed = false;
 
@@ -294,7 +311,7 @@
 
                 SelectedSimalandAttribute = simalandAttrName;
             }
-            
+
             var response = await Client.GetAsync($"api/simaland/attributes?categoryName={SelectedSimalandAttribute}");
             if (response.IsSuccessStatusCode){
                 SimalandAttributes = await response.Content.ReadFromJsonAsync<List<SimalandAttributeDto>>() ?? new();
@@ -302,10 +319,10 @@
             else{
                 Snackbar.Add("Характеристики с SimaLand не найдены, выберите вручную", Severity.Warning);
             }
-            
+
             _characteristicInfos = await Client.GetFromJsonAsync<List<WbAdditionalCharacteristicDto>>(
                 $"api/Wildberries/characteristics/{SelectedChildCategory.Id}/{SelectedWbAccount.Id}") ?? new();
-            
+
             CharacteristicValueMappings = GenerateValueMappings(SimalandAttributes);
 
             var savedCharacteristicMappings = await CharacteristicMappingHelper.LoadFromLocalStorageAsync(JS);
@@ -380,7 +397,8 @@
         try{
             var response = await Client.PostAsJsonAsync($"api/Wildberries/createWbItem/{SelectedWbAccount.Id}", dto);
 
-            var extendedResult = await response.Content.ReadFromJsonAsync<WbApiExtendedResult>();
+            var extendedResult = await response.Content.ReadFromJsonAsync<WbCreateApiExtendedResult>();
+            _wbResultExtended = extendedResult;
             LastWbResult = extendedResult?.Result;
 
             if (response.IsSuccessStatusCode && LastWbResult is{ Error: false }){
@@ -389,15 +407,36 @@
                 Snackbar.Add(LastWbSummary, Severity.Success);
             }
             else{
-                var successfulCount = extendedResult?.SuccessfulVendorCodes?.Count ?? 0;
-                if (successfulCount > 0){
-                    LastWbSummary = $"✅ Успешно создано товаров: {successfulCount}";
+                var successCount = extendedResult?.SuccessfulVendorCodes?.Count ?? 0;
+                if (successCount > 0){
+                    Snackbar.Add($"✅ Успешно создано товаров: {successCount}", Severity.Success);
                 }
 
-                LastWbSummary = $"❌ Ошибка: {LastWbResult.ErrorText ?? "Неизвестная ошибка"}";
+                var globalText = LastWbResult?.ErrorText ?? "Неизвестная ошибка";
+                LastWbSummary = $"❌ Ошибка при создании WB-товаров: {globalText}";
                 Snackbar.Add(LastWbSummary, Severity.Error);
 
-                if (LastWbResult.AdditionalErrors != null){
+                if (extendedResult?.BatchErrors?.Count > 0){
+                    foreach (var batchErr in extendedResult.BatchErrors){
+                        // 5.1 — основной текст для этой группы
+                        var codes = string.Join(", ", batchErr.VendorCodes);
+                        var msg = $"Группа #{batchErr.BatchIndex + 1} ({codes}): {batchErr.ErrorText}";
+                        Snackbar.Add(msg, Severity.Warning);
+
+                        // 5.2 — если в батче есть детальные AdditionalErrors, показываем их
+                        if (batchErr.AdditionalErrors?.Count > 0){
+                            // склеиваем все per-vendor сообщения через "; "
+                            var details = string.Join("; ",
+                                batchErr.AdditionalErrors
+                                    .SelectMany(kvp => kvp.Value)
+                                    .Distinct()
+                            );
+                            Snackbar.Add($"   Детали: {details}", Severity.Info);
+                        }
+                    }
+                }
+
+                if (LastWbResult?.AdditionalErrors?.Count > 0){
                     foreach (var kvp in LastWbResult.AdditionalErrors){
                         Snackbar.Add($"{kvp.Key}: {string.Join(", ", kvp.Value)}", Severity.Warning);
                     }
@@ -427,8 +466,8 @@
     }
 
     private async Task CopyErrorToClipboard(){
-        if (LastWbResult != null){
-            var json = JsonSerializer.Serialize(LastWbResult, new JsonSerializerOptions{ WriteIndented = true });
+        if (_wbResultExtended != null){
+            var json = JsonSerializer.Serialize(_wbResultExtended, new JsonSerializerOptions{ WriteIndented = true });
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", json);
             Snackbar.Add("✅ JSON ошибки скопирован в буфер", Severity.Info);
         }
@@ -505,28 +544,25 @@
     private async Task<IEnumerable<string>> SearchCharacteristicValues(
         string characteristicName,
         string query,
-        CancellationToken token)
-    {
-        try
-        {
-            var mappedName   = MapCharacteristicName(characteristicName) ?? string.Empty;
-            var encodedName  = Uri.EscapeDataString(mappedName);
-            
-            var safeQuery    = query ?? string.Empty;
+        CancellationToken token){
+        try{
+            var mappedName = MapCharacteristicName(characteristicName) ?? string.Empty;
+            var encodedName = Uri.EscapeDataString(mappedName);
+
+            var safeQuery = query ?? string.Empty;
             var encodedQuery = Uri.EscapeDataString(safeQuery);
             if (encodedQuery == null){
                 encodedQuery = string.Empty;
             }
-                
-            var accountId    = SelectedWbAccount.Id;
+
+            var accountId = SelectedWbAccount.Id;
 
             var url = $"api/Wildberries/char-values?name={encodedName}&query={encodedQuery}&accountId={accountId}";
             var response = await Client.GetFromJsonAsync<List<string>>(url, token);
 
             return response ?? Enumerable.Empty<string>();
         }
-        catch(Exception e)
-        {
+        catch (Exception e){
             return Enumerable.Empty<string>();
         }
     }
@@ -565,7 +601,7 @@
 
     private IEnumerable<FieldMapping> GetGroupedContexts(string groupKey){
         return groupKey switch{
-            "Characteristic" => Mappings.Where(m => m.Type == FieldMappingType.Characteristic).OrderBy(x=>x.DisplayName),
+            "Characteristic" => Mappings.Where(m => m.Type == FieldMappingType.Characteristic).OrderBy(x => x.DisplayName),
             "Text" => Mappings.Where(m => m.Type == FieldMappingType.Text),
             "Dimension" => Mappings.Where(m => m.Type == FieldMappingType.Dimension),
             _ => Enumerable.Empty<FieldMapping>()
@@ -575,16 +611,15 @@
     private async Task OnWildberriesValueChanged(string newValue, CharacteristicValueMapping context){
         context.WildberriesValue = newValue;
     }
-    
-    private string GetBestMatch(IEnumerable<string> options, string? source)
-    {
+
+    private string GetBestMatch(IEnumerable<string> options, string? source){
         if (string.IsNullOrWhiteSpace(source))
             return options.FirstOrDefault() ?? string.Empty;
 
         var lowerSrc = source.Trim().ToLowerInvariant();
 
         // 1) точное совпадение
-        var exact = options.FirstOrDefault(o => 
+        var exact = options.FirstOrDefault(o =>
             o.Equals(lowerSrc, StringComparison.OrdinalIgnoreCase));
         if (exact != null) return exact;
 
@@ -596,4 +631,5 @@
         // 3) fallback
         return options.FirstOrDefault() ?? string.Empty;
     }
+
 }

@@ -5,6 +5,10 @@ public class WbApiResult
     public bool Error { get; set; }
     public string ErrorText{ get; set; } = string.Empty;
     public Dictionary<string, List<string>>? AdditionalErrors { get; set; }
+    
+    public int? TotalCount   { get; set; }
+    public int? SuccessCount { get; set; }
+    public int? ErrorCount   { get; set; }
 }
 public class WbApiExtendedResult
 {

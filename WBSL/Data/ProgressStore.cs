@@ -2,6 +2,7 @@
 
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Shared;
 using WBSL.Models;
 
 public static class ProgressStore
@@ -38,6 +39,21 @@ public static class ProgressStore
             info.Attributes = attrs;
         }
     }
+    public static void FailJob(Guid id)
+    {
+        if (_jobs.TryGetValue(id, out var j))
+            j.Status = JobStatus.Failed;
+    }
+    
+    public static void CompleteJob(Guid id, WbApiResult result)
+    {
+        if (_jobs.TryGetValue(id, out var j))
+        {
+            j.Processed = j.Total;
+            j.Status    = JobStatus.Completed;
+            j.Result    = result;
+        }
+    }
 
     public class FetchJobInfo
     {
@@ -46,6 +62,7 @@ public static class ProgressStore
         public JobStatus Status;
         public List<JsonElement>? Products;
         public List<product_attribute>? Attributes;
+        public WbApiResult? Result { get; set; }
     }
 
     public enum JobStatus { Running, Completed, Failed }

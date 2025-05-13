@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Shared;
+using WBSL.Client.Pages;
 using WBSL.Data;
 using WBSL.Data.Services.Simaland;
 using WBSL.Data.Services.Wildberries;
@@ -57,24 +58,24 @@ public class WildberriesController : ControllerBase
     }
 
     [HttpGet($"suggest-simaland-category")]
-    public async Task<IActionResult> SuggestCategory([FromQuery]int categoryId){
+    public async Task<IActionResult> SuggestCategory([FromQuery] int categoryId){
         var simaCategories = await _categoryService.SuggestCategoryAsync(categoryId);
 
         return Ok(simaCategories);
     }
-    
+
     [HttpGet("char-values")]
-    public async Task<IActionResult> GetCharacteristicValues([FromQuery] string name, [FromQuery] string? query, [FromQuery] int accountId)
-    {
+    public async Task<IActionResult> GetCharacteristicValues([FromQuery] string name, [FromQuery] string? query,
+        [FromQuery] int accountId){
         var allValues = await _characteristicsService.GetCharacteristicValuesAsync(name, accountId);
 
-        if (string.IsNullOrWhiteSpace(query))
-        {
+        if (string.IsNullOrWhiteSpace(query)){
             var resultAll = allValues
                 .Distinct()
                 .Take(50);
             return Ok(resultAll);
         }
+
         var filtered = allValues
             .Where(v => v.Contains(query, StringComparison.OrdinalIgnoreCase))
             .Distinct()
@@ -89,18 +90,47 @@ public class WildberriesController : ControllerBase
 
         return Ok(result);
     }
-    
+
     [HttpPost("updateWbPrices/{wbAccountId:int}")]
     public async Task<IActionResult> UpdateProduct(
         [FromBody] PriceCalculatorSettingsDto settingsDto,
-        int wbAccountId)
-    {
+        int wbAccountId){
         var result = await _wildberriesPriceService
             .PushPricesToWildberriesAsync(settingsDto, wbAccountId);
 
         return Ok(result);
     }
     
+
+    [HttpGet("retry-photos-progress/{jobId}")]
+    public IActionResult GetProgress([FromRoute] Guid jobId)
+    {
+        var job = ProgressStore.GetJob(jobId);
+        if (job == null) return NotFound();
+        return Ok(new SimaLandImport.ProgressDto {
+            total     = job.Total,
+            processed = job.Processed,
+            status    = job.Status.ToString()
+        });
+    }
+    
+    [HttpGet("retry-photos-result/{jobId}")]
+    public IActionResult GetResult([FromRoute] Guid jobId)
+    {
+        var job = ProgressStore.GetJob(jobId);
+        if (job == null) return NotFound();
+        if (job.Status != ProgressStore.JobStatus.Completed) return BadRequest("Job ещё не завершён");
+        return Ok(job.Result!);
+    }
+    
+    [HttpPost("retry-photos-job/{accountId}")]
+    public async Task<IActionResult> StartRetryJob(
+        [FromRoute] int accountId,
+        [FromBody] List<string> vendorCodes)
+    {
+        var jobId = await _wildberriesService.StartRetrySendPhotosJob(vendorCodes, accountId);
+        return Ok(new { jobId });
+    }
 
     [HttpPost("createWbItem/{wbAccountId:int}")]
     public async Task<IActionResult> CreateProduct([FromBody] CategoryMappingRequest mappingRequest, int wbAccountId){
@@ -109,13 +139,13 @@ public class WildberriesController : ControllerBase
             .Where(x => x.category_name.ToLower() == mappingRequest.SimalandCategoryName.ToLower())
             .Select(x => x.sid.ToString())
             .ToListAsync();
-        
+
         var existingWbSids = await _db.WbProductCards
             .AsNoTracking()
             .Where(x => simaSidsInCategory.Contains(x.VendorCode))
             .Select(x => x.VendorCode)
             .ToListAsync();
-        
+
         var filteredSids = simaSidsInCategory
             .Except(existingWbSids)
             .Take(10000)
@@ -123,14 +153,15 @@ public class WildberriesController : ControllerBase
             .Where(id => id.HasValue)
             .Select(id => id!.Value)
             .ToList();
-        
+
         var simaProducts = await _db.products
             .AsNoTracking()
             .Include(x => x.product_attributes)
             .Where(x => filteredSids.Contains(x.sid))
             .ToListAsync();
-        
-        List<WbCreateVariantInternalDto> products = _wildberriesMappingService.BuildProductsFromMapping(mappingRequest, simaProducts);
+
+        List<WbCreateVariantInternalDto> products =
+            _wildberriesMappingService.BuildProductsFromMapping(mappingRequest, simaProducts);
 
         var result = await _wildberriesService.CreteWbItemsAsync(products, wbAccountId);
 
@@ -149,7 +180,7 @@ public class WildberriesController : ControllerBase
         return Ok(characteristics);
     }
 
-    
+
     [HttpGet("categories")]
     public async Task<IActionResult> GetCategories([FromQuery] string? query, [FromQuery] int? baseSubjectId){
         if (baseSubjectId == null)
@@ -158,7 +189,7 @@ public class WildberriesController : ControllerBase
         var results = await _wildberriesService.SearchCategoriesAsync(query, baseSubjectId.Value);
         return Ok(results);
     }
-    
+
     [HttpGet("childCategories")]
     public async Task<IActionResult> GetChildCategories([FromQuery] string? query, [FromQuery] int? parentId){
         if (parentId == null)
@@ -171,7 +202,7 @@ public class WildberriesController : ControllerBase
     [HttpGet("parentCategories")]
     public async Task<IActionResult> GetParentCategories([FromQuery] string? query){
         var results = await _wildberriesService.SearchParentCategoriesAsync(query);
-        
+
         return Ok(results);
     }
 

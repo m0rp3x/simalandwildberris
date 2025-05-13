@@ -1,0 +1,142 @@
+﻿@page "/retry-send-photos"
+@using System.Text.Json
+@using Shared
+@using Shared.Enums
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PageTitle>🔄 Повторная отправка фото</PageTitle>
+
+<MudPaper Class="pa-6 mx-auto mt-8" Style="max-width:600px;" Elevation="4">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h5">🔄 Повторная отправка фото на Wildberries</MudText>
+
+        <MudForm>
+            <!-- Поле для ввода артикулов -->
+            <MudTextField T="string"
+                          Label="Артикулы (через запятую)"
+                          @bind-Value="_vendorCodesInput"
+                          Variant="Variant.Outlined"
+                          FullWidth
+                          Lines="4"
+                          Placeholder="123, 456, 789"/>
+
+            <!-- Выбор аккаунта -->
+            <MudSelect T="ExternalAccount"
+                       @bind-Value="_selectedAccount"
+                       Label="Аккаунт"
+                       Variant="Variant.Outlined"
+                       FullWidth
+                       Disabled="!_initialized">
+                @foreach (var acct in _accounts){
+                    <MudSelectItem Value="acct">@acct.Name</MudSelectItem>
+                }
+            </MudSelect>
+            @if (_jobId != null)
+            {
+            <MudProgressLinear Value="@_pct" />
+            <div>Обработано @_processed из @_total (@_status)</div>
+            }
+            <!-- Кнопка отправки -->
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="RetryPhotos"
+                       Disabled="@(!_canStart)">
+                Отправить
+            </MudButton>
+        </MudForm>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private bool _initialized;
+    private string _vendorCodesInput = string.Empty;
+    private List<ExternalAccount> _accounts = new();
+    private ExternalAccount? _selectedAccount;
+    private List<string>? _codes;
+    
+    bool _canStart => !string.IsNullOrWhiteSpace(_vendorCodesInput) && _selectedAccount != null;
+
+    string? _jobId;
+    int _total, _processed;
+    string _status = "";
+    
+    private double _pct => _total > 0 
+        ? (_processed / (double)_total) * 100 
+        : 0;
+    
+    protected override async Task OnInitializedAsync(){
+        if (!OperatingSystem.IsBrowser()) return;
+
+        // Загружаем все аккаунты (как в вашем примере)
+        var all = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts")
+                  ?? new List<ExternalAccount>();
+        _accounts = all
+            .Where(x => x.Platform == ExternalAccountType.Wildberries.ToString())
+            .ToList();
+
+        _initialized = true;
+    }
+    private class JobResponse
+    {
+        public string jobId { get; set; } = string.Empty;
+    }
+    private async Task RetryPhotos(){
+        if (_selectedAccount == null) return;
+
+        // Парсим введённые артикулы
+        _codes = _vendorCodesInput
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .ToList();
+
+        // Вызываем ваш API (предположим, он на этом пути и принимает POST /retry-photos/{accountId} c body = List<string>)
+        var resp = await Http.PostAsJsonAsync(
+            $"api/Wildberries/retry-photos-job/{_selectedAccount.Id}",
+            _codes);
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Не удалось запустить задачу", Severity.Error);
+            return;
+        }
+        var raw = await resp.Content.ReadAsStringAsync();
+        raw = raw.Trim();   // убираем пробелы/новые строки по краям
+
+        var wrapper = JsonSerializer.Deserialize<JobResponse>(raw);
+        if (wrapper == null)
+        {
+            Snackbar.Add("Не удалось распарсить ответ от сервера", Severity.Error);
+            return;
+        }
+
+        _jobId = wrapper.jobId;
+        _ = PollProgress();
+        
+        //5035698,5035697
+    }
+
+    async Task PollProgress(){
+        while (true){
+            var prog = await Http
+                .GetFromJsonAsync<SimaLandImport.ProgressDto>($"api/Wildberries/retry-photos-progress/{_jobId}");
+            if (prog == null) break;
+            _total = prog.total;
+            _processed = prog.processed;
+            _status = prog.status;
+            StateHasChanged();
+            if (!_status.Equals("Running", StringComparison.OrdinalIgnoreCase))
+                break;
+            await Task.Delay(500);
+        }
+
+        if (_status == "Completed"){
+            var result = await Http
+                .GetFromJsonAsync<WbApiResult>($"api/Wildberries/retry-photos-result/{_jobId}");
+            Snackbar.Add(
+                $"Фото: всего {_codes.Count} найденно в базе {result!.TotalCount}, усп. {result!.SuccessCount}, ошиб. {result!.ErrorCount}",
+                result.ErrorCount > 0 || _codes.Count > result.TotalCount ? Severity.Warning : Severity.Success);
+        }
+    }
+
+}

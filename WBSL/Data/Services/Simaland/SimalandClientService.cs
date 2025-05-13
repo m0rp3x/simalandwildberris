@@ -11,12 +11,10 @@ namespace WBSL.Data.Services.Simaland;
 
 public class SimalandClientService
 {
-    private readonly QPlannerDbContext _db;
     private readonly IServiceScopeFactory _scopeFactory;
 
     public SimalandClientService(
         QPlannerDbContext db, IServiceScopeFactory scopeFactory){
-        _db = db;
         _scopeFactory = scopeFactory;
     }
 
@@ -204,8 +202,11 @@ public class SimalandClientService
                 PreserveInsertOrder = false,
                 UseTempDB = false,
             };
-            await _db.BulkUpdateAsync(toUpdate, bulk, cancellationToken: ct);
-            await _db.SaveChangesAsync(ct);
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
+
+            await db.BulkUpdateAsync(toUpdate, bulk, cancellationToken: ct);
+            await db.SaveChangesAsync(ct);
 
             Console.WriteLine($"Saved batch of {toUpdate.Count} products");
 
@@ -219,16 +220,19 @@ public class SimalandClientService
     private async Task UpdateStocksOnWildberries(List<ProductInfo> batch, HttpClient wbClient, CancellationToken ct,
         int warehouseId, List<int> externalAccountIds){
         try{
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
+
             var productSids = batch.Select(p => p.Sid).ToList();
 
-            var products = await _db.products
+            var products = await db.products
                 .AsNoTracking()
                 .Where(p => productSids.Contains(p.sid))
                 .ToListAsync(cancellationToken: ct);
 
             var productVendorCodes = productSids.Select(sid => sid.ToString()).ToList();
 
-            var wbProductCards = await _db.WbProductCards
+            var wbProductCards = await db.WbProductCards
                 .AsNoTracking()
                 .Include(x => x.SizeChrts)
                 .Where(wb => productVendorCodes.Contains(wb.VendorCode)
