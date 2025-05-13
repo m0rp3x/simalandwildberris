@@ -28,21 +28,44 @@ public class PriceCalculatorService
     private (decimal BasePrice1, decimal LiterPrice) _boxTariffs;
     private Dictionary<int, decimal?> _commissionPercents;
     
-    public async Task<List<long>> PrepareCalculationDataAsync(int accountId, int categoryId)
+    public async Task<List<long>> PrepareCalculationDataAsync(int accountId, int? categoryId)
     {
         _marginRules = await _db.Set<MarginRule>()
             .AsNoTracking()
             .OrderBy(r => r.PriceFrom)
             .ToListAsync();
         
-        _productCards = await _db.WbProductCards
-            .AsNoTracking()
-            .Where(x => x.externalaccount_id == accountId && x.SubjectID == categoryId)
+        var warehouseId = await _db.external_accounts
+            .Where(e => e.id == accountId)
+            .Select(e => e.warehouseid)
+            .FirstOrDefaultAsync();
+        
+        var accountIds = await _db.external_accounts
+            .Where(e => e.warehouseid == warehouseId)
+            .Select(e => e.id)
             .ToListAsync();
-
+        
+        var cardsQuery = _db.WbProductCards
+            .AsNoTracking()
+            .Where(pc =>
+                pc.externalaccount_id.HasValue &&
+                accountIds.Contains(pc.externalaccount_id.Value)
+            );
+        if (categoryId.HasValue && categoryId > 0)
+        {
+            cardsQuery = cardsQuery
+                .Where(pc =>
+                    pc.SubjectID.HasValue &&
+                    pc.SubjectID.Value == categoryId.Value
+                );
+        }
+        _productCards = await cardsQuery
+            .Include(pc => pc.SizeChrts) 
+            .ToListAsync();
+        
         var sids = _productCards
             .Where(pc => long.TryParse(pc.VendorCode, out _))
-            .Select(pc => long.Parse(pc.VendorCode))
+            .Select(pc => long.Parse(pc.VendorCode!))
             .Distinct()
             .ToList();
 
@@ -69,13 +92,16 @@ public class PriceCalculatorService
         }
         var matchedVendorCodes = _products
             .Select(p => p.sid.ToString())
-            .ToHashSet(); // Быстрая проверка
+            .ToHashSet();
 
+        // 12) Из _productCards берём только NmID тех карточек, чей VendorCode в matchedVendorCodes
         var matchedNmIds = _productCards
-            .Where(pc => pc.VendorCode != null && matchedVendorCodes.Contains(pc.VendorCode))
+            .Where(pc =>
+                !string.IsNullOrEmpty(pc.VendorCode) &&
+                matchedVendorCodes.Contains(pc.VendorCode)
+            )
             .Select(pc => pc.NmID)
             .ToList();
-
         return matchedNmIds;
     }
     
