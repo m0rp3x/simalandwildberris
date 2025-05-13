@@ -19,7 +19,6 @@ public class PriceCalculatorSettingsDto
     public decimal AddedDiscountPercent { get; set; } = 10m; // Добавленная скидка
     [Required]
     public bool IsMinimal { get; set; } = false;
-    [Required]
-    [Range(1, int.MaxValue)]
-    public int WildberriesCategoryId { get; set; } = 0;
+    
+    public int? WildberriesCategoryId { get; set; } = 0;
 }

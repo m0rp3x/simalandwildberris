@@ -15,7 +15,7 @@ public static class MarginRuleExtensions
     {
         // Линейный поиск. Можно оптимизировать двоичным, если список очень большой.
         var rule = rules.FirstOrDefault(r => price >= r.PriceFrom
-                                             && price <  r.PriceTo);
+                                             && price <=  r.PriceTo);
         if (rule == null)
             throw new KeyNotFoundException(
                 $"Не найдено правило для цены {price}");

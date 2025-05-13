@@ -170,7 +170,6 @@ builder.Services.AddHttpClient<IChadGptClient, ChadGptClient>(client =>
 });
 builder.Services.AddScoped<ProductShortenerService>();
 
-
 builder.Services.Remove(
     builder.Services.FirstOrDefault(d =>
         d.ServiceType == typeof(Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware))!);

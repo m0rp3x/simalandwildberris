@@ -99,19 +99,25 @@ public class SimalandClientService
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
         var factory = scope.ServiceProvider.GetRequiredService<PlatformHttpClientFactory>();
-
-        var wbCards = await db.WbProductCards
-            .Include(c => c.SizeChrts)
-            .Where(c => c.externalaccount_id == externalAccountId)
-            .ToListAsync(ct);
-
-        if (wbCards.Count == 0)
-            return 0;
-
+        
         var warehouseId = await db.external_accounts
             .Where(x => x.id == externalAccountId)
             .Select(x => x.warehouseid)
             .FirstOrDefaultAsync(ct);
+        
+        var accountIds = await db.external_accounts
+            .Where(x => x.warehouseid == warehouseId)
+            .Select(x => x.id)
+            .ToListAsync(ct);
+        
+        var wbCards = await db.WbProductCards
+            .Include(c => c.SizeChrts)
+            .Where(c => c.externalaccount_id.HasValue 
+                        && accountIds.Contains(c.externalaccount_id.Value))
+            .ToListAsync(ct);
+
+        if (wbCards.Count == 0)
+            return 0;
 
         var wbClient = await factory.CreateClientAsync(
             ExternalAccountType.WildBerriesMarketPlace,

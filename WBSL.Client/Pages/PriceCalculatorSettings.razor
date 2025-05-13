@@ -128,7 +128,7 @@
     private WbCategoryDto? SelectedBaseCategory;
     private WbCategoryDto? SelectedChildCategory;
     
-    private bool SaveDisabled => _selectedAccount == null || !_checkPerformed;
+    private bool SaveDisabled => _selectedAccount == null;
     
     protected override async Task OnAfterRenderAsync(bool firstRender){
         if (firstRender && !_initialized){
@@ -191,11 +191,7 @@
             return;
         }
 
-        if (SelectedChildCategory == null){
-            Snackbar.Add("Выберите категорию Wildberries перед сохранением.", Severity.Warning);
-            return;
-        }
-        else{
+        if (SelectedChildCategory != null){
             Settings.WildberriesCategoryId = SelectedChildCategory.Id;
         }
         

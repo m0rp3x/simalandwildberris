@@ -41,5 +41,5 @@ public partial class WbProductCard
 
     public virtual ICollection<WbSize> SizeChrts { get; set; } = new List<WbSize>();
 
-    public DateTime LastSeenAt { get; set; }
+    public DateTime? LastSeenAt { get; set; }
 }
