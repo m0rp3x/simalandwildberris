@@ -1,8 +1,11 @@
 ﻿@page "/balance-update-settings"
 @using Shared
 @using Shared.Enums
+
 @inject HttpClient Http
 @inject ISnackbar Snackbar
+
+@implements IAsyncDisposable
 
 <PageTitle>Настройки обновления баланса</PageTitle>
 
@@ -46,6 +49,32 @@
                    Disabled="!_initialized || _selectedAccount == null">
             Обнулить остатки
         </MudButton>
+        <MudDivider Class="my-6" />
+        <MudText Typo="Typo.h5">📊 Результаты последнего обновления</MudText>
+        @if (_schedulerResults != null && _schedulerResults.Any())
+        {
+        <MudExpansionPanels>
+            @foreach (var kvp in _schedulerResults)
+            {
+            <MudExpansionPanel Text="@($"Правило {kvp.Key} ({kvp.Value.Count} товаров)")">
+            <MudList T="ProductInfo" Dense="true">
+                @foreach (var pi in kvp.Value)
+                {
+                <MudListItem>
+                    <b>SID:</b> @pi.Sid,
+                    <b>Баланс:</b> @pi.Balance,
+                    <b>MinQty:</b> @pi.qty_multiplier
+                </MudListItem>
+                }
+            </MudList>
+            </MudExpansionPanel>
+            }
+        </MudExpansionPanels>
+        }
+        else
+        {
+        <MudText Color="Color.Secondary">Пока нет результатов.</MudText>
+        }
     </MudStack>
 </MudPaper>
 
@@ -55,6 +84,12 @@
         
     private List<ExternalAccount> _accounts = new();
     private ExternalAccount? _selectedAccount;
+
+    private Dictionary<int, List<ProductInfo>> _schedulerResults = new();
+
+
+    private PeriodicTimer? _timer;
+    private CancellationTokenSource? _pollCts;
     
     protected override async Task OnInitializedAsync()
     {
@@ -71,6 +106,9 @@
         _accounts = all
             .Where(x => x.Platform == ExternalAccountType.Wildberries.ToString())
             .ToList();
+        
+        await LoadSchedulerResultsAsync();
+        StartPollingResults();
         
         StateHasChanged();
     }
@@ -110,5 +148,74 @@
         {
             Snackbar.Add($"Ошибка при сохранении: {response.StatusCode}", Severity.Error);
         }
+    }
+    
+    private async Task LoadSchedulerResultsAsync()
+    {
+        try
+        {
+            var results = await Http.GetFromJsonAsync<Dictionary<int, List<ProductInfo>>>(
+                "api/scheduler/results");
+            if (results != null)
+            {
+                // если появились новые
+                if (!DictionaryEquals(_schedulerResults, results))
+                    Snackbar.Add($"Найдены результаты обновления для {results.Count} правил", Severity.Info);
+
+                _schedulerResults = results;
+            }
+            else
+            {
+                _schedulerResults.Clear();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Ошибка при загрузке результатов: {ex}");
+        }
+    }
+    
+    private void StartPollingResults()
+    {
+        _pollCts = new CancellationTokenSource();
+        _timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+
+        // fire-and-forget loop
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (await _timer!.WaitForNextTickAsync(_pollCts.Token))
+                {
+                    // в UI-потоке
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadSchedulerResultsAsync();
+                        StateHasChanged();
+                    });
+                }
+            }
+            catch (OperationCanceledException) { }
+        });
+    }
+    
+    private bool DictionaryEquals(
+        Dictionary<int, List<ProductInfo>> oldD,
+        Dictionary<int, List<ProductInfo>> newD)
+    {
+        if (oldD.Count != newD.Count) return false;
+        foreach (var kvp in newD)
+        {
+            if (!oldD.TryGetValue(kvp.Key, out var list)) return false;
+            if (list.Count != kvp.Value.Count) return false;
+        }
+        return true;
+    }
+    
+    public async ValueTask DisposeAsync()
+    {
+        _pollCts?.Cancel();
+        _timer?.Dispose();
+        await Task.CompletedTask;
     }
 }

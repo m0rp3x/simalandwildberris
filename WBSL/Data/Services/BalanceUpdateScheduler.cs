@@ -36,6 +36,18 @@ public class BalanceUpdateScheduler : BackgroundService
         return Task.CompletedTask;
     }
 
+    public List<SimalandClientService.ProductInfo> GetResultsForRule(int ruleId){
+        return _resultsByRule.TryGetValue(ruleId, out var list)
+            ? new List<SimalandClientService.ProductInfo>(list)
+            : new List<SimalandClientService.ProductInfo>();
+    }
+
+    public IReadOnlyDictionary<int, List<SimalandClientService.ProductInfo>> GetAllResults(){
+        return _resultsByRule.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+    }
+
+    private readonly ConcurrentDictionary<int, List<SimalandClientService.ProductInfo>>
+        _resultsByRule = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken){
         List<BalanceUpdateRule> rules = new();
@@ -50,7 +62,6 @@ public class BalanceUpdateScheduler : BackgroundService
         foreach (var rule in rules){
             var first = rule.CreatedAt + rule.UpdateInterval;
             if (first <= now){
-                // сколько интервалов уже прошло?
                 var delta = now - rule.CreatedAt;
                 var count = (long)Math.Ceiling(delta.TotalMilliseconds / rule.UpdateInterval.TotalMilliseconds);
                 first = rule.CreatedAt + TimeSpan.FromTicks(rule.UpdateInterval.Ticks * count);
@@ -79,12 +90,19 @@ public class BalanceUpdateScheduler : BackgroundService
                 foreach (var rule in rules){
                     if (_nextRuns.TryGetValue(rule.Id, out var next) && now >= next){
                         if (_runningRules.TryAdd(rule.Id, true)){
+                            var capturedRule = rule;
                             _ = Task.Run(async () => {
+                                DateTime finishedAt;
                                 try{
-                                    await ProcessRule(rule, stoppingToken);
+                                    var infos = await ProcessRule(capturedRule, stoppingToken);
+                                    _resultsByRule[capturedRule.Id] = infos;
+                                }
+                                catch (Exception ex){
+                                    Console.WriteLine($"Error in ProcessRule for {capturedRule.Id}: {ex}");
                                 }
                                 finally{
-                                    _nextRuns[rule.Id] = next + rule.UpdateInterval;
+                                    finishedAt = DateTime.UtcNow;
+                                    _nextRuns[rule.Id] = finishedAt + capturedRule.UpdateInterval;
                                     _runningRules.TryRemove(rule.Id, out _);
                                 }
                             }, stoppingToken);
@@ -100,7 +118,10 @@ public class BalanceUpdateScheduler : BackgroundService
         }
     }
 
-    private async Task ProcessRule(BalanceUpdateRule rule, CancellationToken ct){
+    private async Task<List<SimalandClientService.ProductInfo>> ProcessRule(BalanceUpdateRule rule,
+        CancellationToken ct){
+        var allInfos = new List<SimalandClientService.ProductInfo>();
+
         try{
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
@@ -122,8 +143,10 @@ public class BalanceUpdateScheduler : BackgroundService
 
                 // Выбираем товары для данного правила
                 var sids = await db.products
+                    .AsNoTracking()
                     .Where(p => p.balance >= rule.FromStock && p.balance <= rule.ToStock)
                     .Select(p => p.sid)
+                    .Distinct()
                     .ToListAsync(ct);
 
                 if (sids.Count == 0)
@@ -135,8 +158,15 @@ public class BalanceUpdateScheduler : BackgroundService
                         .Select(x => x.id)
                         .ToList();
 
-                    await sima.FetchAndSaveProductsBalance(sids, simaClient, wbClient, ct, account.warehouseid.Value,
+                    var infos = await sima.FetchAndSaveProductsBalance(
+                        sids,
+                        simaClient,
+                        wbClient,
+                        ct,
+                        account.warehouseid.Value,
                         matchingAccountIds);
+
+                    allInfos.AddRange(infos.Successful);
                 }
                 else{
                     Console.WriteLine("Warehouse id is null");
@@ -146,5 +176,7 @@ public class BalanceUpdateScheduler : BackgroundService
         finally{
             _runningRules.TryRemove(rule.Id, out _);
         }
+
+        return allInfos;
     }
 }

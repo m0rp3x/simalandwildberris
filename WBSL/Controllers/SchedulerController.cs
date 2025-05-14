@@ -16,6 +16,21 @@ public class SchedulerController : ControllerBase
         simalandClientService = _simalandClientService;
     }
 
+    [HttpGet("results")]
+    public ActionResult<IReadOnlyDictionary<int, List<SimalandClientService.ProductInfo>>> GetAllResults(){
+        var results = _scheduler.GetAllResults();
+        return Ok(results);
+    }
+
+
+    [HttpGet("results/{ruleId:int}")]
+    public ActionResult<List<SimalandClientService.ProductInfo>> GetResultsForRule(int ruleId){
+        var list = _scheduler.GetResultsForRule(ruleId);
+        if (list == null || list.Count == 0)
+            return NotFound($"No results found for rule {ruleId}.");
+        return Ok(list);
+    }
+
     [HttpGet("balance-enabled")]
     public IActionResult GetBalanceEnabled()
         => Ok(new{ enabled = _scheduler.Enabled });
@@ -29,7 +44,7 @@ public class SchedulerController : ControllerBase
     [HttpPost("balance-reset/{accountId}")]
     public async Task<IActionResult> ResetBalances(int accountId){
         var count = await simalandClientService.ResetBalancesInWbAsync(accountId, CancellationToken.None);
-        
-        return Ok(new { resetCount = count });
+
+        return Ok(new{ resetCount = count });
     }
 }

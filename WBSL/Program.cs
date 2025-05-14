@@ -105,6 +105,8 @@ builder.Services.AddSingleton<PriceCalculatorSettingsDto>(); // Настройк
 
 builder.Services.AddScoped<PriceCalculatorService>(); // Сам сервис калькулятора цен
 
+
+
 builder.Services
     .AddHttpClient("SimaLand", client => {
         client.BaseAddress = new Uri("https://www.sima-land.ru/api/v3/");
