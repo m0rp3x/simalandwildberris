@@ -8,13 +8,16 @@ namespace WBSL.Data.Services;
 
 public class AccountTokenService
 {
-
     private readonly IServiceProvider _serviceProvider;
-    public AccountTokenService(IServiceProvider serviceProvider){
+    private readonly IConfiguration _configuration;
+
+    public AccountTokenService(IServiceProvider serviceProvider, IConfiguration configuration){
         _serviceProvider = serviceProvider;
+        _configuration = configuration;
     }
 
-    public async Task<external_account?> GetCurrentUserExternalAccountAsync(ClaimsPrincipal User, ExternalAccountType platform){
+    public async Task<external_account?> GetCurrentUserExternalAccountAsync(ClaimsPrincipal User,
+        ExternalAccountType platform){
         var account = await GetExternalAccounts(User, platform);
 
         if (account == null)
@@ -23,22 +26,38 @@ public class AccountTokenService
         return account;
     }
 
-    public async Task<external_account> GetAccountAsync(ExternalAccountType platform, int? accountId = null, Guid? userId = null, bool isSync = false){
+    public async Task<external_account> GetAccountAsync(ExternalAccountType platform, int? accountId = null,
+        Guid? userId = null, bool isSync = false){
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
 
         external_account? account = null;
-        if(platform == ExternalAccountType.WildBerriesMarketPlace || platform == ExternalAccountType.WildBerriesDiscountPrices || platform == ExternalAccountType.WildBerriesCommonApi){
+        if (platform == ExternalAccountType.WildBerriesMarketPlace ||
+            platform == ExternalAccountType.WildBerriesDiscountPrices ||
+            platform == ExternalAccountType.WildBerriesCommonApi){
             platform = ExternalAccountType.Wildberries;
         }
-        
+
+        if (platform == ExternalAccountType.SimaLand && isSync){
+            var syncToken = _configuration["SimaLand:SyncToken"];
+
+            return new external_account(){
+                id = 0,
+                platform = "SimaLand",
+                token = syncToken,
+                user_id = Guid.Empty
+            };
+        }
+
         if (isSync){
             account = await db.external_accounts
                 .FirstOrDefaultAsync(a => a.id == accountId && a.platform == platform.ToString());
         }
-        if (userId.HasValue && userId.Value != Guid.Empty ){
+
+        if (userId.HasValue && userId.Value != Guid.Empty){
             account = await db.external_accounts
-                .FirstOrDefaultAsync(a => a.user_id == userId && a.id == accountId && a.platform == platform.ToString());
+                .FirstOrDefaultAsync(a =>
+                    a.user_id == userId && a.id == accountId && a.platform == platform.ToString());
         }
 
         if (account == null)

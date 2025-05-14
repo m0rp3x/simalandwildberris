@@ -136,7 +136,9 @@ public class BalanceUpdateScheduler : BackgroundService
                 .GroupBy(x => x.warehouseid)
                 .Select(g => g.First())
                 .ToList();
+            
             var simaClient = await factory.CreateClientAsync(ExternalAccountType.SimaLand, 2, true);
+            
             foreach (var account in distinctWarehouses){
                 var wbClient =
                     await factory.CreateClientAsync(ExternalAccountType.WildBerriesMarketPlace, account.id, true);

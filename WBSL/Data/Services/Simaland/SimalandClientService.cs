@@ -31,7 +31,7 @@ public class SimalandClientService
         int warehouseId,
         List<int> externalAccountIds){
         const int batchSize = 1000;
-        const int maxParallelRequests = 5; // 5 параллельных запроса
+        const int maxParallelRequests = 20; // 5 параллельных запроса
         const int delayBetweenRequestsMs = 50; // Задержка между партиями
         const int maxRetryAttempts = 3; // Макс. количество попыток
         const int retryDelayMs = 1000; // Задержка между попытками (1 сек)
