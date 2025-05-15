@@ -9,6 +9,7 @@ public partial class WbCursor
 {
     [Key]
     [Column("Id")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
 
     [Column("UpdatedAt")]

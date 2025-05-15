@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Collections.Concurrent;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
@@ -22,103 +23,130 @@ public class ProductShortenerService
         _log = log;
     }
 
-    public async Task RunWithProgressAsync(
-        Guid jobId,
-        string prompt,
-        string field,
-        int maxLenValue,
-        bool generateIfEmpty){
-        // 1) Построить IQueryable в зависимости от поля и флага
-        IQueryable<product> query = _db.products;
+ public async Task RunWithProgressAsync(
+    Guid jobId,
+    string prompt,
+    string field,
+    int maxLenValue,
+    bool generateIfEmpty)
+{
+    IQueryable<product> query = _db.products;
 
-        if (field == "name"){
-            // Сокращаем только длинные названия
-            query = query.Where(p => p.name.Length > maxLenValue);
-        }
-        else{
-            // Работает по description
-            if (generateIfEmpty){
-                // Только пустые описания
-                query = query.Where(p => string.IsNullOrWhiteSpace(p.description));
-            }
-            else{
-                // Только ненулевые и длиннее maxLenValue
-                query = query.Where(p => p.description != null
-                                         && p.description.Length > maxLenValue);
-            }
-        }
+    if (field == "name")
+        query = query.Where(p => p.name.Length > maxLenValue);
+    else
+    {
+        if (generateIfEmpty)
+            query = query.Where(p => string.IsNullOrWhiteSpace(p.description));
+        else
+            query = query.Where(p => p.description != null && p.description.Length > maxLenValue);
+    }
 
-        var items = await query.ToListAsync();
-        var updated = new List<ShortenedDto>();
-        int batchSize = field == "name" ? 50 : 25;
+    var items = await query.ToListAsync();
+    int batchSize = field == "name" ? 10 : 5;
+    int maxConcurrency = 2;
 
-        // 2) Пробегаем по списку чанками
-        foreach (var chunk in items.Chunk(batchSize)){
-            // 2.1) Готовим вход для GPT
-            var originals = chunk.Select(p => {
-                if (field == "description" && generateIfEmpty
-                                           && string.IsNullOrWhiteSpace(p.description)){
-                    // хотим, чтобы нейронка придумала описание по названию
-                    return $"{p.sid},Название: {p.name}";
+    var updated = new ConcurrentBag<ShortenedDto>();
+    var semaphore = new SemaphoreSlim(maxConcurrency);
+
+    try
+    {
+        var tasks = items.Chunk(batchSize).Select(async chunk =>
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                var originals = chunk.Select(p =>
+                {
+                    if (field == "description" && generateIfEmpty && string.IsNullOrWhiteSpace(p.description))
+                        return $"{p.sid},Название: {p.name}";
+                    return $"{p.sid},{(field == "name" ? p.name : p.description!)}";
+                }).ToList();
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Сократи до {maxLenValue} символов.");
+                if (!string.IsNullOrWhiteSpace(prompt))
+                    sb.AppendLine(prompt);
+                sb.AppendLine("Верни строки в формате SID|НовыйТекст — по одной на строке:");
+                sb.Append(string.Join(Environment.NewLine, originals));
+
+                if (sb.Length > 3000)
+                {
+                    _log.LogWarning("Слишком длинный запрос GPT: {Len} символов, будет усечён.", sb.Length);
+                    sb.Length = 3000;
                 }
 
-                // обычное сокращение
-                return $"{p.sid},{(field == "name" ? p.name : p.description!)}";
-            }).ToList();
-
-            var sb = new StringBuilder();
-            sb.AppendLine($"Сократи до {maxLenValue} символов.");
-            if (!string.IsNullOrWhiteSpace(prompt))
-                sb.AppendLine(prompt);
-            sb.AppendLine("Верни строки в формате SID|НовыйТекст — по одной на строке:");
-            sb.Append(string.Join(Environment.NewLine, originals));
-
-            // 2.2) Отправляем в GPT и парсим ответ
-            var parsed = new List<(long Sid, string Value)>();
-            try{
-                var resp = await _gpt.ShortenAsync(sb.ToString(), string.Empty);
-                var lines = resp
-                    .Split(new[]{ '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (var line in lines){
-                    // Теперь разбиваем по '|'
-                    var parts = line.Split('|', 2);
-                    if (parts.Length != 2)
-                        continue;
-                    if (long.TryParse(parts[0].Trim(), out var sid))
-                        parsed.Add((sid, parts[1].Trim()));
+                var parsed = new List<(long Sid, string Value)>();
+                try
+                {
+                    var resp = await _gpt.ShortenAsync(sb.ToString(), string.Empty);
+                    var lines = resp?
+                        .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
+                    foreach (var line in lines)
+                    {
+                        var parts = line.Split('|', 2);
+                        if (parts.Length == 2 && long.TryParse(parts[0].Trim(), out var sid))
+                            parsed.Add((sid, parts[1].Trim()));
+                    }
                 }
-            }
-            catch (Exception ex){
-                _log.LogWarning(ex, "GPT batch failed for chunk size {Size}", chunk.Length);
-            }
-
-            // 2.3) Накатываем в память и обновляем прогресс
-            foreach (var (sid, newVal) in parsed){
-                var p = chunk.FirstOrDefault(x => x.sid == sid);
-                if (p == null) continue;
-
-                var orig = field == "name" ? p.name : (p.description ?? "");
-                if (!string.IsNullOrWhiteSpace(newVal)
-                    && newVal.Length <= maxLenValue
-                    && newVal != orig){
-                    updated.Add(new ShortenedDto{
-                        Sid = sid,
-                        Field = field,
-                        OldValue = orig,
-                        NewValue = newVal
-                    });
-                    if (field == "name") p.name = newVal;
-                    else p.description = newVal;
+                catch (Exception ex)
+                {
+                    _log.LogWarning(ex, "Ошибка GPT в чанке на {Size} товаров. Пропускаем.", chunk.Count());
+                    return;
                 }
 
-                ProgressStore.UpdateProgress(jobId);
+                foreach (var (sid, newVal) in parsed)
+                {
+                    var p = chunk.FirstOrDefault(x => x.sid == sid);
+                    if (p == null) continue;
+
+                    var orig = field == "name" ? p.name : (p.description ?? "");
+                    if (!string.IsNullOrWhiteSpace(newVal)
+                        && newVal.Length <= maxLenValue
+                        && newVal != orig)
+                    {
+                        updated.Add(new ShortenedDto
+                        {
+                            Sid = sid,
+                            Field = field,
+                            OldValue = orig,
+                            NewValue = newVal
+                        });
+
+                        if (field == "name") p.name = newVal;
+                        else p.description = newVal;
+                    }
+
+                    ProgressStore.UpdateProgress(jobId);
+                }
             }
-        }
-        
-        // 4) Серилизуем DTO и завершаем job
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
+    }
+    catch (Exception ex)
+    {
+        _log.LogError(ex, "Ошибка при параллельной обработке задачи {JobId}", jobId);
+        ProgressStore.MarkFailed(jobId);
+        return;
+    }
+
+    try
+    {
         var elems = updated
             .Select(d => JsonSerializer.SerializeToElement(d))
             .ToList();
+
         ProgressStore.CompleteJob(jobId, elems, new List<product_attribute>());
     }
+    catch (Exception ex)
+    {
+        _log.LogError(ex, "Ошибка сериализации результатов задачи {JobId}", jobId);
+        ProgressStore.MarkFailed(jobId);
+    }
+}
 }

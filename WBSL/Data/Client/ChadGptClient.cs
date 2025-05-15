@@ -28,44 +28,48 @@ public class ChadGptClient : IChadGptClient
 
     public async Task<string?> ShortenAsync(string prompt, string text)
     {
+        const int maxInputLength = 3000;
+        var fullPrompt = $"{prompt}\n{text}";
+        if (fullPrompt.Length > maxInputLength)
+            fullPrompt = fullPrompt[..maxInputLength];
+
         var payload = new
         {
-            message = $"{prompt}\n{text}",
+            message = fullPrompt,
             api_key = _apiKey
         };
 
-        HttpResponseMessage resp;
-        try
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            resp = await _http.PostAsJsonAsync("", payload);
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+                var resp = await _http.PostAsJsonAsync("", payload, cts.Token);
+                var content = await resp.Content.ReadAsStringAsync();
+
+                if (!resp.IsSuccessStatusCode)
+                    throw new Exception($"[HTTP {(int)resp.StatusCode}] {content}");
+
+                var json = JsonSerializer.Deserialize<ChadGptResponse>(content, _jsonOptions)
+                           ?? throw new Exception($"Пустой ответ от ChadGPT: {content}");
+
+                if (!json.IsSuccess)
+                    throw new Exception($"ChadGPT вернул ошибку: {json.ErrorMessage}. Response: {content}");
+
+                return json.Response.Trim();
+            }
+            catch (Exception ex)
+            {
+                if (attempt == 2)
+                    throw new Exception($"[GPT FAIL] Попытка {attempt + 1}: {ex.Message}", ex);
+
+                await Task.Delay(1000);
+            }
         }
-        catch (Exception ex)
-        {
-            throw new Exception($"[HTTP] Ошибка при запросе к ChadGPT: {ex.Message}", ex);
-        }
 
-        var content = await resp.Content.ReadAsStringAsync();
-        if (!resp.IsSuccessStatusCode)
-            throw new Exception($"[HTTP {(int)resp.StatusCode}] {content}");
-
-        ChadGptResponse? json;
-        try
-        {
-            json = JsonSerializer.Deserialize<ChadGptResponse>(content, _jsonOptions);
-        }
-        catch (Exception ex)
-        {
-            throw new Exception($"Не смогли десериализовать ответ ChadGPT: {content}", ex);
-        }
-
-        if (json == null)
-            throw new Exception($"Пустой ответ от ChadGPT: {content}");
-
-        if (!json.IsSuccess)
-            throw new Exception($"ChadGPT вернул ошибку: {json.ErrorMessage}. Response: {content}");
-
-        return json.Response.Trim();
+        return null;
     }
+
 
     private class ChadGptResponse
     {

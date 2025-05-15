@@ -12,6 +12,7 @@ public partial class WbPhoto
 {
     [Key]
     [Column("Id")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
 
     [Required]

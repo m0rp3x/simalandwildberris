@@ -13,6 +13,7 @@ public partial class user
 {
     [Key]
     [Column("id")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public Guid id { get; set; }
 
     [Required]

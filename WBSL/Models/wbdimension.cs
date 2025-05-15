@@ -13,6 +13,7 @@ public partial class WbDimension
 {
     [Key]
     [Column("Id")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
 
     [Column("Width")]

@@ -13,6 +13,7 @@ public partial class product_attribute
 {
     [Key]
     [Column("id")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int id { get; set; }
 
     [Column("product_sid")]

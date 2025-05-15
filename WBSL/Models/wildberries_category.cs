@@ -9,6 +9,7 @@ public partial class wildberries_category
 {
     [Key]
     [Column("id")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int id { get; set; }
 
     [Required]

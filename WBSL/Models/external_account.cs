@@ -10,6 +10,7 @@ public partial class external_account
 {
     [Key]
     [Column("id")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int id { get; set; }
 
     [Required]
