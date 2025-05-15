@@ -29,6 +29,17 @@ public static class ProgressStore
         if (_jobs.TryGetValue(jobId, out var info))
             Interlocked.Increment(ref info.Processed);
     }
+    
+    public static void MarkFailed(Guid jobId)
+    {
+        var job = GetJob(jobId);
+        if (job != null)
+        {
+            job.Status = JobStatus.Failed;
+            Console.WriteLine($"[ProgressStore] Job {jobId} marked as failed.");
+        }
+    }
+
 
     public static void CompleteJob(Guid jobId, List<JsonElement> products, List<product_attribute> attrs)
     {
