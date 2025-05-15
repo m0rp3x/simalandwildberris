@@ -32,10 +32,31 @@
                     <MudSelectItem Value="acct">@acct.Name</MudSelectItem>
                 }
             </MudSelect>
-            @if (_jobId != null)
-            {
-            <MudProgressLinear Value="@_pct" />
-            <div>Обработано @_processed из @_total (@_status)</div>
+            @if (_jobId != null){
+                <MudProgressLinear Value="@_pct"/>
+                <div>Обработано @_processed из @_total (@_status)</div>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           Disabled="@(_retryResult?.AdditionalErrors == null || !_retryResult.AdditionalErrors.Any())"
+                           OnClick="ToggleErrorDetails">
+                    @(_showErrors ? "Скрыть детали ошибок" : "Показать детали ошибок")
+                </MudButton>
+                @if (_showErrors && _retryResult?.AdditionalErrors != null){
+                    <MudTable Dense="true" Hover="true" Items="_retryResult.AdditionalErrors">
+                        <HeaderContent>
+                            <MudTh>VendorCode</MudTh>
+                            <MudTh>Errors</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="kv">
+                            <MudTd>@kv.Key</MudTd>
+                            <MudTd>
+                                @foreach (var e in kv.Value){
+                                    <div>@e</div>
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
             }
             <!-- Кнопка отправки -->
             <MudButton Variant="Variant.Filled"
@@ -49,22 +70,39 @@
 </MudPaper>
 
 @code {
+    private WbApiResult? _retryResult;
+    private bool _showErrors;
+
     private bool _initialized;
     private string _vendorCodesInput = string.Empty;
     private List<ExternalAccount> _accounts = new();
     private ExternalAccount? _selectedAccount;
     private List<string>? _codes;
-    
+
     bool _canStart => !string.IsNullOrWhiteSpace(_vendorCodesInput) && _selectedAccount != null;
 
     string? _jobId;
     int _total, _processed;
     string _status = "";
-    
-    private double _pct => _total > 0 
-        ? (_processed / (double)_total) * 100 
+
+    private double _pct => _total > 0
+        ? (_processed / (double)_total) * 100
         : 0;
-    
+
+    private Dictionary<int, List<WarehouseUpdateResult>> _schedulerResults
+        = new();
+
+    private void OnGotRetryResult(WbApiResult result){
+        _retryResult = result;
+        _showErrors = false;
+        
+        StateHasChanged();
+    }
+
+    private void ToggleErrorDetails(){
+        _showErrors = !_showErrors;
+    }
+
     protected override async Task OnInitializedAsync(){
         if (!OperatingSystem.IsBrowser()) return;
 
@@ -77,10 +115,12 @@
 
         _initialized = true;
     }
+
     private class JobResponse
     {
-        public string jobId { get; set; } = string.Empty;
+        public string jobId{ get; set; } = string.Empty;
     }
+
     private async Task RetryPhotos(){
         if (_selectedAccount == null) return;
 
@@ -95,24 +135,23 @@
             $"api/Wildberries/retry-photos-job/{_selectedAccount.Id}",
             _codes);
 
-        if (!resp.IsSuccessStatusCode)
-        {
+        if (!resp.IsSuccessStatusCode){
             Snackbar.Add("Не удалось запустить задачу", Severity.Error);
             return;
         }
+
         var raw = await resp.Content.ReadAsStringAsync();
-        raw = raw.Trim();   // убираем пробелы/новые строки по краям
+        raw = raw.Trim(); // убираем пробелы/новые строки по краям
 
         var wrapper = JsonSerializer.Deserialize<JobResponse>(raw);
-        if (wrapper == null)
-        {
+        if (wrapper == null){
             Snackbar.Add("Не удалось распарсить ответ от сервера", Severity.Error);
             return;
         }
 
         _jobId = wrapper.jobId;
         _ = PollProgress();
-        
+
         //5035698,5035697
     }
 
@@ -136,6 +175,7 @@
             Snackbar.Add(
                 $"Фото: всего {_codes.Count} найденно в базе {result!.TotalCount}, усп. {result!.SuccessCount}, ошиб. {result!.ErrorCount}",
                 result.ErrorCount > 0 || _codes.Count > result.TotalCount ? Severity.Warning : Severity.Success);
+            OnGotRetryResult(result);
         }
     }
 

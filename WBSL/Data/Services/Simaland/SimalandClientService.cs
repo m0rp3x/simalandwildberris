@@ -1,7 +1,9 @@
-﻿using System.Text;
+﻿using System.Net;
+using System.Text;
 using System.Text.Json;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
+using Shared;
 using Shared.Enums;
 using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Models;
@@ -17,14 +19,7 @@ public class SimalandClientService
         _scopeFactory = scopeFactory;
     }
 
-    public class ProductInfo
-    {
-        public long Sid{ get; set; }
-        public int Balance{ get; set; }
-        public int qty_multiplier{ get; set; }
-    }
-
-    public async Task<(List<ProductInfo> Successful, int ProcessedCount)> FetchAndSaveProductsBalance(List<long> sids,
+    public async Task<(List<ProductInfo> Successful, int ProcessedCount, List<FailedStock> Failed)> FetchAndSaveProductsBalance(List<long> sids,
         HttpClient client,
         HttpClient wildberriesClient,
         CancellationToken ct,
@@ -37,6 +32,7 @@ public class SimalandClientService
         const int retryDelayMs = 1000; // Задержка между попытками (1 сек)
 
         var allSuccessful = new List<ProductInfo>();
+        var allFailed = new List<FailedStock>();
         int totalProcessed = 0;
 
         var batchList = new List<ProductInfo>();
@@ -97,7 +93,8 @@ public class SimalandClientService
 
                         // 3) Аккумулируем результаты под lockResults
                         lock (lockResults){
-                            allSuccessful.AddRange(batchResult);
+                            allSuccessful.AddRange(batchResult.Successful);
+                            allFailed.AddRange(batchResult.Failed);
                             totalProcessed += toFlush.Count;
                         }
                     }
@@ -131,12 +128,13 @@ public class SimalandClientService
                 externalAccountIds);
 
             lock (lockResults){
-                allSuccessful.AddRange(batchResult);
+                allSuccessful.AddRange(batchResult.Successful);
+                allFailed.AddRange(batchResult.Failed);
                 totalProcessed += lastFlush.Count;
             }
         }
 
-        return (Successful: allSuccessful, ProcessedCount: totalProcessed);
+        return (Successful: allSuccessful, ProcessedCount: totalProcessed, Failed: allFailed);
     }
 
     public async Task<int> ResetBalancesInWbAsync(int externalAccountId, CancellationToken ct){
@@ -234,7 +232,7 @@ public class SimalandClientService
         return totalSent;
     }
 
-    private async Task<List<ProductInfo>> SaveBatchAndPushToWB(List<ProductInfo> batch,
+    private async Task<StockUpdateResult> SaveBatchAndPushToWB(List<ProductInfo> batch,
         HttpClient wbClient,
         CancellationToken ct,
         int warehouseId,
@@ -267,15 +265,15 @@ public class SimalandClientService
         }
         catch (Exception ex){
             Console.WriteLine($"Error saving batch: {ex.Message}");
-            return new List<ProductInfo>();
+            return new StockUpdateResult();
         }
     }
 
-    private async Task<List<ProductInfo>> UpdateStocksOnWildberries(List<ProductInfo> batch, HttpClient wbClient,
+    private async Task<StockUpdateResult> UpdateStocksOnWildberries(List<ProductInfo> batch, HttpClient wbClient,
         CancellationToken ct,
         int warehouseId, List<int> externalAccountIds){
         var successfulProducts = new List<ProductInfo>();
-
+        var result = new StockUpdateResult();
         try{
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
@@ -292,7 +290,7 @@ public class SimalandClientService
 
             var cardsByVendor = wbProductCards.ToDictionary(wb => wb.VendorCode);
 
-            var stocks = new List<object>();
+            var stocks = new List<(string Sku, int Amount)>();
 
             foreach (var prod in batch){
                 var sidStr = prod.Sid.ToString();
@@ -311,40 +309,131 @@ public class SimalandClientService
                 var sku = skuParts.FirstOrDefault();
                 if (string.IsNullOrEmpty(sku)) continue;
 
-                stocks.Add(new{
-                    sku = sku,
-                    amount = lots
-                });
+                stocks.Add((sku, lots));
                 successfulProducts.Add(prod);
             }
 
-            if (stocks.Count == 0){
+            if (!stocks.Any()){
                 Console.WriteLine("No stocks to update to Wildberries.");
-                return new List<ProductInfo>();
+                return result;
             }
 
-            var payload = new{
-                stocks = stocks
-            };
+            HttpContent ToContent(IEnumerable<(string Sku, int Amount)> list) =>
+                new StringContent(
+                    JsonSerializer.Serialize(new{ stocks = list.Select(x => new{ sku = x.Sku, amount = x.Amount }) }),
+                    Encoding.UTF8,
+                    "application/json");
 
-            var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-
-
+            var content = ToContent(stocks);
             var response = await wbClient.PutAsync($"/api/v3/stocks/{warehouseId}", content, ct);
 
             if (response.IsSuccessStatusCode){
-                Console.WriteLine($"Successfully updated {stocks.Count} stocks to Wildberries.");
-                return successfulProducts;
+                result.Successful.AddRange(batch);
+                return result;
             }
-            else{
-                var errorContent = await response.Content.ReadAsStringAsync(ct);
-                Console.WriteLine($"Failed to update stocks to Wildberries: {response.StatusCode} {errorContent}");
-                return new List<ProductInfo>();
+
+            if (response.StatusCode == HttpStatusCode.Conflict){
+                var errJson = await response.Content.ReadAsStringAsync(ct);
+                List<WbError> errors;
+                try{
+                    errors = JsonSerializer.Deserialize<List<WbError>>(errJson)
+                                 ?? throw new JsonException("WB error response is null or not an array");
+                }
+                catch (JsonException){
+                    Console.WriteLine($"Cannot parse WB error: {errJson}");
+                    return result;
+                }
+
+                // SKU-ши, которые упали
+                var err = errors.FirstOrDefault();
+                var failedSkus = err.data.Select(d => d.sku).ToHashSet();
+
+                // Записываем «неотправленных» в результат
+                foreach (var d in err.data){
+                    result.Failed.Add(new FailedStock{
+                        Sku = d.sku,
+                        Amount = d.amount,
+                        ErrorCode = err.code,
+                        ErrorMessage = err.message
+                    });
+                }
+
+                // Оставляем только те, что прошли
+                var retryStocks = stocks
+                    .Where(x => !failedSkus.Contains(x.Sku))
+                    .ToList();
+
+                if (!retryStocks.Any()){
+                    // Нечего больше отправлять
+                    return result;
+                }
+
+                // Пробуем ещё раз
+                var content2 = ToContent(retryStocks);
+                var response2 = await wbClient.PutAsync($"/api/v3/stocks/{warehouseId}", content2, ct);
+
+                if (response2.IsSuccessStatusCode){
+                    // Если второй раз ок — все эти retryStocks считаем успешными
+                    // Надо найти оригинальные ProductInfo по sku и добавить в result.Successful
+                    var skuSet = retryStocks.Select(x => x.Sku).ToHashSet();
+                    result.Successful.AddRange(batch.Where(p => skuSet.Contains(p.Sid.ToString())));
+                }
+                else{
+                    var errorText2 = await response2.Content.ReadAsStringAsync(ct);
+                    // Для каждого SKU из retryStocks добавляем в Failed
+                    foreach (var (Sku, Amount) in retryStocks)
+                    {
+                        result.Failed.Add(new FailedStock
+                        {
+                            Sku          = Sku,
+                            Amount       = Amount,
+                            ErrorCode    = response2.StatusCode.ToString(),
+                            ErrorMessage = errorText2
+                        });
+                    }
+                    Console.WriteLine($"Retry failed with {response2.StatusCode}");
+                }
+
+                return result;
             }
+
+            // Другие ошибки
+            var errTxt = await response.Content.ReadAsStringAsync(ct);
+            Console.WriteLine($"Failed to update stocks to Wildberries: {response.StatusCode} {errTxt}");
+            return result;
         }
         catch (Exception ex){
             Console.WriteLine($"Error updating stocks to Wildberries: {ex.Message}");
-            return new List<ProductInfo>();
+            foreach (var prod in batch)
+            {
+                result.Failed.Add(new FailedStock
+                {
+                    Sku          = prod.Sid.ToString(),
+                    Amount       =  0,
+                    ErrorCode    = "Exception",
+                    ErrorMessage = ex.Message
+                });
+            }
+            return result;
         }
+    }
+
+    public class WbError
+    {
+        public List<WbErrorData> data{ get; set; } = new();
+        public string code{ get; set; }
+        public string message{ get; set; }
+    }
+
+    public class WbErrorData
+    {
+        public string sku{ get; set; }
+        public int amount{ get; set; }
+    }
+
+    public class StockUpdateResult
+    {
+        public List<ProductInfo> Successful{ get; set; } = new();
+        public List<FailedStock> Failed{ get; set; } = new();
     }
 }

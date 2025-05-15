@@ -128,8 +128,13 @@ public class WildberriesController : ControllerBase
         [FromRoute] int accountId,
         [FromBody] List<string> vendorCodes)
     {
-        var jobId = await _wildberriesService.StartRetrySendPhotosJob(vendorCodes, accountId);
-        return Ok(new { jobId });
+        try{
+            var jobId = await _wildberriesService.StartRetrySendPhotosJob(vendorCodes, accountId);
+            return Ok(new { jobId });
+        }
+        catch(Exception e){
+            return BadRequest(e.Message);
+        }
     }
 
     [HttpPost("createWbItem/{wbAccountId:int}")]

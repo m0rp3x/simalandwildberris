@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Shared;
 using WBSL.Data.Services;
 using WBSL.Data.Services.Simaland;
 
@@ -17,16 +18,17 @@ public class SchedulerController : ControllerBase
     }
 
     [HttpGet("results")]
-    public ActionResult<IReadOnlyDictionary<int, List<SimalandClientService.ProductInfo>>> GetAllResults(){
+    public ActionResult<IReadOnlyDictionary<int, List<WarehouseUpdateResult>>> GetAllResults()
+    {
         var results = _scheduler.GetAllResults();
         return Ok(results);
     }
 
-
     [HttpGet("results/{ruleId:int}")]
-    public ActionResult<List<SimalandClientService.ProductInfo>> GetResultsForRule(int ruleId){
+    public ActionResult<List<WarehouseUpdateResult>> GetResultsForRule(int ruleId)
+    {
         var list = _scheduler.GetResultsForRule(ruleId);
-        if (list == null || list.Count == 0)
+        if (list == null || !list.Any())
             return NotFound($"No results found for rule {ruleId}.");
         return Ok(list);
     }

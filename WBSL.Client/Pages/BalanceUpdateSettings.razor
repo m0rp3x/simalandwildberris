@@ -16,7 +16,7 @@
         <MudForm>
             <MudSwitch T="bool" @bind-Value="_enabled"
                        Label="Авто-обновление баланса"
-                       Disabled="@(!_initialized)" />
+                       Disabled="@(!_initialized)"/>
 
             <MudButton OnClick="SaveSettings"
                        Variant="Variant.Filled"
@@ -26,7 +26,7 @@
             </MudButton>
         </MudForm>
 
-        <MudDivider Class="my-4" />
+        <MudDivider Class="my-4"/>
 
         <MudText Typo="Typo.h5">🗑 Обнулить остатки</MudText>
 
@@ -37,9 +37,8 @@
                    Variant="Variant.Outlined"
                    FullWidth
                    Disabled="!_initialized">
-            @foreach (var acct in _accounts)
-            {
-            <MudSelectItem Value="acct">@acct.Name</MudSelectItem>
+            @foreach (var acct in _accounts){
+                <MudSelectItem Value="acct">@acct.Name</MudSelectItem>
             }
         </MudSelect>
 
@@ -49,31 +48,70 @@
                    Disabled="!_initialized || _selectedAccount == null">
             Обнулить остатки
         </MudButton>
-        <MudDivider Class="my-6" />
+        <MudDivider Class="my-6"/>
         <MudText Typo="Typo.h5">📊 Результаты последнего обновления</MudText>
-        @if (_schedulerResults != null && _schedulerResults.Any())
-        {
-        <MudExpansionPanels>
-            @foreach (var kvp in _schedulerResults)
-            {
-            <MudExpansionPanel Text="@($"Правило {kvp.Key} ({kvp.Value.Count} товаров)")">
-            <MudList T="ProductInfo" Dense="true">
-                @foreach (var pi in kvp.Value)
-                {
-                <MudListItem>
-                    <b>SID:</b> @pi.Sid,
-                    <b>Баланс:</b> @pi.Balance,
-                    <b>MinQty:</b> @pi.qty_multiplier
-                </MudListItem>
+        @foreach (var kvp in _schedulerResults){
+            <MudText Typo="Typo.h6" Class="mt-4">
+                Правило <strong>@kvp.Key</strong> — всего <strong>@kvp.Value.Count</strong> складов
+            </MudText>
+
+            <MudTable Items="kvp.Value" Dense="true" Hover="true">
+                <HeaderContent>
+                    <MudTh>Склад (ID)</MudTh>
+                    <MudTh>Обработано</MudTh>
+                    <MudTh>Успешно</MudTh>
+                    <MudTh>Неудачно</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="res">
+                    <MudTd>@res.WarehouseId</MudTd>
+                    <MudTd>@res.ProcessedCount</MudTd>
+                    <MudTd>@res.Successful.Count</MudTd>
+                    <MudTd>@res.Failed.Count</MudTd>
+                </RowTemplate>
+            </MudTable>
+
+            <MudGrid Class="mt-4" GutterSize="2">
+                @foreach (var res in kvp.Value){
+                    <MudItem xs="12" sm="6">
+                        <MudExpansionPanel Text="@($"Склад #{res.WarehouseId}")">
+                            <MudTabs>
+                                <!-- вкладка успешных -->
+                                <MudTabPanel Text="@($"Успешные ({res.Successful.Count})")">
+                                    <MudTable Items="res.Successful" Dense="true" Hover="true">
+                                        <HeaderContent>
+                                            <MudTh>SID</MudTh>
+                                            <MudTh>Balance</MudTh>
+                                            <MudTh>QtyMultiplier</MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate Context="p">
+                                            <MudTd>@p.Sid</MudTd>
+                                            <MudTd>@p.Balance</MudTd>
+                                            <MudTd>@p.qty_multiplier</MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                </MudTabPanel>
+                                <!-- вкладка ошибок -->
+                                <MudTabPanel Text="@("$Ошибки ({@res.Failed.Count} )")">
+                                    <MudTable Items="res.Failed" Dense="true" Hover="true">
+                                        <HeaderContent>
+                                            <MudTh>SKU</MudTh>
+                                            <MudTh>Amount</MudTh>
+                                            <MudTh>Код</MudTh>
+                                            <MudTh>Сообщение</MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate Context="f">
+                                            <MudTd>@f.Sku</MudTd>
+                                            <MudTd>@f.Amount</MudTd>
+                                            <MudTd>@f.ErrorCode</MudTd>
+                                            <MudTd>@f.ErrorMessage</MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                </MudTabPanel>
+                            </MudTabs>
+                        </MudExpansionPanel>
+                    </MudItem>
                 }
-            </MudList>
-            </MudExpansionPanel>
-            }
-        </MudExpansionPanels>
-        }
-        else
-        {
-        <MudText Color="Color.Secondary">Пока нет результатов.</MudText>
+            </MudGrid>
         }
     </MudStack>
 </MudPaper>
@@ -81,48 +119,45 @@
 @code {
     private bool _initialized;
     private bool _enabled;
-        
+
     private List<ExternalAccount> _accounts = new();
     private ExternalAccount? _selectedAccount;
 
-    private Dictionary<int, List<ProductInfo>> _schedulerResults = new();
-
+    private Dictionary<int, List<WarehouseUpdateResult>> _schedulerResults = new();
 
     private PeriodicTimer? _timer;
     private CancellationTokenSource? _pollCts;
-    
-    protected override async Task OnInitializedAsync()
-    {
+
+    protected override async Task OnInitializedAsync(){
         if (!OperatingSystem.IsBrowser()){
             return;
         }
+
         var resp = await Http.GetFromJsonAsync<Dictionary<string, bool>>("api/scheduler/balance-enabled");
         if (resp != null && resp.TryGetValue("enabled", out var e))
             _enabled = e;
         _initialized = true;
-        
+
         var all = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts")
                   ?? new List<ExternalAccount>();
         _accounts = all
             .Where(x => x.Platform == ExternalAccountType.Wildberries.ToString())
             .ToList();
-        
+
         await LoadSchedulerResultsAsync();
         StartPollingResults();
-        
+
         StateHasChanged();
     }
-    
-    private async Task ResetBalances()
-    {
+
+    private async Task ResetBalances(){
         if (_selectedAccount == null) return;
 
         var resp = await Http.PostAsync(
             $"api/scheduler/balance-reset/{_selectedAccount.Id}",
             null
         );
-        if (resp.IsSuccessStatusCode)
-        {
+        if (resp.IsSuccessStatusCode){
             var result = await resp.Content.ReadFromJsonAsync<Dictionary<string, int>>();
             var count = result?.GetValueOrDefault("resetCount") ?? 0;
             Snackbar.Add(
@@ -130,92 +165,79 @@
                 Severity.Success
             );
         }
-        else
-        {
+        else{
             Snackbar.Add($"Не удалось обнулить: {resp.StatusCode}", Severity.Error);
         }
     }
 
-    private async Task SaveSettings()
-    {
+    private async Task SaveSettings(){
         var response = await Http.PostAsJsonAsync("api/scheduler/balance-enabled", _enabled);
-        if (response.IsSuccessStatusCode)
-        {
+        if (response.IsSuccessStatusCode){
             var statusText = _enabled ? "включено" : "отключено";
             Snackbar.Add($"Авто-обновление остатков {statusText}.", Severity.Success);
         }
-        else
-        {
+        else{
             Snackbar.Add($"Ошибка при сохранении: {response.StatusCode}", Severity.Error);
         }
     }
-    
-    private async Task LoadSchedulerResultsAsync()
-    {
-        try
-        {
-            var results = await Http.GetFromJsonAsync<Dictionary<int, List<ProductInfo>>>(
+
+    private async Task LoadSchedulerResultsAsync(){
+        try{
+            var results = await Http.GetFromJsonAsync<Dictionary<int, List<WarehouseUpdateResult>>>(
                 "api/scheduler/results");
-            if (results != null)
-            {
+
+            if (results != null){
                 // если появились новые
                 if (!DictionaryEquals(_schedulerResults, results))
                     Snackbar.Add($"Найдены результаты обновления для {results.Count} правил", Severity.Info);
 
                 _schedulerResults = results;
             }
-            else
-            {
+            else{
                 _schedulerResults.Clear();
             }
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex){
             Console.Error.WriteLine($"Ошибка при загрузке результатов: {ex}");
         }
     }
-    
-    private void StartPollingResults()
-    {
+
+    private void StartPollingResults(){
         _pollCts = new CancellationTokenSource();
         _timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
 
         // fire-and-forget loop
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                while (await _timer!.WaitForNextTickAsync(_pollCts.Token))
-                {
+        _ = Task.Run(async () => {
+            try{
+                while (await _timer!.WaitForNextTickAsync(_pollCts.Token)){
                     // в UI-потоке
-                    await InvokeAsync(async () =>
-                    {
+                    await InvokeAsync(async () => {
                         await LoadSchedulerResultsAsync();
                         StateHasChanged();
                     });
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException){
+            }
         });
     }
-    
+
     private bool DictionaryEquals(
-        Dictionary<int, List<ProductInfo>> oldD,
-        Dictionary<int, List<ProductInfo>> newD)
-    {
+        Dictionary<int, List<WarehouseUpdateResult>> oldD,
+        Dictionary<int, List<WarehouseUpdateResult>> newD){
         if (oldD.Count != newD.Count) return false;
-        foreach (var kvp in newD)
-        {
+        foreach (var kvp in newD){
             if (!oldD.TryGetValue(kvp.Key, out var list)) return false;
             if (list.Count != kvp.Value.Count) return false;
         }
+
         return true;
     }
-    
-    public async ValueTask DisposeAsync()
-    {
+
+    public async ValueTask DisposeAsync(){
         _pollCts?.Cancel();
         _timer?.Dispose();
         await Task.CompletedTask;
     }
+
 }

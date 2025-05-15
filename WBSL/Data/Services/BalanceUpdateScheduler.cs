@@ -1,6 +1,8 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
+using Shared;
 using Shared.Enums;
+using WBSL.Data.Extensions;
 using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Data.Models;
 using WBSL.Data.Services.Simaland;
@@ -36,18 +38,24 @@ public class BalanceUpdateScheduler : BackgroundService
         return Task.CompletedTask;
     }
 
-    public List<SimalandClientService.ProductInfo> GetResultsForRule(int ruleId){
-        return _resultsByRule.TryGetValue(ruleId, out var list)
-            ? new List<SimalandClientService.ProductInfo>(list)
-            : new List<SimalandClientService.ProductInfo>();
+    public List<WarehouseUpdateResult> GetResultsForRule(int ruleId){
+        if (_resultsByRule.TryGetValue(ruleId, out var list)){
+            return list.ToList();
+        }
+
+        return new List<WarehouseUpdateResult>();
     }
 
-    public IReadOnlyDictionary<int, List<SimalandClientService.ProductInfo>> GetAllResults(){
-        return _resultsByRule.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+    public IReadOnlyDictionary<int, List<WarehouseUpdateResult>> GetAllResults(){
+        return _resultsByRule
+            .ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.ToList()
+            );
     }
 
-    private readonly ConcurrentDictionary<int, List<SimalandClientService.ProductInfo>>
-        _resultsByRule = new();
+    private readonly ConcurrentDictionary<int, List<WarehouseUpdateResult>> _resultsByRule
+        = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken){
         List<BalanceUpdateRule> rules = new();
@@ -118,9 +126,9 @@ public class BalanceUpdateScheduler : BackgroundService
         }
     }
 
-    private async Task<List<SimalandClientService.ProductInfo>> ProcessRule(BalanceUpdateRule rule,
+    private async Task<List<WarehouseUpdateResult>> ProcessRule(BalanceUpdateRule rule,
         CancellationToken ct){
-        var allInfos = new List<SimalandClientService.ProductInfo>();
+        var results = new List<WarehouseUpdateResult>();
 
         try{
             using var scope = _scopeFactory.CreateScope();
@@ -132,53 +140,63 @@ public class BalanceUpdateScheduler : BackgroundService
                 .Where(x => x.platform == ExternalAccountType.Wildberries.ToString())
                 .ToListAsync(ct);
 
-            var distinctWarehouses = externalAccounts
-                .GroupBy(x => x.warehouseid)
-                .Select(g => g.First())
-                .ToList();
-            
-            var simaClient = await factory.CreateClientAsync(ExternalAccountType.SimaLand, 2, true);
-            
-            foreach (var account in distinctWarehouses){
-                var wbClient =
-                    await factory.CreateClientAsync(ExternalAccountType.WildBerriesMarketPlace, account.id, true);
+            var accountsByWarehouse = externalAccounts
+                .Where(x => x.warehouseid.HasValue)
+                .GroupBy(x => x.warehouseid.Value)
+                .ToDictionary(g => g.Key, g => g.ToList());
 
-                // Выбираем товары для данного правила
+            var simaClient = await factory.CreateClientAsync(ExternalAccountType.SimaLand, 2, true);
+
+            foreach (var kvp in accountsByWarehouse){
+                int warehouseId = kvp.Key;
+                if (warehouseId == 0){
+                    continue;
+                }
+
+                HttpClient? wbClient = null;
+                wbClient = await factory.GetValidClientAsync(
+                    ExternalAccountType.WildBerriesMarketPlace,
+                    kvp.Value.Select(a => a.id),
+                    "/ping",
+                    ct);
+
+                if (wbClient == null){
+                    continue;
+                }
+
                 var sids = await db.products
                     .AsNoTracking()
                     .Where(p => p.balance >= rule.FromStock && p.balance <= rule.ToStock)
                     .Select(p => p.sid)
                     .Distinct()
                     .ToListAsync(ct);
-
                 if (sids.Count == 0)
                     continue;
-                // И запускаем синхронизацию
-                if (account.warehouseid.HasValue){
-                    var matchingAccountIds = externalAccounts
-                        .Where(x => x.warehouseid == account.warehouseid)
-                        .Select(x => x.id)
-                        .ToList();
 
-                    var infos = await sima.FetchAndSaveProductsBalance(
-                        sids,
-                        simaClient,
-                        wbClient,
-                        ct,
-                        account.warehouseid.Value,
-                        matchingAccountIds);
+                var matchingAccountIds = kvp.Value
+                    .Select(acc => acc.id)
+                    .ToList();
 
-                    allInfos.AddRange(infos.Successful);
-                }
-                else{
-                    Console.WriteLine("Warehouse id is null");
-                }
+                var infos = await sima.FetchAndSaveProductsBalance(
+                    sids,
+                    simaClient,
+                    wbClient,
+                    ct,
+                    warehouseId,
+                    matchingAccountIds);
+
+                results.Add(new WarehouseUpdateResult{
+                    WarehouseId = warehouseId,
+                    Successful = infos.Successful,
+                    Failed = infos.Failed,
+                    ProcessedCount = infos.Successful.Count + infos.Failed.Count
+                });
             }
         }
         finally{
             _runningRules.TryRemove(rule.Id, out _);
         }
 
-        return allInfos;
+        return results;
     }
 }

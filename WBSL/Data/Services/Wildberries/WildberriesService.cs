@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Shared;
+using Shared.Enums;
+using WBSL.Data.Extensions;
 using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Data.Mappers;
 using WBSL.Data.Services.Wildberries.Models;
@@ -426,7 +428,7 @@ public class WildberriesService : WildberriesBaseService
     {
         
         List<(string VendorCode, long NmId, List<string> PhotoUrls)> toProcess;
-        using (var db = await _contextFactory.CreateDbContextAsync())
+        using (var db = await _contextFactory.CreateDbContextAsync(cancellationToken))
         {
             var cards = await db.WbProductCards
                 .AsNoTracking()
@@ -475,12 +477,21 @@ public class WildberriesService : WildberriesBaseService
             {
                 var errors = new Dictionary<string, List<string>>();
                 var count  = 0;
-                var client = await GetWbClientAsync(accountId);
-
+                
+                var client = await _clientFactory.GetValidClientAsync(
+                    ExternalAccountType.Wildberries,
+                    new[] { accountId },
+                    "/ping",           // или "/api/ping", как у вас
+                    cancellationToken);
+                
+                if (client == null)
+                    throw new InvalidOperationException(
+                        $"Не удалось получить рабочий WB-клиент для accountId={accountId}");
+                
                 var throttler = new SemaphoreSlim(4);
                 var tasks = toProcess.Select(async item =>
                 {
-                    await throttler.WaitAsync();
+                    await throttler.WaitAsync(cancellationToken);
                     try
                     {
                         var res = await TrySendPhotosToWbAsync(
@@ -492,7 +503,7 @@ public class WildberriesService : WildberriesBaseService
                     }
                     finally
                     {
-                        count++;
+                        Interlocked.Increment(ref count);
                         ProgressStore.UpdateProgress(jobId);
                         throttler.Release();
                     }
@@ -524,9 +535,7 @@ public class WildberriesService : WildberriesBaseService
 
         return jobId.ToString();
     }
-
     
-
     public async Task<List<WbCategoryDto>> SearchCategoriesAsync(string? query, int baseSubjectId){
         var baseCategory = await _db.wildberries_categories
             .FirstOrDefaultAsync(c => c.id == baseSubjectId);
@@ -678,14 +687,26 @@ public class WildberriesService : WildberriesBaseService
                     await Task.Delay(delay);
                     continue;
                 }
+                
+                if (response.StatusCode == HttpStatusCode.Forbidden)
+                {
+                    var apiResult = await response.Content
+                                        .ReadFromJsonAsync<WbApiResult>()
+                                    // на всякий случай, если парсинг вернул null
+                                    ?? new WbApiResult { 
+                                        Error = true, 
+                                        ErrorText = "Forbidden: empty response" 
+                                    };
+                    return apiResult;
+                }
 
                 response.EnsureSuccessStatusCode();
 
-                var apiResult = await response.Content
+                var successResult = await response.Content
                     .ReadFromJsonAsync<WbApiResult>();
 
-                return apiResult?.Error == true
-                    ? apiResult
+                return successResult?.Error == true
+                    ? successResult
                     : null;
             }
             catch (HttpRequestException) when (++attempt < maxAttempts){
