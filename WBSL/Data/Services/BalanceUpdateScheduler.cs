@@ -19,6 +19,7 @@ public class BalanceUpdateScheduler : BackgroundService
     private readonly Dictionary<int, DateTime> _nextRuns = new();
 
     private volatile bool _enabled = false;
+    private bool _firstEnableInit = true;
 
     public BalanceUpdateScheduler(IServiceScopeFactory scopeFactory){
         _scopeFactory = scopeFactory;
@@ -86,6 +87,15 @@ public class BalanceUpdateScheduler : BackgroundService
 
             now = DateTime.UtcNow;
 
+            if (_firstEnableInit){
+                var fireAt = now + TimeSpan.FromMinutes(1);
+                foreach (var rule in rules){
+                    _nextRuns[rule.Id] = fireAt;
+                }
+
+                _firstEnableInit = false;
+            }
+            
             try{
                 if ((now - lastRulesUpdate) > TimeSpan.FromMinutes(5)){
                     using var scope = _scopeFactory.CreateScope();
