@@ -127,8 +127,8 @@ public class PriceCalculatorService
         var product = _products.FirstOrDefault(p => p.sid == sid);
         if (product == null)
             return Task.FromResult(0m);
-
-        var purchasePrice = product.wholesale_price ?? 0m;
+        
+        var purchasePrice = product.wholesale_price > 0 ? product.wholesale_price : product.price;
 
         var marginPercent = GetMarginPercent(purchasePrice);
 
