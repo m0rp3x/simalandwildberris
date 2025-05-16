@@ -139,6 +139,20 @@ public class WildberriesController : ControllerBase
 
     [HttpPost("createWbItem/{wbAccountId:int}")]
     public async Task<IActionResult> CreateProduct([FromBody] CategoryMappingRequest mappingRequest, int wbAccountId){
+        var warehouseId = await _db.external_accounts
+            .AsNoTracking()
+            .Where(acc => acc.id == wbAccountId)
+            .Select(acc => acc.warehouseid)
+            .SingleOrDefaultAsync();
+        
+        if (warehouseId == null)
+            return BadRequest($"Account {wbAccountId} has no WarehouseId");
+        
+        var accountIdsInWarehouse = await _db.external_accounts
+            .Where(a => a.warehouseid == warehouseId)
+            .Select(a => a.id)
+            .ToListAsync();
+        
         var simaSidsInCategory = await _db.products
             .AsNoTracking()
             .Where(x => x.category_name.ToLower() == mappingRequest.SimalandCategoryName.ToLower())
@@ -147,8 +161,13 @@ public class WildberriesController : ControllerBase
 
         var existingWbSids = await _db.WbProductCards
             .AsNoTracking()
-            .Where(x => simaSidsInCategory.Contains(x.VendorCode))
-            .Select(x => x.VendorCode)
+            .Where(wpc =>
+                wpc.externalaccount_id.HasValue &&
+                accountIdsInWarehouse.Contains(wpc.externalaccount_id.Value) &&
+                simaSidsInCategory.Contains(wpc.VendorCode)
+            )
+            .Select(wpc => wpc.VendorCode)
+            .Distinct()
             .ToListAsync();
 
         var filteredSids = simaSidsInCategory
