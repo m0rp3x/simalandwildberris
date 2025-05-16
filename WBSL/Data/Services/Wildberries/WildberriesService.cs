@@ -315,7 +315,7 @@ public class WildberriesService : WildberriesBaseService
                     }
                     catch (Exception ex){
                         attempts++;
-                        fetchError = $"Attempt {attempts} exception: {ex.Message}";
+                        fetchError = $"Попыток {attempts} ошибка: {ex.Message}";
                         await Task.Delay(TimeSpan.FromSeconds(5));
                     }
                 }
@@ -339,7 +339,7 @@ public class WildberriesService : WildberriesBaseService
                 toProcess.Add((vendorCode, entity));
             }
             else{
-                errors[vendorCode] = new List<string>{ fetchError ?? "Card not found after retries" };
+                errors[vendorCode] = new List<string>{ fetchError ?? "Каточка не найдена на вб" };
             }
         }
 
@@ -403,7 +403,7 @@ public class WildberriesService : WildberriesBaseService
             catch (Exception ex){
                 if (!errors.ContainsKey(vendorCode))
                     errors[vendorCode] = new List<string>();
-                errors[vendorCode].Add($"DB save error: {ex.Message}");
+                errors[vendorCode].Add($"Ошибка при сохранении в БД: {ex.Message}");
             }
         }
 

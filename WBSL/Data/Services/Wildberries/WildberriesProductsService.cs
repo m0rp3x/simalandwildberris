@@ -205,7 +205,10 @@ public class WildberriesProductsService : WildberriesBaseService
         }
         catch (Exception ex){
             await transaction.RollbackAsync();
-            throw new Exception("Failed to save products to database", ex);
+            var msg = $"Не удалось сохранить {productsToSave.Count} товаров " +
+                      $"(AccountId={externalAccountId}, SyncAt={syncStartedAt:O}): {ex.Message}";
+            
+            throw new InvalidOperationException(msg, ex);
         }
     }
 

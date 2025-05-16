@@ -25,17 +25,13 @@
                 @if (_wbResultExtended?.BatchErrors?.Any() == true){
                     @foreach (var batchErr in _wbResultExtended.BatchErrors){
                         <MudText Color="Color.Error" Class="mb-2">
-                            <b>Группа @((batchErr.BatchIndex + 1)) (коды: @string.Join(", ", batchErr.VendorCodes)):</b>
+                            <b>Группа @(batchErr.BatchIndex + 1) (коды: @string.Join(", ", batchErr.VendorCodes)):</b>
                             @batchErr.ErrorText
                         </MudText>
 
-                        @if (batchErr.AdditionalErrors?.Any() == true){
+                        @if (!string.IsNullOrEmpty(batchErr.FlattenedErrors)){
                             <MudText Color="Color.Warning" Class="ml-4">
-                                Дефекты:
-                                @string.Join("; ",
-                                    batchErr.AdditionalErrors
-                                        .SelectMany(kvp => kvp.Value)
-                                        .Distinct())
+                                Дефекты: @batchErr.FlattenedErrors
                             </MudText>
                         }
                     }
@@ -257,6 +253,7 @@
     private WbApiResult? LastWbResult;
     private WbCreateApiExtendedResult? _wbResultExtended;
     private string? LastWbSummary;
+    private string? _lastWbRawJson;
 
     private static readonly HashSet<string> _autocompleteFields = new(){
         "Цвет",
@@ -398,6 +395,9 @@
             var response = await Client.PostAsJsonAsync($"api/Wildberries/createWbItem/{SelectedWbAccount.Id}", dto);
 
             var extendedResult = await response.Content.ReadFromJsonAsync<WbCreateApiExtendedResult>();
+
+            _lastWbRawJson = await response.Content.ReadAsStringAsync();
+
             _wbResultExtended = extendedResult;
             LastWbResult = extendedResult?.Result;
 
@@ -466,11 +466,16 @@
     }
 
     private async Task CopyErrorToClipboard(){
-        if (_wbResultExtended != null){
-            var json = JsonSerializer.Serialize(_wbResultExtended, new JsonSerializerOptions{ WriteIndented = true });
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", json);
-            Snackbar.Add("✅ JSON ошибки скопирован в буфер", Severity.Info);
+        try{
+            if (!string.IsNullOrEmpty(_lastWbRawJson)){
+                await JS.InvokeVoidAsync("navigator.clipboard.writeText", _lastWbRawJson);
+                Snackbar.Add("✅ JSON ошибки скопирован в буфер", Severity.Info);
+            }
         }
+        catch{
+            Snackbar.Add("❌ Ошибка при копировании JSON ошибки в буфер", Severity.Error);
+        }
+        
     }
 
     bool IsNumeric(string input){
