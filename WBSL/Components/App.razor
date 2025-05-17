@@ -42,6 +42,23 @@
         };
     </script>
     <script>
+        window.copyTextToClipboard = async function(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(text);
+            }
+            // fallback для старых браузеров
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';  // чтобы не «прыгал» экран
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            return Promise.resolve();
+        };
+    </script>
+    <script>
         window.downloadFile = (filename, base64) => {
             const link = document.createElement("a");
             link.download = filename;

@@ -29,10 +29,14 @@
                             @batchErr.ErrorText
                         </MudText>
 
-                        @if (!string.IsNullOrEmpty(batchErr.FlattenedErrors)){
-                            <MudText Color="Color.Warning" Class="ml-4">
-                                Дефекты: @batchErr.FlattenedErrors
-                            </MudText>
+                        @if (batchErr.AdditionalErrors?.Any() == true)
+                        {
+                            @foreach (var kvp in batchErr.AdditionalErrors)
+                            {
+                                <MudText Color="Color.Warning" Class="ml-4">
+                                    <b>@kvp.Key:</b> @string.Join(", ", kvp.Value)
+                                </MudText>
+                            }
                         }
                     }
                 }
@@ -466,16 +470,21 @@
     }
 
     private async Task CopyErrorToClipboard(){
+        if (string.IsNullOrEmpty(_lastWbRawJson)){
+            Snackbar.Add("ℹ️ Нет JSON для копирования", Severity.Info);
+            return;
+        }
+
         try{
-            if (!string.IsNullOrEmpty(_lastWbRawJson)){
-                await JS.InvokeVoidAsync("navigator.clipboard.writeText", _lastWbRawJson);
-                Snackbar.Add("✅ JSON ошибки скопирован в буфер", Severity.Info);
-            }
+            await JS.InvokeVoidAsync("copyTextToClipboard", _lastWbRawJson);
+            Snackbar.Add("✅ JSON ошибки скопирован в буфер", Severity.Success);
         }
-        catch{
-            Snackbar.Add("❌ Ошибка при копировании JSON ошибки в буфер", Severity.Error);
+        catch (JSException jsEx){
+            Snackbar.Add("❌ Не удалось скопировать: " + jsEx.Message, Severity.Error);
         }
-        
+        catch (Exception ex){
+            Snackbar.Add("❌ Ошибка при копировании в буфер", Severity.Error);
+        }
     }
 
     bool IsNumeric(string input){

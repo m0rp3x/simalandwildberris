@@ -41,8 +41,7 @@ public class WildberriesProductsService : WildberriesBaseService
         }
 
         var results = await Task.WhenAll(tasks);
-
-
+        
         return results.ToList();
     }
 
@@ -154,7 +153,7 @@ public class WildberriesProductsService : WildberriesBaseService
                 .ToListAsync();
 
             var existingEntities = await db.WbProductCards
-                .Include(p => p.WbPhotos)
+                // .Include(p => p.WbPhotos)
                 .Include(p => p.WbProductCardCharacteristics)
                 .Include(p => p.SizeChrts)
                 .Where(p => existingProductIds.Contains(p.NmID))
@@ -175,6 +174,7 @@ public class WildberriesProductsService : WildberriesBaseService
                     p.externalaccount_id = externalAccountId;
                     p.LastSeenAt = syncStartedAt;
                     p.SizeChrts = new List<WbSize>();
+                    p.WbPhotos = new List<WbPhoto>();
                 });
                 await db.WbProductCards.AddRangeAsync(newProducts);
             }
@@ -188,8 +188,8 @@ public class WildberriesProductsService : WildberriesBaseService
                 exist.LastSeenAt = syncStartedAt;
 
                 // Перезапись коллекций
-                db.WbPhotos.RemoveRange(exist.WbPhotos);
-                exist.WbPhotos = prod.WbPhotos;
+                // db.WbPhotos.RemoveRange(exist.WbPhotos);
+                // exist.WbPhotos = prod.WbPhotos;
 
                 db.WbProductCardCharacteristics.RemoveRange(exist.WbProductCardCharacteristics);
                 exist.WbProductCardCharacteristics = prod.WbProductCardCharacteristics;
