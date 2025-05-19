@@ -52,39 +52,58 @@ public class AccountsController : ControllerBase
             added_at = DateTime.Now,
         };
 
-
+        List<int> warehouses = new();
         if (account.platform == "Wildberries"){
-            account.warehouseid = await GetWbAccountWarehouseId(dto.Token);
-
-            if (account.warehouseid == null)
-                return BadRequest("Не удалось получить id склада.");
+            warehouses = await GetWbAccountWarehouseIds(dto.Token);
+            if (warehouses.Count == 0)
+                return BadRequest("Не удалось получить ни одного id склада.");
+            // для совместимости с существующей логикой:
+            account.warehouseid = warehouses[0];
         }
 
         _db.external_accounts.Add(account);
         await _db.SaveChangesAsync();
 
+        if (account.platform == ExternalAccountType.Wildberries.ToString()){
+            var links = warehouses
+                .Select(wid => new ExternalAccountWarehouse{
+                    ExternalAccountId = account.id,
+                    WarehouseId = wid
+                });
+            _db.Set<ExternalAccountWarehouse>().AddRange(links);
+            await _db.SaveChangesAsync();
+        }
+
         return Ok(account);
     }
 
-    private async Task<int?> GetWbAccountWarehouseId(string token){
-        var wbClient = _httpClientFactory.CreateClient(ExternalAccountType.WildBerriesMarketPlace.ToString());
-        wbClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        var response = await wbClient.GetAsync("api/v3/warehouses");
-        if (response.IsSuccessStatusCode)
-        {
-            var result = response.Content.ReadAsStringAsync().Result;
+    private async Task<List<int>> GetWbAccountWarehouseIds(string token){
+        var wbClient = _httpClientFactory.CreateClient(
+            ExternalAccountType.WildBerriesMarketPlace.ToString());
+        wbClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", token);
 
-            var json = JsonSerializer.Deserialize<JsonElement>(result);
-            if (json.ValueKind == JsonValueKind.Array && json.GetArrayLength() > 0)
-            {
-                var firstWarehouse = json[0];
-                if (firstWarehouse.TryGetProperty("id", out var idProperty))
-                {
-                    return idProperty.GetInt32();
-                }
+        var response = await wbClient.GetAsync("api/v3/warehouses");
+        if (!response.IsSuccessStatusCode)
+            return new List<int>();
+
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        var json = await JsonSerializer.DeserializeAsync<JsonElement>(
+            stream,
+            new JsonSerializerOptions{ PropertyNameCaseInsensitive = true });
+
+        if (json.ValueKind != JsonValueKind.Array)
+            return new List<int>();
+
+        var ids = new List<int>();
+        foreach (var item in json.EnumerateArray()){
+            if (item.TryGetProperty("id", out var idProp)
+                && idProp.ValueKind == JsonValueKind.Number){
+                ids.Add(idProp.GetInt32());
             }
         }
-        return null;
+
+        return ids;
     }
 
     [HttpDelete("{id}")]

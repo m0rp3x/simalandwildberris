@@ -4,8 +4,11 @@ namespace WBSL.Data.Models.DTO;
 
 public class OrderDto
 {
+    [JsonPropertyName("supplyId")]
+    public string? SupplyId { get; set; }  
+    
     [JsonPropertyName("address")]
-    public string? Address { get; set; }
+    public AddressDto? Address { get; set; } 
 
     [JsonPropertyName("userId")]
     public int? UserId { get; set; }
@@ -78,4 +81,20 @@ public class OrderDto
 
     [JsonPropertyName("options")]
     public OrderOptionsDto Options { get; set; } = new();
+}
+
+public class AddressDto
+{
+    [JsonPropertyName("fullAddress")]
+    public string FullAddress { get; set; } = null!;
+
+    [JsonPropertyName("longitude")]
+    public double Longitude { get; set; }
+
+    [JsonPropertyName("latitude")]
+    public double Latitude { get; set; }
+
+    public override string ToString(){
+        return FullAddress + "|" + Latitude + "|" + Longitude;
+    }
 }

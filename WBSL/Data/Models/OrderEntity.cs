@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using WBSL.Data.Enums;
 using WBSL.Models;
 
 namespace WBSL.Data.Models;
@@ -11,6 +12,12 @@ public class OrderEntity
     [Column("id")]
     public long Id { get; set; }
 
+    [Column("status")]
+    public OrderStatus Status { get; set; }
+    
+    [Column("supply_id")]
+    public string? SupplyId { get; set; }
+    
     [Column("address")]
     public string? Address { get; set; }
 

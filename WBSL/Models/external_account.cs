@@ -39,6 +39,9 @@ public partial class external_account
     [Display(AutoGenerateField = false)]
     public virtual ICollection<WbProductCard> WbProductCards { get; set; } = new List<WbProductCard>();
 
+    public ICollection<ExternalAccountWarehouse> Warehouses { get; set; }
+        = new List<ExternalAccountWarehouse>();
+    
     [Display(AutoGenerateField = false)]
     public virtual user user { get; set; } = null!;
 }
