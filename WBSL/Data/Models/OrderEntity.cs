@@ -22,7 +22,9 @@ public class OrderEntity
     // public UserEntity? User { get; set; }
     
     [Column("sale_price")]
-    public decimal SalePrice { get; set; }
+    public decimal SalePrice { get; set; } 
+    [Column("rid")]
+    public string Rid { get; set; }
 
     [Column("delivery_type")]
     public string DeliveryType { get; set; } = null!;

@@ -131,7 +131,7 @@ public class WildberriesOrdersProcessingService : WildberriesBaseService
                 allOrders.AddRange(orders);
         }
         var distinct = allOrders
-            .DistinctBy(o => o.Rid)
+            .DistinctBy(o => o.Id)
             .ToList();
         return distinct;
     }
@@ -159,6 +159,7 @@ public class WildberriesOrdersProcessingService : WildberriesBaseService
             else{
                 var entity = new OrderEntity{
                     Id = dto.Id,
+                    
                     Address = dto.Address,
                     UserId = dto.UserId,
                     SalePrice = dto.SalePrice,
@@ -168,6 +169,7 @@ public class WildberriesOrdersProcessingService : WildberriesBaseService
                     Article = dto.Article,
                     CreatedAt = dto.CreatedAt,
                     WarehouseId = dto.WarehouseId,
+                    Rid = dto.Rid,
                     NmId = dto.NmId,
                     ChrtId = dto.ChrtId,
                     Price = dto.Price,
