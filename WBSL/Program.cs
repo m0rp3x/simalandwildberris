@@ -107,8 +107,10 @@ builder.Services.AddSingleton<PriceCalculatorSettingsDto>(); // Настройк
 
 builder.Services.AddScoped<PriceCalculatorService>(); // Сам сервис калькулятора цен
 
+// ЗАКАЗЫ ВБ
 builder.Services.AddScoped<WildberriesOrdersProcessingService>();
 builder.Services.AddScoped<WildberriesSupplyService>();
+builder.Services.AddScoped<WildberriesStickersService>();
 
 builder.Services.AddTransient<JobSchedulerService>();
 

@@ -26,9 +26,9 @@ public class JobSchedulerService
                 cron
             ),
 
-        ["orders-fetch-job"] = cron =>
+        ["fetch_new_orders_job"] = cron =>
             RecurringJob.AddOrUpdate<WildberriesOrdersProcessingService>(
-                "orders-fetch-job",
+                "fetch_new_orders_job",
                 svc => svc.FetchAndSaveOrdersAsync(),
                 cron
             ),
@@ -42,7 +42,7 @@ public class JobSchedulerService
         var defaultCron = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
             ["fetch_wb_categories"] = "30 1 * * *",
             ["fetch_wb_products"]   = "0 2 * * *",
-            ["orders-fetch-job"]    = Cron.HourInterval(3)
+            ["fetch_new_orders_job"]    = Cron.HourInterval(3)
         };
         
         foreach (var kvp in _registrators)
