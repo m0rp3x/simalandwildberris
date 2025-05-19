@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Shared;
 using Shared.Enums;
@@ -29,6 +30,7 @@ public class WildberriesProductsService : WildberriesBaseService
         _scopeFactory = scopeFactory;
     }
 
+    [DisableConcurrentExecution(timeoutInSeconds: 600)]
     public async Task<List<ProductsSyncResult>> SyncProductsAsync(){
         var externalAccounts = await _db.external_accounts
             .Where(x => x.platform == ExternalAccountType.Wildberries.ToString())

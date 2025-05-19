@@ -106,6 +106,7 @@ builder.Services.AddSingleton<PriceCalculatorSettingsDto>(); // Настройк
 builder.Services.AddScoped<PriceCalculatorService>(); // Сам сервис калькулятора цен
 
 
+builder.Services.AddScoped<JobSchedulerService>();
 
 builder.Services
     .AddHttpClient("SimaLand", client => {
@@ -192,8 +193,11 @@ else{
     app.UseHsts();
 }
 
-
-HangfireConfig.RegisterJobs();
+using (var scope = app.Services.CreateScope())
+{
+    var scheduler = scope.ServiceProvider.GetRequiredService<JobSchedulerService>();
+    await scheduler.SyncSchedulesAsync();
+}
 
 app.UseAntiforgery();
 

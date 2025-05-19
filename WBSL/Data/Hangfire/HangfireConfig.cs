@@ -28,5 +28,11 @@ public static class HangfireConfig
             job => job.SyncProductsAsync(),
             "0 2 * * *" // каждый день в 2:00
         );
+        
+        RecurringJob.AddOrUpdate<WildberriesOrdersProcessingService>(
+            /* jobId */        "orders-fetch-job",
+            /* метод */        svc => svc.FetchAndSaveOrdersAsync(),
+            /* cron: */         Cron.HourInterval(3)
+        );
     }
 }
