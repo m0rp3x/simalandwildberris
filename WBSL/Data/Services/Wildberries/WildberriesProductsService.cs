@@ -308,7 +308,6 @@ ON CONFLICT (""ProductNmID"", ""SizeChrtID"") DO NOTHING;";
             pc.Characteristic = null;
     }
 
-
     private bool ShouldFetchNextBatch(int totalCardsFetched){
         return Math.Abs(totalCardsFetched) % 100 == 0;
     }

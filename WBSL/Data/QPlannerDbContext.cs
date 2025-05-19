@@ -42,6 +42,7 @@ public partial class QPlannerDbContext : DbContext
     public virtual DbSet<BalanceUpdateRule> BalanceUpdateRules { get; set; }
     
     public virtual DbSet<MarginRule> MarginRules { get; set; }
+    public virtual DbSet<OrderEntity> Orders { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
