@@ -14,6 +14,7 @@ public class WildberriesOrdersProcessingService : WildberriesBaseService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly PlatformHttpClientFactory _httpFactory;
     private readonly ILogger<WildberriesOrdersProcessingService> _logger;
+    private static readonly SemaphoreSlim _runGuard = new(1, 1);
 
     public WildberriesOrdersProcessingService(
         IServiceScopeFactory scopeFactory,
@@ -23,120 +24,161 @@ public class WildberriesOrdersProcessingService : WildberriesBaseService
         _httpFactory = httpFactory;
         _logger = logger;
     }
-    
+
     /// <summary>
     /// Основная точка входа для Hangfire.
     /// Гарантирует, что повторный запуск не будет происходить в течение 1 часа.
     /// </summary>
-    [DisableConcurrentExecution(timeoutInSeconds: 60 * 60)]
-    public async Task FetchAndSaveOrdersAsync()
-    {
-        List<OrderDto> orders;
-        try
-        {
-            orders = await FetchOrdersAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Ошибка при получении заказов из Wildberries");
-            throw;
+    public async Task FetchAndSaveOrdersAsync(){
+        if (!await _runGuard.WaitAsync(TimeSpan.Zero)){
+            _logger.LogWarning("FetchAndSaveOrdersAsync уже запущен, пропускаем этот вызов.");
+            return;
         }
 
-        try
-        {
-            await SaveOrdersAsync(orders);
+        try{
+            List<OrderDto> orders;
+            try{
+                orders = await FetchOrdersByAsync();
+            }
+            catch (Exception ex){
+                _logger.LogError(ex, "Ошибка при получении заказов из Wildberries");
+                throw;
+            }
+
+            try{
+                await SaveOrdersAsync(orders);
+            }
+            catch (Exception ex){
+                _logger.LogError(ex, "Ошибка при сохранении заказов в базу");
+                throw;
+            }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Ошибка при сохранении заказов в базу");
-            throw;
+        finally{
+            _runGuard.Release();
         }
     }
-    
+
     /// <summary>
-    /// Запрашивает у Wildberries список заказов и возвращает десериализованный DTO.
+    /// Возвращает заказы из Wildberries, сгруппированные по warehouseId.
     /// </summary>
-    private async Task<List<OrderDto>> FetchOrdersAsync()
-    {
+    private async Task<List<OrderDto>> FetchOrdersByAsync(){
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
 
         // Получаем список Wildberries-аккаунтов
-        var accountIds = await db.external_accounts
-            .Where(x => x.platform == ExternalAccountType.Wildberries.ToString())
-            .Select(x => x.id)
+        var accounts = await db.external_accounts
+            .Where(x => x.platform == ExternalAccountType.Wildberries.ToString()
+                        && x.warehouseid.HasValue)
+            .Select(x => new{ x.id, WarehouseId = x.warehouseid!.Value })
             .ToListAsync();
 
-        if (accountIds.Count == 0)
-            return new List<OrderDto>();
-        
+        // 2) Группируем accountId по warehouseId
+        var byWarehouse = accounts
+            .GroupBy(a => a.WarehouseId)
+            .ToDictionary(g => g.Key, g => g.Select(a => a.id).ToList());
+
+        var allOrders = new List<OrderDto>();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        var client = await _httpFactory.GetValidClientAsync(
-            ExternalAccountType.WildBerriesMarketPlace,
-            accountIds,
-            "/ping",
-            cts.Token);
 
-        if (client == null)
-            throw new InvalidOperationException("Не удалось получить валидный HttpClient для Wildberries");
+        foreach (var (warehouseId, accountIds) in byWarehouse){
+            // найдём первый «живой» клиент
+            var client = await _httpFactory.GetValidClientAsync(
+                ExternalAccountType.WildBerriesMarketPlace,
+                accountIds,
+                "/ping",
+                cts.Token);
 
+            if (client == null){
+                _logger.LogWarning(
+                    "Нет валидного Wildberries-клиента для склада {WarehouseId}",
+                    warehouseId);
+                continue;
+            }
 
-        var response = await client.GetAsync($"/api/v3/orders/new", cts.Token);
-        response.EnsureSuccessStatusCode();
+            HttpResponseMessage response;
+            try{
+                response = await client.GetAsync("/api/v3/orders/new", cts.Token);
+            }
+            catch (Exception ex){
+                _logger.LogWarning(ex,
+                    "Ошибка при запросе заказов для склада {WarehouseId}, аккаунты {AccountIds}",
+                    warehouseId, string.Join(",", accountIds));
+                continue;
+            }
 
-        await using var stream = await response.Content.ReadAsStreamAsync(cts.Token);
-        var wrapper = await JsonSerializer.DeserializeAsync<OrdersResponseDto>(
-            stream,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
-            cts.Token);
+            if (!response.IsSuccessStatusCode){
+                _logger.LogWarning(
+                    "Неожиданный статус {StatusCode} при запросе заказов для склада {WarehouseId}",
+                    (int)response.StatusCode, warehouseId);
+                continue;
+            }
 
-        return wrapper?.Orders ?? new List<OrderDto>();
+            OrdersResponseDto? wrapper;
+            try{
+                await using var stream = await response.Content.ReadAsStreamAsync(cts.Token);
+                wrapper = await JsonSerializer.DeserializeAsync<OrdersResponseDto>(
+                    stream,
+                    new JsonSerializerOptions{ PropertyNameCaseInsensitive = true },
+                    cts.Token);
+            }
+            catch (Exception ex){
+                _logger.LogWarning(ex,
+                    "Не удалось десериализовать ответ для склада {WarehouseId}", warehouseId);
+                continue;
+            }
+
+            if (wrapper?.Orders is{ Count: > 0 } orders)
+                allOrders.AddRange(orders);
+        }
+        var distinct = allOrders
+            .DistinctBy(o => o.Rid)
+            .ToList();
+        return distinct;
     }
-    
+
     /// <summary>
     /// Сохраняет список заказов в базу, преобразуя DTO в сущности.
     /// </summary>
-    private async Task SaveOrdersAsync(IEnumerable<OrderDto> orders)
-    {
+    private async Task SaveOrdersAsync(IEnumerable<OrderDto> orders){
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
 
-        foreach (var dto in orders)
-        {
+        foreach (var dto in orders){
             // Здесь вы можете делать Upsert: либо Add, либо Update, если уже есть
             var existing = await db.Orders.FindAsync(dto.Id);
-            if (existing != null)
-            {
+            if (existing != null){
                 // Обновляем поля
-                existing.Price           = dto.Price;
-                existing.ConvertedPrice  = dto.ConvertedPrice;
-                existing.CurrencyCode    = dto.CurrencyCode;
+                existing.Price = dto.Price;
+                existing.ConvertedPrice = dto.ConvertedPrice;
+                existing.CurrencyCode = dto.CurrencyCode;
                 existing.ConvertedCurrencyCode = dto.ConvertedCurrencyCode;
-                existing.IsZeroOrder     = dto.IsZeroOrder;
+                existing.IsZeroOrder = dto.IsZeroOrder;
                 // ... и другие поля по необходимости
                 db.Orders.Update(existing);
             }
-            else
-            {
-                // Создаём новую сущность
-                var entity = new OrderEntity
-                {
-                    Id                      = dto.Id,
-                    OrderUid                = dto.OrderUid,
-                    Article                 = dto.Article,
-                    CreatedAt               = dto.CreatedAt,
-                    WarehouseId             = dto.WarehouseId,
-                    NmId                    = dto.NmId,
-                    ChrtId                  = dto.ChrtId,
-                    Price                   = dto.Price,
-                    ConvertedPrice          = dto.ConvertedPrice,
-                    CurrencyCode            = dto.CurrencyCode,
-                    ConvertedCurrencyCode   = dto.ConvertedCurrencyCode,
-                    CargoType               = dto.CargoType,
-                    IsZeroOrder             = dto.IsZeroOrder,
-                    Offices                 = dto.Offices,
-                    Skus                    = dto.Skus,
-                    IsB2B                   = dto.Options.IsB2B
+            else{
+                var entity = new OrderEntity{
+                    Id = dto.Id,
+                    Address = dto.Address,
+                    UserId = dto.UserId,
+                    SalePrice = dto.SalePrice,
+                    DeliveryType = dto.DeliveryType,
+                    Comment = dto.Comment,
+                    OrderUid = dto.OrderUid,
+                    Article = dto.Article,
+                    CreatedAt = dto.CreatedAt,
+                    WarehouseId = dto.WarehouseId,
+                    NmId = dto.NmId,
+                    ChrtId = dto.ChrtId,
+                    Price = dto.Price,
+                    ConvertedPrice = dto.ConvertedPrice,
+                    CurrencyCode = dto.CurrencyCode,
+                    ConvertedCurrencyCode = dto.ConvertedCurrencyCode,
+                    CargoType = dto.CargoType,
+                    IsZeroOrder = dto.IsZeroOrder,
+                    Offices = dto.Offices,
+                    Skus = dto.Skus,
+                    IsB2B = dto.Options.IsB2B
                 };
                 db.Orders.Add(entity);
             }

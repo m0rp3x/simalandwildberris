@@ -20,6 +20,8 @@ using WBSL.Data.Services.Wildberries;
 using WBSL.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add MudBlazor services
@@ -30,7 +32,7 @@ builder.Services.AddDbContext<QPlannerDbContext>(options =>
 
 // регистрируем фабрику — с контекстом в Scoped/Transient и опциями в Singleton
 
-
+NpgsqlConnection.GlobalTypeMapper.EnableDynamicJson();
 // Hangfire
 builder.Services.AddHangfireWithJobs(builder.Configuration);
 builder.Services.AddCoreAdmin();
@@ -105,8 +107,9 @@ builder.Services.AddSingleton<PriceCalculatorSettingsDto>(); // Настройк
 
 builder.Services.AddScoped<PriceCalculatorService>(); // Сам сервис калькулятора цен
 
+builder.Services.AddScoped<WildberriesOrdersProcessingService>();
 
-builder.Services.AddScoped<JobSchedulerService>();
+builder.Services.AddTransient<JobSchedulerService>();
 
 builder.Services
     .AddHttpClient("SimaLand", client => {

@@ -36,20 +36,35 @@ public class JobSchedulerService
 
     
     public async Task SyncSchedulesAsync(){
-        var configs = await _db.Set<JobSchedule>().ToListAsync();
-        if (!configs.Any()){
-            // Заполняем из appsettings, если таблица пустая
-            configs = new List<JobSchedule>{
-                new(){ JobId = "fetch_wb_categories", CronExpr = "30 1 * * *" },
-                new(){ JobId = "fetch_wb_products", CronExpr = "0 2 * * *" },
-                new(){ JobId = "orders-fetch-job", CronExpr = Cron.HourInterval(3) },
-                // ...
-            };
-            _db.AddRange(configs);
-            await _db.SaveChangesAsync();
+        var dbJobs = await _db.HangfireJobSchedules
+            .ToDictionaryAsync(js => js.JobId, StringComparer.OrdinalIgnoreCase);
+        
+        var defaultCron = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
+            ["fetch_wb_categories"] = "30 1 * * *",
+            ["fetch_wb_products"]   = "0 2 * * *",
+            ["orders-fetch-job"]    = Cron.HourInterval(3)
+        };
+        
+        foreach (var kvp in _registrators)
+        {
+            var jobId = kvp.Key;
+            if (!dbJobs.ContainsKey(jobId))
+            {
+                // создаём новую запись
+                var js = new JobSchedule {
+                    JobId     = jobId,
+                    CronExpr  = defaultCron[jobId],
+                    LastUpdated = DateTime.UtcNow
+                };
+                _db.HangfireJobSchedules.Add(js);
+                dbJobs[jobId] = js;
+            }
+            // Иначе: если вам нужно поддерживать «апдейт из кода», 
+            // вы могли бы здесь проверять defaultCron[jobId] != dbJobs[jobId].CronExpr 
+            // и обновлять поле CronExpr, но обычно этого не надо.
         }
-
-        foreach (var cfg in configs)
+        await _db.SaveChangesAsync();
+        foreach (var cfg in dbJobs.Values)
         {
             if (!_registrators.TryGetValue(cfg.JobId, out var reg))
                 throw new InvalidOperationException($"Unknown job «{cfg.JobId}»");
