@@ -23,6 +23,12 @@ public class SchedulerController : ControllerBase
         var results = _scheduler.GetAllResults();
         return Ok(results);
     }
+    [HttpGet("running-rules")]
+    public ActionResult<IReadOnlyDictionary<int, List<WarehouseUpdateResult>>> GetRunningRules()
+    {
+        var results = _scheduler.GetRunningRuleIds();
+        return Ok(results);
+    }
 
     [HttpGet("results/{ruleId:int}")]
     public ActionResult<List<WarehouseUpdateResult>> GetResultsForRule(int ruleId)

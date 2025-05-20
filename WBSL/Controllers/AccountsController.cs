@@ -64,15 +64,15 @@ public class AccountsController : ControllerBase
         _db.external_accounts.Add(account);
         await _db.SaveChangesAsync();
 
-        if (account.platform == ExternalAccountType.Wildberries.ToString()){
-            var links = warehouses
-                .Select(wid => new ExternalAccountWarehouse{
-                    ExternalAccountId = account.id,
-                    WarehouseId = wid
-                });
-            _db.Set<ExternalAccountWarehouse>().AddRange(links);
-            await _db.SaveChangesAsync();
-        }
+        // if (account.platform == ExternalAccountType.Wildberries.ToString()){
+        //     var links = warehouses
+        //         .Select(wid => new ExternalAccountWarehouse{
+        //             ExternalAccountId = account.id,
+        //             WarehouseId = wid
+        //         });
+        //     _db.Set<ExternalAccountWarehouse>().AddRange(links);
+        //     await _db.SaveChangesAsync();
+        // }
 
         return Ok(account);
     }
