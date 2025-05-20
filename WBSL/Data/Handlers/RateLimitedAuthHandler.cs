@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Net;
 using Microsoft.Extensions.Options;
 using WBSL.Data.Config;
 
@@ -12,44 +13,72 @@ public class RateLimitedAuthHandler : DelegatingHandler
     private static readonly ConcurrentDictionary<string, CircuitBreakerState> _circuitBreakers = new();
     private readonly string _clientName;
 
+    private const int MaxRetries = 4;
+
+    private static readonly TimeSpan[] Backoff = new[]{
+        TimeSpan.FromSeconds(5),
+        TimeSpan.FromSeconds(15),
+        TimeSpan.FromSeconds(30),
+        TimeSpan.FromSeconds(60)
+    };
+
     public RateLimitedAuthHandler(RateLimitConfig config, string clientName){
-        _requestLimit = config.RequestLimit;
+        _requestLimit     = config.RequestLimit;
         _timeRequestLimit = config.TimeRequestLimit;
     }
 
-    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
-        CancellationToken cancellationToken){
-        if (!request.Options.TryGetValue(new HttpRequestOptionsKey<string>("HttpClientName"), out var clientName)){
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        => SendWithRetriesAsync(request, ct, retryCount: 0);
+
+    private async Task<HttpResponseMessage> SendWithRetriesAsync(
+        HttpRequestMessage request, CancellationToken ct, int retryCount){
+        if (!request.Options.TryGetValue(new HttpRequestOptionsKey<string>("HttpClientName"), out var clientName))
             clientName = "default";
-        }
 
         var limiter = _limiters.GetOrAdd(clientName,
-            _ => new RollingWindowRateLimiter(TimeSpan.FromSeconds(_timeRequestLimit), _requestLimit));
+                                         _ => new RollingWindowRateLimiter(
+                                             TimeSpan.FromSeconds(_timeRequestLimit), _requestLimit));
         var circuitBreaker = GetCircuitBreaker(clientName);
         if (circuitBreaker.IsOpen)
             throw new CircuitBrokenException($"API {clientName} is temporarily unavailable");
 
+        await limiter.WaitAsync(ct);
+
+        HttpResponseMessage response;
         try{
-            await limiter.WaitAsync(cancellationToken);
-
-            var response = await base.SendAsync(request, cancellationToken);
-
-            circuitBreaker.Reset();
-            return response;
+            response = await base.SendAsync(request, ct);
         }
         catch (HttpRequestException ex){
             circuitBreaker.RecordFailure();
             throw;
         }
-        finally{
-            // Освобождение не требуется, так как скользящее окно само по себе регулирует лимит
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests && retryCount < MaxRetries){
+            var retryAfter = response.Headers.RetryAfter?.Delta
+                             ?? Backoff[Math.Min(retryCount, Backoff.Length - 1)];
+
+            await Task.Delay(retryAfter, ct);
+
+            // рекурсивно вызываем с увеличенным счётчиком
+            return await SendWithRetriesAsync(request, ct, retryCount + 1);
         }
+
+        // Если всё ок — сбрасываем цепной «пробойник»
+        if ((int)response.StatusCode >= 500){
+            circuitBreaker.RecordFailure();
+        }
+        else{
+            // Всё остальное — сброс «пробойника»
+            circuitBreaker.Reset();
+        }
+
+        return response;
     }
 
     private CircuitBreakerState GetCircuitBreaker(string clientName)
         => _circuitBreakers.GetOrAdd(clientName, _ => new CircuitBreakerState(
-            maxFailures: 3,
-            breakDuration: TimeSpan.FromMinutes(5)));
+                                         maxFailures: 3,
+                                         breakDuration: TimeSpan.FromMinutes(5)));
 
     public class CircuitBreakerState
     {
@@ -61,7 +90,7 @@ public class RateLimitedAuthHandler : DelegatingHandler
         public bool IsOpen => _blockedUntil != null && DateTime.UtcNow < _blockedUntil;
 
         public CircuitBreakerState(int maxFailures, TimeSpan breakDuration){
-            _maxFailures = maxFailures;
+            _maxFailures   = maxFailures;
             _breakDuration = breakDuration;
         }
 
@@ -72,7 +101,7 @@ public class RateLimitedAuthHandler : DelegatingHandler
         }
 
         public void Reset(){
-            _failures = 0;
+            _failures     = 0;
             _blockedUntil = null;
         }
     }
@@ -85,7 +114,7 @@ public class RateLimitedAuthHandler : DelegatingHandler
         private readonly SemaphoreSlim _semaphore = new(1, 1); // Блокировка для потокобезопасности
 
         public RollingWindowRateLimiter(TimeSpan window, int maxRequests){
-            _window = window;
+            _window      = window;
             _maxRequests = maxRequests;
         }
 
