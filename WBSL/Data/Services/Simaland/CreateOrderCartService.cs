@@ -81,9 +81,10 @@ public class CreateOrderCartService : ICreateOrderCart
 
         // 2. Группируем по Article → кол-во позиций
         var groups = orders
-            .GroupBy(o => long.Parse(o.Article))
-            .Select(g => new { Sid = long.Parse(g.Key.ToString()), Qty = g.Count() })
+            .GroupBy(o => o.NmId)
+            .Select(g => new { Sid = g.First().Article, Qty = g.Count() }) // Article = item_sid
             .ToList();
+
 
 
         // 3. Получаем текущее состояние корзины в SimaLand
@@ -92,10 +93,10 @@ public class CreateOrderCartService : ICreateOrderCart
         // 4. Добавляем недостающие позиции
         foreach (var g in groups)
         {
-            cart.TryGetValue(g.Sid, out var existing);
+            cart.TryGetValue(Convert.ToInt64(g.Sid), out var existing);
             var toAdd = g.Qty - existing;
             if (toAdd > 0)
-                await AddToCartAsync(g.Sid, toAdd);
+                await AddToCartAsync(Convert.ToInt64(g.Sid), toAdd);
         }
 
         // 5. Формируем заявку на заказ и отправляем
@@ -139,9 +140,10 @@ public class CreateOrderCartService : ICreateOrderCart
 
     {
         var groups = orders
-            .GroupBy(o => long.Parse(o.Article))
-            .Select(g => new { Sid = long.Parse(g.Key.ToString()), Qty = g.Count() })
+            .GroupBy(o => o.Article)
+            .Select(g => new { Sid = long.Parse(g.Key), Qty = g.Count() })
             .ToList();
+
 
         
         var client = _httpFactory.CreateClient("SimaLand");

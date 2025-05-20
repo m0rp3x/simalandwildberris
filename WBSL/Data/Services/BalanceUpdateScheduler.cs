@@ -15,7 +15,6 @@ public class BalanceUpdateScheduler : BackgroundService
 
     private static readonly ConcurrentDictionary<int, bool> _runningRules =
         new ConcurrentDictionary<int, bool>();
-
     private readonly Dictionary<int, DateTime> _nextRuns = new();
 
     private volatile bool _enabled = false;
@@ -73,12 +72,14 @@ public class BalanceUpdateScheduler : BackgroundService
         }
 
         var now = DateTime.UtcNow;
-        foreach (var rule in rules){
-            var first = rule.CreatedAt + rule.UpdateInterval;
+        foreach (var rule in rules)
+        {
+            var govno = TimeSpan.Parse(rule.UpdateInterval);
+            var first = rule.CreatedAt + govno;
             if (first <= now){
                 var delta = now - rule.CreatedAt;
-                var count = (long)Math.Ceiling(delta.TotalMilliseconds / rule.UpdateInterval.TotalMilliseconds);
-                first = rule.CreatedAt + TimeSpan.FromTicks(rule.UpdateInterval.Ticks * count);
+                var count = (long)Math.Ceiling(delta.TotalMilliseconds / govno.TotalMilliseconds);
+                first = rule.CreatedAt + TimeSpan.FromTicks(govno.Ticks * count);
             }
 
             _nextRuns[rule.Id] = first;
@@ -125,7 +126,7 @@ public class BalanceUpdateScheduler : BackgroundService
                                 }
                                 finally{
                                     finishedAt = DateTime.UtcNow;
-                                    _nextRuns[rule.Id] = finishedAt + capturedRule.UpdateInterval;
+                                    _nextRuns[rule.Id] = Convert.ToDateTime(finishedAt + capturedRule.UpdateInterval);
                                     _runningRules.TryRemove(rule.Id, out _);
                                 }
                             }, stoppingToken);
