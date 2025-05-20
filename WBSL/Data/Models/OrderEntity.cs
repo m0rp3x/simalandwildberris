@@ -8,6 +8,7 @@ namespace WBSL.Data.Models;
 [Table("Orders")]
 public class OrderEntity
 {
+
     [Key]
     [Column("id")]
     public long Id { get; set; }
@@ -89,4 +90,6 @@ public class OrderEntity
     
     [Column("options_is_b2b")]
     public bool IsB2B { get; set; }
+    
+    public DateTime? ProcessedAt { get; set; }
 }

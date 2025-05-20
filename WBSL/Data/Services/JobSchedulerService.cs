@@ -32,6 +32,13 @@ public class JobSchedulerService
                 svc => svc.FetchAndSaveOrdersAsync(),
                 cron
             ),
+        
+        ["simaland-order-cart-job"] = cron =>
+            RecurringJob.AddOrUpdate<ICreateOrderCart>(
+                "simaland-order-cart-job",
+                svc => svc.SyncOrdersAsync(),
+                cron),
+
     };
 
     
@@ -42,7 +49,8 @@ public class JobSchedulerService
         var defaultCron = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
             ["fetch_wb_categories"] = "30 1 * * *",
             ["fetch_wb_products"]   = "0 2 * * *",
-            ["fetch_new_orders_job"]    = Cron.HourInterval(3)
+            ["fetch_new_orders_job"]    = Cron.HourInterval(3),
+            ["simaland-order-cart-job"]   = Cron.HourInterval(3)
         };
         
         foreach (var kvp in _registrators)

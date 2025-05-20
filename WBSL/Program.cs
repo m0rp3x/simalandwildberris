@@ -96,6 +96,7 @@ builder.Services.AddScoped<WbProductService>();
 builder.Services.AddScoped<PriceCalculatorService>();
 builder.Services.AddScoped<IDbContextFactory<QPlannerDbContext>, ManualDbContextFactory>();
 builder.Services.AddScoped<ISimaLandService, SimaLandService>();
+builder.Services.AddScoped<ICreateOrderCart, CreateOrderCartService>();
 builder.Services.AddScoped<ExcelUpdateService>();
 
 builder.Services.AddScoped<SimalandClientService>();
