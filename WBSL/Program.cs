@@ -107,7 +107,7 @@ builder.Services.AddSingleton<PriceCalculatorSettingsDto>(); // Настройк
 
 builder.Services.AddScoped<PriceCalculatorService>(); // Сам сервис калькулятора цен
 
-// ЗАКАЗЫ ВБ
+// // ЗАКАЗЫ ВБ
 builder.Services.AddScoped<WildberriesOrdersProcessingService>();
 builder.Services.AddScoped<WildberriesSupplyService>();
 builder.Services.AddScoped<WildberriesStickersService>();
@@ -123,6 +123,12 @@ builder.Services
     .AddHttpMessageHandler(sp => {
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("SimaLand");
         return new RateLimitedAuthHandler(a, "SimaLand");
+    }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
+        PooledConnectionLifetime    = TimeSpan.FromMinutes(2),
+        PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
+        KeepAlivePingPolicy         = HttpKeepAlivePingPolicy.Always,
+        KeepAlivePingDelay          = TimeSpan.FromSeconds(15),
+        KeepAlivePingTimeout        = TimeSpan.FromSeconds(5),
     });
 
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
@@ -137,6 +143,12 @@ builder.Services.AddHttpClient("Wildberries",
     .AddHttpMessageHandler(sp => {
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerries");
         return new RateLimitedAuthHandler(a, "WildBerries");
+    }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
+        PooledConnectionLifetime    = TimeSpan.FromMinutes(2),
+        PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
+        KeepAlivePingPolicy         = HttpKeepAlivePingPolicy.Always,
+        KeepAlivePingDelay          = TimeSpan.FromSeconds(15),
+        KeepAlivePingTimeout        = TimeSpan.FromSeconds(5),
     });
 
 builder.Services.AddHttpClient("WildBerriesMarketPlace",
@@ -148,6 +160,12 @@ builder.Services.AddHttpClient("WildBerriesMarketPlace",
     .AddHttpMessageHandler(sp => {
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesMarketPlace");
         return new RateLimitedAuthHandler(a, "WildBerriesMarketPlace");
+    }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
+        PooledConnectionLifetime    = TimeSpan.FromMinutes(2),
+        PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
+        KeepAlivePingPolicy         = HttpKeepAlivePingPolicy.Always,
+        KeepAlivePingDelay          = TimeSpan.FromSeconds(15),
+        KeepAlivePingTimeout        = TimeSpan.FromSeconds(5),
     });
 
 builder.Services.AddHttpClient("WildBerriesDiscountPrices",
@@ -159,6 +177,12 @@ builder.Services.AddHttpClient("WildBerriesDiscountPrices",
     .AddHttpMessageHandler(sp => {
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesDiscountPrices");
         return new RateLimitedAuthHandler(a, "WildBerriesDiscountPrices");
+    }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
+        PooledConnectionLifetime    = TimeSpan.FromMinutes(2),
+        PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
+        KeepAlivePingPolicy         = HttpKeepAlivePingPolicy.Always,
+        KeepAlivePingDelay          = TimeSpan.FromSeconds(15),
+        KeepAlivePingTimeout        = TimeSpan.FromSeconds(5),
     });
 
 builder.Services.AddHttpClient("WildBerriesCommonApi",
@@ -170,6 +194,12 @@ builder.Services.AddHttpClient("WildBerriesCommonApi",
     .AddHttpMessageHandler(sp => {
         var a = sp.GetRequiredService<IOptionsSnapshot<RateLimitConfig>>().Get("WildBerriesCommonApi");
         return new RateLimitedAuthHandler(a, "WildBerriesCommonApi");
+    }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
+        PooledConnectionLifetime    = TimeSpan.FromMinutes(2),
+        PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
+        KeepAlivePingPolicy         = HttpKeepAlivePingPolicy.Always,
+        KeepAlivePingDelay          = TimeSpan.FromSeconds(15),
+        KeepAlivePingTimeout        = TimeSpan.FromSeconds(5),
     });
 
 // using Microsoft.Extensions.DependencyInjection;
@@ -204,6 +234,7 @@ using (var scope = app.Services.CreateScope())
     var scheduler = scope.ServiceProvider.GetRequiredService<JobSchedulerService>();
     await scheduler.SyncSchedulesAsync();
 }
+// HangfireConfig.RegisterJobs();
 
 app.UseAntiforgery();
 

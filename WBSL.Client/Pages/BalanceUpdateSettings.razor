@@ -132,7 +132,7 @@
         if (!OperatingSystem.IsBrowser()){
             return;
         }
-
+        
         var resp = await Http.GetFromJsonAsync<Dictionary<string, bool>>("api/scheduler/balance-enabled");
         if (resp != null && resp.TryGetValue("enabled", out var e))
             _enabled = e;
@@ -147,6 +147,13 @@
         await LoadSchedulerResultsAsync();
         StartPollingResults();
 
+        try{
+            var resp2 = await Http.GetFromJsonAsync<Dictionary<string, bool>>("api/scheduler/running-rules");
+        }
+        catch{
+            
+        }
+        
         StateHasChanged();
     }
 

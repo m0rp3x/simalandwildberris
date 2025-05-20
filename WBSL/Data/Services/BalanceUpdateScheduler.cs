@@ -46,6 +46,11 @@ public class BalanceUpdateScheduler : BackgroundService
 
         return new List<WarehouseUpdateResult>();
     }
+    
+    public List<int> GetRunningRuleIds()
+    {
+        return _runningRules.Keys.ToList();
+    }
 
     public IReadOnlyDictionary<int, List<WarehouseUpdateResult>> GetAllResults(){
         return _resultsByRule

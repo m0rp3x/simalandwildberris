@@ -45,7 +45,6 @@ public partial class QPlannerDbContext : DbContext
     public virtual DbSet<MarginRule> MarginRules { get; set; }
     public virtual DbSet<OrderEntity> Orders { get; set; }
     public virtual DbSet<JobSchedule> HangfireJobSchedules { get; set; }
-    public virtual DbSet<ExternalAccountWarehouse> ExternalAccountWarehouses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -57,7 +56,7 @@ public partial class QPlannerDbContext : DbContext
             e.Property(o => o.Status)
                 .HasColumnType("orderstatus")
                 .IsRequired();
-
+        
             e.HasIndex(o => o.Status)
                 .HasDatabaseName("IX_Orders_status");
         });

@@ -50,6 +50,16 @@ public class RateLimitedAuthHandler : DelegatingHandler
         }
         catch (HttpRequestException ex){
             circuitBreaker.RecordFailure();
+            
+            if (retryCount < MaxRetries)
+            {
+                // случайный джиттер, чтобы уменьшить «бомбёжку»
+                var delay = Backoff[Math.Min(retryCount, Backoff.Length - 1)]
+                            + TimeSpan.FromMilliseconds(new Random().Next(0,500));
+                await Task.Delay(delay, ct);
+                return await SendWithRetriesAsync(request, ct, retryCount + 1);
+            }
+            
             throw;
         }
 

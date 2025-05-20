@@ -238,30 +238,39 @@ public class SimalandClientService
         int warehouseId,
         List<int> externalAccountIds){
         try{
-            var toUpdate = batch.Select(pi => new product{ sid = pi.Sid, balance = pi.Balance }).ToList();
-            var bulk = new BulkConfig{
-                UpdateByProperties = new List<string>{ nameof(product.sid) },
-                PropertiesToInclude = new List<string>{ nameof(product.balance) },
-                SetOutputIdentity = false,
-                PreserveInsertOrder = false,
-                UseTempDB = false,
-            };
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
+            var saveTask = Task.Run(async () =>
+            {
+                var toUpdate = batch.Select(pi => new product { sid = pi.Sid, balance = pi.Balance }).ToList();
 
-            await db.BulkUpdateAsync(toUpdate, bulk, cancellationToken: ct);
-            await db.SaveChangesAsync(ct);
+                var bulk = new BulkConfig{
+                    UpdateByProperties  = new List<string> { nameof(product.sid) },
+                    PropertiesToInclude = new List<string> { nameof(product.balance) },
+                    SetOutputIdentity   = false,
+                    PreserveInsertOrder = false,
+                    UseTempDB           = false,
+                };
 
-            Console.WriteLine($"Saved batch of {toUpdate.Count} products");
+                using var scope = _scopeFactory.CreateScope();
+                var       db    = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
 
-            var successful = await UpdateStocksOnWildberries(
-                batch,
-                wbClient,
-                ct,
-                warehouseId,
-                externalAccountIds);
+                await db.BulkUpdateAsync(toUpdate, bulk, cancellationToken: ct);
+                await db.SaveChangesAsync(ct);
+                Console.WriteLine($"[DB] Saved batch of {toUpdate.Count} products");
+            }, ct);
+            
+            var pushTask = Task.Run(async () =>
+            {
+                var result = await UpdateStocksOnWildberries(
+                    batch, wbClient, ct, warehouseId, externalAccountIds);
+                Console.WriteLine(
+                    $"[WB] Pushed batch of {batch.Count} products: " +
+                    $"Succeeded={result.Successful.Count}, Failed={result.Failed.Count}");
+                return result;
+            }, ct);
+            await Task.WhenAll(saveTask, pushTask);
 
-            return successful;
+            // 4) Возвращаем результат пуша
+            return pushTask.Result;
         }
         catch (Exception ex){
             Console.WriteLine($"Error saving batch: {ex.Message}");
@@ -398,8 +407,18 @@ public class SimalandClientService
             }
 
             // Другие ошибки
-            var errTxt = await response.Content.ReadAsStringAsync(ct);
+            var errStocks = stocks;
+            var errTxt    = await response.Content.ReadAsStringAsync(ct);
             Console.WriteLine($"Failed to update stocks to Wildberries: {response.StatusCode} {errTxt}");
+            foreach (var (Sku, Amount) in errStocks)
+            {
+                result.Failed.Add(new FailedStock {
+                    Sku          = Sku,
+                    Amount       = Amount,
+                    ErrorCode    = response.StatusCode.ToString(),
+                    ErrorMessage = errTxt
+                });
+            }
             return result;
         }
         catch (Exception ex){
