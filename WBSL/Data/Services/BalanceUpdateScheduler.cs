@@ -87,14 +87,14 @@ public class BalanceUpdateScheduler : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested){
             if (!_enabled){
-                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
                 continue;
             }
 
             now = DateTime.UtcNow;
 
             if (_firstEnableInit){
-                var fireAt = now + TimeSpan.FromMinutes(1);
+                var fireAt = now + TimeSpan.FromSeconds(20);
                 foreach (var rule in rules){
                     _nextRuns[rule.Id] = fireAt;
                 }
@@ -126,7 +126,7 @@ public class BalanceUpdateScheduler : BackgroundService
                                 }
                                 finally{
                                     finishedAt = DateTime.UtcNow;
-                                    _nextRuns[rule.Id] = Convert.ToDateTime(finishedAt + capturedRule.UpdateInterval);
+                                    _nextRuns[rule.Id] = Convert.ToDateTime(finishedAt + TimeSpan.Parse(capturedRule.UpdateInterval));
                                     _runningRules.TryRemove(rule.Id, out _);
                                 }
                             }, stoppingToken);

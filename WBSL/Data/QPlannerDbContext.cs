@@ -26,6 +26,8 @@ public partial class QPlannerDbContext : DbContext
     public virtual DbSet<WbProductCard> WbProductCards { get; set; }
 
     public virtual DbSet<WbProductCardCharacteristic> WbProductCardCharacteristics { get; set; }
+    
+    public DbSet<WbProductCardSize> WbProductCardSizes { get; set; }
 
     public virtual DbSet<WbSize> WbSizes { get; set; }
 
@@ -151,20 +153,23 @@ public partial class QPlannerDbContext : DbContext
                         j.ToTable("WbProductCardDimensions");
                     });
 
-            entity.HasMany(d => d.SizeChrts).WithMany(p => p.ProductNms)
-                .UsingEntity<Dictionary<string, object>>(
-                    "WbProductCardSize",
-                    r => r.HasOne<WbSize>().WithMany()
-                        .HasForeignKey("SizeChrtID")
-                        .HasConstraintName("WbProductCardSizes_SizeChrtID_fkey"),
-                    l => l.HasOne<WbProductCard>().WithMany()
-                        .HasForeignKey("ProductNmID")
-                        .HasConstraintName("WbProductCardSizes_ProductNmID_fkey"),
-                    j =>
-                    {
-                        j.HasKey("ProductNmID", "SizeChrtID").HasName("WbProductCardSizes_pkey");
-                        j.ToTable("WbProductCardSizes");
-                    });
+            entity.HasMany(d => d.SizeChrts)
+                  .WithMany(p => p.ProductNms)
+                  .UsingEntity<WbProductCardSize>(          // <-- здесь ваш класс
+                      r => r.HasOne<WbSize>()
+                            .WithMany()
+                            .HasForeignKey(ns => ns.SizeChrtID)
+                            .HasConstraintName("WbProductCardSizes_SizeChrtID_fkey"),
+                      l => l.HasOne<WbProductCard>()
+                            .WithMany()
+                            .HasForeignKey(ns => ns.ProductNmID)
+                            .HasConstraintName("WbProductCardSizes_ProductNmID_fkey"),
+                      j =>
+                      {
+                          j.HasKey(x => new { x.ProductNmID, x.SizeChrtID })
+                           .HasName("WbProductCardSizes_pkey");
+                          j.ToTable("WbProductCardSizes");
+                      });
         });
 
         modelBuilder.Entity<WbProductCardCharacteristic>(entity =>
