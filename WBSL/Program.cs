@@ -18,9 +18,8 @@ using WBSL.Data.Services;
 using WBSL.Data.Services.Simaland;
 using WBSL.Data.Services.Wildberries;
 using WBSL.Services;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using WBSL.Data.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +32,7 @@ builder.Services.AddDbContext<QPlannerDbContext>(options =>
 // регистрируем фабрику — с контекстом в Scoped/Transient и опциями в Singleton
 
 NpgsqlConnection.GlobalTypeMapper.EnableDynamicJson();
+
 // Hangfire
 builder.Services.AddHangfireWithJobs(builder.Configuration);
 builder.Services.AddCoreAdmin();

@@ -50,13 +50,12 @@ public partial class QPlannerDbContext : DbContext
     {
         modelBuilder.HasPostgresExtension("pgcrypto");
 
-        modelBuilder.HasPostgresEnum<OrderStatus>();
         modelBuilder.Entity<OrderEntity>(e =>
         {
             e.Property(o => o.Status)
-                .HasColumnType("orderstatus")
-                .IsRequired();
-        
+             .HasConversion<short>() 
+             .IsRequired();
+            
             e.HasIndex(o => o.Status)
                 .HasDatabaseName("IX_Orders_status");
         });
