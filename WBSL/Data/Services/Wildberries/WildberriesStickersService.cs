@@ -52,24 +52,49 @@ public class WildberriesStickersService
         if (invalid.Any())
             throw new InvalidOperationException(
                 $"Нельзя запросить стикер, статус не Confirm: {string.Join(",", invalid)}");
-
+        
         // 2) Группируем по складам
         var byWarehouse = orders
                           .GroupBy(o => o.WarehouseId)
                           .ToDictionary(g => g.Key, g => g.Select(o => o.Id).ToList());
-
+        
+        var accounts = await _db.external_accounts
+                               .AsNoTracking()
+                               .Where(x => x.platform == ExternalAccountType.Wildberries.ToString()
+                                           && x.warehouseid.HasValue)
+                               .Select(x => new { x.id, WarehouseId = x.warehouseid!.Value })
+                               .ToListAsync(ct);
+        
+        var accountsByWarehouse = accounts
+                                  .GroupBy(a => a.WarehouseId)
+                                  .ToDictionary(
+                                      g => g.Key,
+                                      g => g.Select(a => a.id).ToList()
+                                  );
         var result = new Dictionary<long, string>();
 
         // 3) Для каждого склада — один вызов
         foreach (var (warehouseId, ids) in byWarehouse){
+            var accountsIds = await _db.external_accounts
+                                   .AsNoTracking()
+                                   .Where(x => x.platform == ExternalAccountType.Wildberries.ToString()
+                                               && x.warehouseid.HasValue && x.warehouseid == warehouseId)
+                                   .Select(x => x.id)
+                                   .ToListAsync(ct);
+            
+            if (!accountsByWarehouse.TryGetValue(warehouseId, out var accountIds)
+                || accountIds.Count == 0)
+            {
+                _logger.LogWarning("Нет external-аккаунтов для склада {WarehouseId}", warehouseId);
+                continue;
+            }
+            
             var client = await _httpFactory.GetValidClientAsync(
                 ExternalAccountType.WildBerriesMarketPlace,
-                await _db.ExternalAccountWarehouses
-                         .Where(x => x.WarehouseId == warehouseId)
-                         .Select(x => x.ExternalAccountId)
-                         .ToListAsync(ct),
+                accountsIds,
                 "/ping",
                 ct);
+
 
             if (client == null){
                 _logger.LogWarning("Нет валидного клиента для склад {WarehouseId}", warehouseId);

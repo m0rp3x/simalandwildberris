@@ -96,22 +96,15 @@ public class WildberriesSupplyService
     /// </summary>
     private async Task<HttpClient> GetValidClientForWarehouseAsync(int warehouseId, CancellationToken ct){
         // Извлекаем все accountId для склада
-        var accountIds = await _db.Set<ExternalAccountWarehouse>()
-            .Where(x => x.ExternalAccount.platform == ExternalAccountType.Wildberries.ToString()
-                        && x.WarehouseId == warehouseId)
-            .Select(x => x.ExternalAccountId)
-            .ToListAsync(ct);
-
-        if (!accountIds.Any()){
-            accountIds = await _db.external_accounts
-                .Where(x => x.platform == ExternalAccountType.Wildberries.ToString()
-                            && x.warehouseid == warehouseId)
-                .Select(x => x.id)
-                .ToListAsync(ct);
-        }
-
+        var accountIds = await _db.external_accounts
+                                  .AsNoTracking()
+                                  .Where(x => x.platform == ExternalAccountType.Wildberries.ToString()
+                                              && x.warehouseid == warehouseId)
+                                  .Select(x => x.id)
+                                  .ToListAsync(ct);
         if (!accountIds.Any())
-            throw new InvalidOperationException($"Нет external_accounts для warehouse {warehouseId}");
+            throw new InvalidOperationException(
+                $"Для склада {warehouseId} не найдено ни одного external_account");
 
         var client = await _httpFactory.GetValidClientAsync(
             ExternalAccountType.WildBerriesMarketPlace,

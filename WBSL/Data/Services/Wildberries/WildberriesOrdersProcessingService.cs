@@ -67,30 +67,30 @@ public class WildberriesOrdersProcessingService : WildberriesBaseService
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
 
-        // // Получаем список Wildberries-аккаунтов
-        // var accounts = await db.external_accounts
-        //     .Where(x => x.platform == ExternalAccountType.Wildberries.ToString()
-        //                 && x.warehouseid.HasValue)
-        //     .Select(x => new{ x.id, WarehouseId = x.warehouseid!.Value })
+        // Получаем список Wildberries-аккаунтов
+        var accounts = await db.external_accounts
+            .Where(x => x.platform == ExternalAccountType.Wildberries.ToString()
+                        && x.warehouseid.HasValue)
+            .Select(x => new{ x.id, WarehouseId = x.warehouseid!.Value })
+            .ToListAsync();
+        
+        // 2) Группируем accountId по warehouseId
+        var byWarehouse = accounts
+            .GroupBy(a => a.WarehouseId)
+            .ToDictionary(g => g.Key, g => g.Select(a => a.id).ToList());
+        
+        // var accountWarehousePairs = await db.Set<ExternalAccountWarehouse>()
+        //     .Where(x => x.ExternalAccount.platform == ExternalAccountType.Wildberries.ToString())
+        //     .Select(x => new { x.ExternalAccountId, x.WarehouseId })
         //     .ToListAsync();
         //
         // // 2) Группируем accountId по warehouseId
-        // var byWarehouse = accounts
-        //     .GroupBy(a => a.WarehouseId)
-        //     .ToDictionary(g => g.Key, g => g.Select(a => a.id).ToList());
-        
-        var accountWarehousePairs = await db.Set<ExternalAccountWarehouse>()
-            .Where(x => x.ExternalAccount.platform == ExternalAccountType.Wildberries.ToString())
-            .Select(x => new { x.ExternalAccountId, x.WarehouseId })
-            .ToListAsync();
-
-        // 2) Группируем accountId по warehouseId
-        var byWarehouse = accountWarehousePairs
-            .GroupBy(x => x.WarehouseId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Select(x => x.ExternalAccountId).Distinct().ToList()
-            );
+        // var byWarehouse = accountWarehousePairs
+        //     .GroupBy(x => x.WarehouseId)
+        //     .ToDictionary(
+        //         g => g.Key,
+        //         g => g.Select(x => x.ExternalAccountId).Distinct().ToList()
+        //     );
 
         var allOrders = new List<OrderDto>();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
