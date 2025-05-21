@@ -74,7 +74,7 @@ public class BalanceUpdateScheduler : BackgroundService
         var now = DateTime.UtcNow;
         foreach (var rule in rules)
         {
-            var govno = TimeSpan.Parse(rule.UpdateInterval);
+            var govno = TimeSpan.Parse(rule.UpdateInterval.ToString());
             var first = rule.CreatedAt + govno;
             if (first <= now){
                 var delta = now - rule.CreatedAt;
@@ -126,7 +126,7 @@ public class BalanceUpdateScheduler : BackgroundService
                                 }
                                 finally{
                                     finishedAt = DateTime.UtcNow;
-                                    _nextRuns[rule.Id] = Convert.ToDateTime(finishedAt + TimeSpan.Parse(capturedRule.UpdateInterval));
+                                    _nextRuns[rule.Id] = Convert.ToDateTime(finishedAt + TimeSpan.Parse(capturedRule.UpdateInterval.ToString()));
                                     _runningRules.TryRemove(rule.Id, out _);
                                 }
                             }, stoppingToken);
@@ -179,13 +179,16 @@ public class BalanceUpdateScheduler : BackgroundService
                 if (wbClient == null){
                     continue;
                 }
-
-                var sids = await db.products
-                    .AsNoTracking()
-                    .Where(p => p.balance >= rule.FromStock && p.balance <= rule.ToStock)
-                    .Select(p => p.sid)
-                    .Distinct()
-                    .ToListAsync(ct);
+                var sids = await (
+                                     from p in db.products.AsNoTracking()
+                                     join w in db.WbProductCards.AsNoTracking()
+                                         on p.sid.ToString() equals w.VendorCode
+                                     where p.balance >= rule.FromStock
+                                           && p.balance <= rule.ToStock
+                                     select p.sid
+                                 )
+                                 .Distinct()
+                                 .ToListAsync(ct);
                 if (sids.Count == 0)
                     continue;
 
