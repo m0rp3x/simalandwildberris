@@ -26,6 +26,25 @@
             </MudButton>
         </MudForm>
 
+        <!-- ------------------------------ -->
+
+        <MudDivider Class="my-4"/>
+
+        <MudText Typo="Typo.h5">🎯 Настройка порога баланса</MudText>
+        <MudNumericField T="int"
+                         Label="Минимальный баланс для отправки"
+                         @bind-Value="_balanceThreshold"
+                         Disabled="!_initialized"
+                         FullWidth="true"/>
+        <MudButton OnClick="SaveThreshold"
+                   Variant="Variant.Filled"
+                   Color="Color.Secondary"
+                   Disabled="!_initialized">
+            Сохранить порог
+        </MudButton>
+
+        <!-- ------------------------------ -->
+
         <MudDivider Class="my-4"/>
 
         <MudText Typo="Typo.h5">🗑 Обнулить остатки</MudText>
@@ -119,6 +138,7 @@
 @code {
     private bool _initialized;
     private bool _enabled;
+    private int _balanceThreshold;
 
     private List<ExternalAccount> _accounts = new();
     private ExternalAccount? _selectedAccount;
@@ -132,7 +152,7 @@
         if (!OperatingSystem.IsBrowser()){
             return;
         }
-        
+
         var resp = await Http.GetFromJsonAsync<Dictionary<string, bool>>("api/scheduler/balance-enabled");
         if (resp != null && resp.TryGetValue("enabled", out var e))
             _enabled = e;
@@ -141,19 +161,21 @@
         var all = await Http.GetFromJsonAsync<List<ExternalAccount>>("api/accounts")
                   ?? new List<ExternalAccount>();
         _accounts = all
-            .Where(x => x.Platform == ExternalAccountType.Wildberries.ToString())
-            .ToList();
+                    .Where(x => x.Platform == ExternalAccountType.Wildberries.ToString())
+                    .ToList();
 
         await LoadSchedulerResultsAsync();
+
+        _balanceThreshold = await Http.GetFromJsonAsync<int>("api/scheduler/balance-threshold");
+
         StartPollingResults();
 
         try{
             var resp2 = await Http.GetFromJsonAsync<Dictionary<string, bool>>("api/scheduler/running-rules");
         }
         catch{
-            
         }
-        
+
         StateHasChanged();
     }
 
@@ -166,7 +188,7 @@
         );
         if (resp.IsSuccessStatusCode){
             var result = await resp.Content.ReadFromJsonAsync<Dictionary<string, int>>();
-            var count = result?.GetValueOrDefault("resetCount") ?? 0;
+            var count  = result?.GetValueOrDefault("resetCount") ?? 0;
             Snackbar.Add(
                 $"Остатки по аккаунту «{_selectedAccount.Name}» обнулены: {count} товаров.",
                 Severity.Success
@@ -176,6 +198,19 @@
             Snackbar.Add($"Не удалось обнулить: {resp.StatusCode}", Severity.Error);
         }
     }
+
+    private async Task SaveThreshold(){
+        var resp = await Http.PostAsync(
+            $"api/scheduler/balance-threshold/{_balanceThreshold}",
+            null);
+        if (resp.IsSuccessStatusCode){
+            Snackbar.Add($"Порог установлен: {_balanceThreshold}", Severity.Success);
+        }
+        else{
+            Snackbar.Add($"Не удалось обновить порог: {resp.StatusCode}", Severity.Error);
+        }
+    }
+
 
     private async Task SaveSettings(){
         var response = await Http.PostAsJsonAsync("api/scheduler/balance-enabled", _enabled);
@@ -211,7 +246,7 @@
 
     private void StartPollingResults(){
         _pollCts = new CancellationTokenSource();
-        _timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+        _timer   = new PeriodicTimer(TimeSpan.FromMinutes(1));
 
         // fire-and-forget loop
         _ = Task.Run(async () => {

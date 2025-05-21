@@ -19,7 +19,6 @@ using WBSL.Data.Services.Simaland;
 using WBSL.Data.Services.Wildberries;
 using WBSL.Services;
 using Npgsql;
-using WBSL.Data.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -100,6 +99,7 @@ builder.Services.AddScoped<ICreateOrderCart, CreateOrderCartService>();
 builder.Services.AddScoped<ExcelUpdateService>();
 
 builder.Services.AddScoped<SimalandClientService>();
+builder.Services.AddSingleton<BalanceThreshold>();
 
 builder.Services.AddSingleton<BalanceUpdateScheduler>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<BalanceUpdateScheduler>());
@@ -134,6 +134,9 @@ builder.Services
 
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
+// builder.Logging
+//        .AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning)
+//        .AddFilter("System.Net.Http.HttpClient.Wildberries",             LogLevel.Warning);
 
 builder.Services.AddHttpClient("Wildberries",
         client => {

@@ -10,8 +10,7 @@ public class JobSchedulerService
     private readonly QPlannerDbContext _db;
     public JobSchedulerService(QPlannerDbContext db) => _db = db;
 
-    private static readonly Dictionary<string, Action<string>> _registrators = new()
-    {
+    private static readonly Dictionary<string, Action<string>> _registrators = new(){
         ["fetch_wb_categories"] = cron =>
             RecurringJob.AddOrUpdate<WildberriesCategoryService>(
                 "fetch_wb_categories",
@@ -32,52 +31,54 @@ public class JobSchedulerService
                 svc => svc.FetchAndSaveOrdersAsync(),
                 cron
             ),
-        
-        ["simaland-order-cart-job"] = cron =>
-            RecurringJob.AddOrUpdate<ICreateOrderCart>(
-                "simaland-order-cart-job",
-                svc => svc.SyncOrdersAsync(),
-                cron),
 
+        // ["simaland-order-cart-job"] = cron =>
+        //     RecurringJob.AddOrUpdate<ICreateOrderCart>(
+        //         "simaland-order-cart-job",
+        //         svc => svc.SyncOrdersAsync(),
+        //         cron),
     };
 
-    
+
     public async Task SyncSchedulesAsync(){
         var dbJobs = await _db.HangfireJobSchedules
-            .ToDictionaryAsync(js => js.JobId, StringComparer.OrdinalIgnoreCase);
-        
-        var defaultCron = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
-            ["fetch_wb_categories"] = "30 1 * * *",
-            ["fetch_wb_products"]   = "0 2 * * *",
-            ["fetch_new_orders_job"]    = Cron.HourInterval(3),
-            ["simaland-order-cart-job"]   = Cron.HourInterval(3)
+                              .ToDictionaryAsync(js => js.JobId, StringComparer.OrdinalIgnoreCase);
+
+        var defaultCron = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase){
+            ["fetch_wb_categories"]  = "30 1 * * *",
+            ["fetch_wb_products"]    = "0 2 * * *",
+            ["fetch_new_orders_job"] = Cron.HourInterval(3),
+            // ["simaland-order-cart-job"]   = Cron.HourInterval(3)
         };
-        
-        foreach (var kvp in _registrators)
-        {
+
+        foreach (var kvp in _registrators){
             var jobId = kvp.Key;
-            if (!dbJobs.ContainsKey(jobId))
-            {
+            if (!dbJobs.ContainsKey(jobId)){
                 // создаём новую запись
-                var js = new JobSchedule {
-                    JobId     = jobId,
-                    CronExpr  = defaultCron[jobId],
+                var js = new JobSchedule{
+                    JobId       = jobId,
+                    CronExpr    = defaultCron[jobId],
                     LastUpdated = DateTime.UtcNow
                 };
                 _db.HangfireJobSchedules.Add(js);
                 dbJobs[jobId] = js;
             }
-            // Иначе: если вам нужно поддерживать «апдейт из кода», 
-            // вы могли бы здесь проверять defaultCron[jobId] != dbJobs[jobId].CronExpr 
-            // и обновлять поле CronExpr, но обычно этого не надо.
         }
-        await _db.SaveChangesAsync();
-        foreach (var cfg in dbJobs.Values)
-        {
-            if (!_registrators.TryGetValue(cfg.JobId, out var reg))
-                throw new InvalidOperationException($"Unknown job «{cfg.JobId}»");
 
-            reg(cfg.CronExpr);
+        await _db.SaveChangesAsync();
+        foreach (var cfg in dbJobs.Values){
+            if (!_registrators.TryGetValue(cfg.JobId, out var reg)){
+                Console.WriteLine($"[Warning] Unknown job ID “{cfg.JobId}”, skipping registration.");
+                continue;
+            }
+
+            try{
+                reg(cfg.CronExpr);
+            }
+            catch (Exception ex){
+                // Если вдруг cron неверный или регистрация упала — логируем, но не бросаем
+                Console.WriteLine($"[Error] Failed to register job “{cfg.JobId}”: {ex.Message}");
+            }
         }
     }
 
@@ -85,8 +86,8 @@ public class JobSchedulerService
     public async Task UpdateCronAsync(string jobId, string newCron){
         var cfg = await _db.Set<JobSchedule>().FindAsync(jobId)
                   ?? throw new KeyNotFoundException(jobId);
-        cfg.CronExpr     = newCron;
-        cfg.LastUpdated  = DateTime.UtcNow;
+        cfg.CronExpr    = newCron;
+        cfg.LastUpdated = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
         if (!_registrators.TryGetValue(jobId, out var reg))

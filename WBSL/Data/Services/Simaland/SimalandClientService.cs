@@ -5,6 +5,7 @@ using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Shared;
 using Shared.Enums;
+using WBSL.Data.Config;
 using WBSL.Data.HttpClientFactoryExt;
 using WBSL.Models;
 
@@ -12,12 +13,20 @@ namespace WBSL.Data.Services.Simaland;
 
 public class SimalandClientService
 {
+    private readonly BalanceThreshold _threshold;
     private readonly IServiceScopeFactory _scopeFactory;
 
     public SimalandClientService(
-        QPlannerDbContext db, IServiceScopeFactory scopeFactory){
+        QPlannerDbContext db, IServiceScopeFactory scopeFactory, BalanceThreshold threshold){
         _scopeFactory = scopeFactory;
+        _threshold = threshold;
     }
+
+    public void SetMinBalanceThreshold(int newThreshold)
+        => _threshold.MinBalance = newThreshold;
+
+    public int GetMinBalanceThreshold()
+        => _threshold.MinBalance;
 
     public async Task<(List<ProductInfo> Successful, int ProcessedCount, List<FailedStock> Failed)>
         FetchAndSaveProductsBalance(List<long> sids,
@@ -308,10 +317,12 @@ public class SimalandClientService
                 var lots = prod.qty_multiplier > 0 ? prod.Balance / prod.qty_multiplier : 0;
 
                 if (lots < 0) continue;
-
-                var amountToSend = prod.Balance >= 3
+                
+                var threshold = GetMinBalanceThreshold();
+                var amountToSend = prod.Balance >= threshold
                     ? lots
                     : 0;
+
                 var firstSize = wbCard.SizeChrts.FirstOrDefault();
                 if (firstSize == null || string.IsNullOrWhiteSpace(firstSize.Value)) continue;
 
