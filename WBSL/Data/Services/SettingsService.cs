@@ -1,14 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace WBSL.Data.Services;
 
 public class SettingsService
 {
-    private readonly IDbContextFactory<QPlannerDbContext> _dbFactory;
+    private readonly ManualDbContextFactory _dbFactory;
 
-    public SettingsService(IDbContextFactory<QPlannerDbContext> dbFactory)
+    public SettingsService(IServiceScopeFactory scopeFactory)
     {
-        _dbFactory = dbFactory;
+        _dbFactory = new ManualDbContextFactory(scopeFactory);
     }
 
     public async Task<string?> GetAsync(string key)

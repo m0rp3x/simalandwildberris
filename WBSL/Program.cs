@@ -124,7 +124,6 @@ builder.Services.AddScoped<PriceCalculatorService>(); // Сам сервис к�
 builder.Services.AddScoped<WildberriesOrdersProcessingService>();
 builder.Services.AddScoped<WildberriesSupplyService>();
 builder.Services.AddScoped<WildberriesStickersService>();
-builder.Services.AddDbContextFactory<QPlannerDbContext>();
 
 builder.Services
     .AddHttpClient("SimaLand", client => {

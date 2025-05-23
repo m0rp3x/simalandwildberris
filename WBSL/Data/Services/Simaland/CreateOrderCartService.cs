@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -194,9 +195,14 @@ public class SimaLandConnector : IOrderConnector
     }
     else
     {
-        var endTimeStr = _cfg.GetValue<string>("SimaLand:PurchaseEndTime");
+        var endTimeStr = await _settings.GetAsync<string>("SimaLand:PurchaseEndTime");
         var endTime = TimeSpan.Parse(endTimeStr);
-        var endedAt = DateTime.UtcNow.Date.Add(endTime).ToString("yyyy-MM-dd HH:mm:ss");
+
+        // Используем IANA ID, т.к. билд под Linux
+        var ekbZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Yekaterinburg");
+        var ekbNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ekbZone);
+
+        var endedAt = ekbNow.Date.Add(endTime).ToString("yyyy-MM-dd HH:mm:ss");
 
         var createPurchaseResp = await client.PostAsJsonAsync("jp-purchase/", new
         {
@@ -295,8 +301,29 @@ public class SimaLandConnector : IOrderConnector
     using var orderDoc = JsonDocument.Parse(content);
     var orderId = orderDoc.RootElement.GetProperty("jp_order").GetProperty("order_id").GetInt32();
 
+    var sidList = items.Select(i => i.Sid).ToList();
+    var nmIds = await _db.WbProductCards
+        .Where(c => sidList.Contains(c.VendorCode))
+        .Select(c => c.NmID)
+        .ToListAsync();
+    var relatedOrderIds = await _db.Orders
+        .Where(o => o.ProcessedAt == null && nmIds.Contains(o.NmId))
+        .Select(o => o.Id)
+        .ToListAsync();
+
+    foreach (var oid in relatedOrderIds)
+    {
+        _= _bus.PublishAsync(new OrderCreatedEvent(oid));
+        _log.LogInformation("[JP-REQUEST] OrderId={OrderId}", oid);
+    }
+
+
+
+
+
+
     _log.LogInformation("Order created successfully, id={OrderId}", orderId);
-    await _bus.PublishAsync(new OrderCreatedEvent(orderId));
+
 
     return new CreateOrderResponse { OrderId = orderId };
 
