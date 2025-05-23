@@ -63,6 +63,7 @@ public class WildberriesSupplyService
         bool dbOk = false;
         string? dbError = null;
         try{
+            order.SupplyId = supplyId;
             order.Status = OrderStatus.Confirm;
             _db.Orders.Update(order);
             await _db.SaveChangesAsync(ct);
