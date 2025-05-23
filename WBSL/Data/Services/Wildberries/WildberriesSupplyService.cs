@@ -87,7 +87,7 @@ public class WildberriesSupplyService
     /// Извлекает OrderEntity из БД, либо кидает, если не найден.
     /// </summary>
     private async Task<OrderEntity> GetOrderAsync(long orderId, CancellationToken ct){
-        var order = await _db.Orders.FindAsync(new object[]{ orderId }, ct);
+        var order = await _db.Orders.FirstOrDefaultAsync(x=> x.Id == orderId, ct);
         return order ?? throw new InvalidOperationException($"Order {orderId} не найден в базе.");
     }
 

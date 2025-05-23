@@ -5,10 +5,12 @@ using Microsoft.EntityFrameworkCore;
 using Shared;
 using WBSL.Data;
 using WBSL.Data.Models;
+using WBSL.Data.Services.EventBus;
 
 public interface ICreateOrderCart
 {
     Task SyncOrdersAsync(); 
+    Task TestBus(); 
 }
 
 public class CreateOrderCartService : ICreateOrderCart
@@ -19,22 +21,28 @@ public class CreateOrderCartService : ICreateOrderCart
     private readonly ILogger<CreateOrderCartService> _log;
     private readonly int                  _paymentTypeId;
     private readonly int                  _deliveryTypeId;
-
+    private readonly IEventBus _bus;
+    
     public CreateOrderCartService(
         IHttpClientFactory httpFactory,
         QPlannerDbContext  db,
         IConfiguration     cfg,
-        ILogger<CreateOrderCartService> log)
+        ILogger<CreateOrderCartService> log,
+        IEventBus bus)
     {
-        _httpFactory     = httpFactory;
-        _db              = db;
-        _cfg             = cfg;
-        _log             = log;
+        _httpFactory    = httpFactory;
+        _db             = db;
+        _cfg            = cfg;
+        _log            = log;
+        _bus            = bus;
         _paymentTypeId  = _cfg.GetValue<int>("SimaLand:PaymentTypeId");
         _deliveryTypeId = _cfg.GetValue<int>("SimaLand:DeliveryTypeId");
 
     }
 
+    public async Task TestBus(){
+        await _bus.PublishAsync(new OrderCreatedEvent(1));
+    }
     // Получение текущих позиций в корзине
     private async Task<Dictionary<long,int>> GetCartAsync(CancellationToken ct = default)
     {
@@ -136,8 +144,6 @@ public class CreateOrderCartService : ICreateOrderCart
     private async Task<CreateOrderResponse> CreateOrderAsync(
         List<OrderEntity> orders,
         CancellationToken ct = default)
-
-
     {
         var groups = orders
             .GroupBy(o => o.Article)
