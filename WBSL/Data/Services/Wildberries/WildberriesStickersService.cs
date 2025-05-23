@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Shared;
 using Shared.Enums;
 using WBSL.Data.Enums;
 using WBSL.Data.Extensions;
@@ -28,7 +29,7 @@ public class WildberriesStickersService
     /// <param name="type">Тип возвращаемого формата (png/svg).</param>
     /// <param name="width">Ширина стикера в пикселях.</param>
     /// <param name="height">Высота стикера в пикселях.</param>
-    public async Task<Dictionary<long, string>> GetStickersAsync(
+    public async Task<List<OrderStickerDto>> GetStickersAsync(
         IEnumerable<long> orderIds,
         string type = "png",
         int width = 58,
@@ -71,7 +72,7 @@ public class WildberriesStickersService
                                       g => g.Key,
                                       g => g.Select(a => a.id).ToList()
                                   );
-        var result = new Dictionary<long, string>();
+        var result = new List<OrderStickerDto>();
 
         // 3) Для каждого склада — один вызов
         foreach (var (warehouseId, ids) in byWarehouse){
@@ -123,7 +124,13 @@ public class WildberriesStickersService
 
                 foreach (var s in wrapper.Stickers){
                     try{
-                        result[s.OrderId] = s.File;
+                        result.Add(new OrderStickerDto {
+                            OrderId    = s.OrderId,
+                            Base64File = s.File,
+                            FileType   = type,
+                            Width      = width,
+                            Height     = height
+                        });
                     }
                     catch (Exception ex){
                         _logger.LogWarning(ex, "Не удалось декодировать стикер для заказа {OrderId}", s.OrderId);
