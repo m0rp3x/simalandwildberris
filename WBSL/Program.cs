@@ -104,6 +104,7 @@ builder.Services.AddScoped<PriceCalculatorService>();
 builder.Services.AddScoped<IDbContextFactory<QPlannerDbContext>, ManualDbContextFactory>();
 builder.Services.AddScoped<ISimaLandService, SimaLandService>();
 builder.Services.AddScoped<CreateOrderCartService>();
+builder.Services.AddScoped<SettingsService>();
 
 // Регистрируем SimaLandConnector как реализацию IOrderConnector
 builder.Services.AddScoped<IOrderConnector, SimaLandConnector>();builder.Services.AddScoped<ExcelUpdateService>();
@@ -123,7 +124,7 @@ builder.Services.AddScoped<PriceCalculatorService>(); // Сам сервис к�
 builder.Services.AddScoped<WildberriesOrdersProcessingService>();
 builder.Services.AddScoped<WildberriesSupplyService>();
 builder.Services.AddScoped<WildberriesStickersService>();
-
+builder.Services.AddDbContextFactory<QPlannerDbContext>();
 
 builder.Services
     .AddHttpClient("SimaLand", client => {
