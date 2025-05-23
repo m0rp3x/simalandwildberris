@@ -45,6 +45,8 @@ public partial class QPlannerDbContext : DbContext
     public virtual DbSet<MarginRule> MarginRules { get; set; }
     public virtual DbSet<OrderEntity> Orders { get; set; }
     public virtual DbSet<JobSchedule> HangfireJobSchedules { get; set; }
+    public DbSet<ActiveJpPurchase> ActiveJpPurchases { get; set; }
+    public DbSet<OrderSimSetting> OrderSimSettings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

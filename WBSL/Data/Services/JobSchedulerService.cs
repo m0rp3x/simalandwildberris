@@ -34,10 +34,13 @@ public class JobSchedulerService
             ),
         
         ["simaland-order-cart-job"] = cron =>
-            RecurringJob.AddOrUpdate<ICreateOrderCart>(
+            RecurringJob.AddOrUpdate<CreateOrderCartService>(
                 "simaland-order-cart-job",
                 svc => svc.SyncOrdersAsync(),
-                cron),
+                cron
+            ),
+ 
+
 
     };
 
