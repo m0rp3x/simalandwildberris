@@ -15,20 +15,28 @@ public class InMemoryEventBus : IEventBus
         if (!_handlers.TryGetValue(typeof(TEvent), out var handlerTypes))
             return;
 
-        var tasks = handlerTypes.Select(handlerType =>
-        {
-            var scope   = _sp.CreateScope();
-            var handler = (IEventHandler<TEvent>)scope.ServiceProvider
-                                                      .GetRequiredService(handlerType);
-            // по окончании handler-а – диспоузим scope
-            return handler.HandleAsync(@event, ct)
-                          .ContinueWith(t => scope.Dispose(),
-                                        TaskScheduler.Default);
-        }).ToArray();
-
+        var tasks = handlerTypes.Select(handlerType => InvokeHandlerSafe(handlerType, @event, ct));
         await Task.WhenAll(tasks);
     }
 
+    private async Task InvokeHandlerSafe<TEvent>(
+        Type handlerType,
+        TEvent @event,
+        CancellationToken ct)
+    {
+        using var scope   = _sp.CreateScope();
+        var       handler = (IEventHandler<TEvent>)scope.ServiceProvider.GetRequiredService(handlerType);
+        try
+        {
+            await handler.HandleAsync(@event, ct).ContinueWith(t => scope.Dispose(), TaskScheduler.Default);
+        }
+        catch (Exception ex)
+        {
+            string ErrorMessage = $"Ошибка в обработчике {handlerType.Name} для события {typeof(TEvent).Name}: {ex.Message}";
+            await Console.Error.WriteLineAsync(ErrorMessage);
+        }
+    }
+    
     public void Subscribe<TEvent, THandler>()
         where THandler : IEventHandler<TEvent>
     {
