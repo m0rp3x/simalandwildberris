@@ -1,304 +1,225 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text;
+﻿using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Shared;
 using WBSL.Data;
 using WBSL.Data.Models;
-using WBSL.Data.Services;
-using WBSL.Models;
 
-// DTO для передачи позиций в заявку
-public record ItemDto(string Sid, int Qty);
-
-// DTO для ответа при создании заказа
-public class CreateOrderResponse
+public interface ICreateOrderCart
 {
-    [JsonPropertyName("order_id")]
-    public long OrderId { get; set; }
+    Task SyncOrdersAsync(); 
 }
 
-// Интерфейс коннектора для отправки заявки
-public interface IOrderConnector
+public class CreateOrderCartService : ICreateOrderCart
 {
-    Task<CreateOrderResponse> CreateOrderAsync(List<ItemDto> items);
-}
-
-/// <summary>
-/// Сервис сбора заказов из Orders и отправки через выбранный Connector
-/// </summary>
-public class CreateOrderCartService
-{
-    private readonly QPlannerDbContext _db;
+    private readonly IHttpClientFactory   _httpFactory;
+    private readonly QPlannerDbContext    _db;
+    private readonly IConfiguration       _cfg;
     private readonly ILogger<CreateOrderCartService> _log;
-    private readonly IOrderConnector _connector;
+    private readonly int                  _paymentTypeId;
+    private readonly int                  _deliveryTypeId;
 
     public CreateOrderCartService(
-        QPlannerDbContext db,
-        ILogger<CreateOrderCartService> log,
-        IOrderConnector connector)
+        IHttpClientFactory httpFactory,
+        QPlannerDbContext  db,
+        IConfiguration     cfg,
+        ILogger<CreateOrderCartService> log)
     {
-        _db = db;
-        _log = log;
-        _connector = connector;
+        _httpFactory     = httpFactory;
+        _db              = db;
+        _cfg             = cfg;
+        _log             = log;
+        _paymentTypeId  = _cfg.GetValue<int>("SimaLand:PaymentTypeId");
+        _deliveryTypeId = _cfg.GetValue<int>("SimaLand:DeliveryTypeId");
+
     }
 
+    // Получение текущих позиций в корзине
+    private async Task<Dictionary<long,int>> GetCartAsync(CancellationToken ct = default)
+    {
+        var client = _httpFactory.CreateClient("SimaLand");
+        var resp = await client.GetAsync("cart/", ct);
+        resp.EnsureSuccessStatusCode();
+        var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+        var items = doc.RootElement
+            .GetProperty("items")
+            .EnumerateArray()
+            .Select(x => new {
+                Sid = x.GetProperty("item_sid").GetInt64(),
+                Qty = x.GetProperty("qty").GetInt32()
+            });
+        return items.ToDictionary(x => x.Sid, x => x.Qty);
+    }
+
+    // Добавление позиций в корзину
+    private async Task AddToCartAsync(long sid, int qty, CancellationToken ct = default)
+    {
+        var client = _httpFactory.CreateClient("SimaLand");
+        var body = new { item_sid = sid, qty };
+        var resp = await client.PostAsJsonAsync("cart-item/", body, ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var err = await resp.Content.ReadAsStringAsync(ct);
+            _log.LogError("AddToCart failed for {Sid}: {Status} {Body}", sid, resp.StatusCode, err);
+            throw new Exception("SimaLand AddToCart error");
+        }
+        _log.LogInformation("Added to cart {Sid} x{Qty}", sid, qty);
+    }
+
+    // Основной метод синхронизации WB-заказов
     public async Task SyncOrdersAsync()
     {
-        _log.LogInformation("SyncOrdersAsync started");
-        await using var tx = await _db.Database.BeginTransactionAsync();
+        using var tx = await _db.Database.BeginTransactionAsync();
 
+        // 1. Берём заказы старше 3х часов, не обработанные
         var threshold = DateTime.UtcNow.AddHours(-3);
-        // 1. Группировка по NmId
-        var grouped = await _db.Orders
+        var orders = await _db.Orders
             .Where(o => o.ProcessedAt == null && o.CreatedAt <= threshold)
+            .ToListAsync();
+        if (!orders.Any()) { _log.LogInformation("SyncOrders: no new orders"); return; }
+
+        // 2. Группируем по Article → кол-во позиций
+        var groups = orders
             .GroupBy(o => o.NmId)
-            .Select(g => new { NmId = g.Key, Qty = g.Count() })
-            .ToListAsync();
-
-        if (!grouped.Any())
-        {
-            _log.LogInformation("No new orders to process");
-            return;
-        }
-
-        // 2. Поиск VendorCode по NmId из WbProductCard
-        var nmIds = grouped.Select(g => g.NmId).ToList();
-        var cards = await _db.WbProductCards
-            .AsNoTracking()
-            .Where(c => nmIds.Contains(c.NmID) && !string.IsNullOrEmpty(c.VendorCode))
-            .ToListAsync();
-
-        // 3. Формируем список для заказа
-        var items = cards
-            .Select(card => new ItemDto(
-                Sid: card.VendorCode,
-                Qty: grouped.First(g => g.NmId == card.NmID).Qty
-            ))
-            .ToList();
-
-        if (!items.Any())
-        {
-            _log.LogWarning("No matching VendorCodes for NmIds: {NmIds}", string.Join(',', nmIds));
-            return;
-        }
-
-        var sids = items.Select(i => i.Sid).ToList();
-
-        var balances = await _db.Set<product>()
-            .AsNoTracking()
-            .Where(p => sids.Contains(p.sid.ToString()))
-            .ToDictionaryAsync(p => p.sid.ToString(), p => p.balance ?? 0);
-
-        var available = items
-            .Where(i => balances.TryGetValue(i.Sid, out var bal) && bal >= i.Qty)
+            .Select(g => new { Sid = g.First().Article, Qty = g.Count() }) // Article = item_sid
             .ToList();
 
 
 
-        if (!available.Any())
+        // 3. Получаем текущее состояние корзины в SimaLand
+        var cart = await GetCartAsync();
+
+        // 4. Добавляем недостающие позиции
+        foreach (var g in groups)
         {
-            _log.LogWarning("No items in stock to order (checked by balance)");
-            return;
+            cart.TryGetValue(Convert.ToInt64(g.Sid), out var existing);
+            var toAdd = g.Qty - existing;
+            if (toAdd > 0)
+                await AddToCartAsync(Convert.ToInt64(g.Sid), toAdd);
         }
+
+        // 5. Формируем заявку на заказ и отправляем
+        // Преобразуем группы в динамический список для CreateOrderAsync
+        var itemsForOrder = groups
+            .Select(g => new WBSL.Data.Models.OrderEntity
+            {
+                Article = g.Sid.ToString(),
+                Rid = g.Qty.ToString()
+            })
+            .ToList();
 
         try
         {
-            // 5. Отправка через коннектор
-            var response = await _connector.CreateOrderAsync(available);
-            if (response.OrderId <= 0)
-            {
-                _log.LogWarning("Order was not created (unprocessable entity)");
-                return;
-            }
+            var createResult = await CreateOrderAsync(itemsForOrder);
+            _log.LogInformation("CreateOrder: заказ создан, id={OrderId}", createResult.OrderId);
 
-            _log.LogInformation("Order created successfully, id={OrderId}", response.OrderId);
-
-            // 6. Отметить как обработанные
-            var now = DateTime.UtcNow;
-            await _db.Orders
-                .Where(o => o.ProcessedAt == null && nmIds.Contains(o.NmId))
-                .ForEachAsync(o => o.ProcessedAt = now);
+            // 6. Помечаем обработанные заказы и сохраняем
+            foreach (var o in orders) o.ProcessedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
+
+            _log.LogInformation(
+                "SyncOrders: processed {Count} orders, created cart order #{OrderId}.",
+                orders.Count, createResult.OrderId);
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Error creating order");
-        }
-    }
-}
-
-/// <summary>
-/// Коннектор для SimaLand API v3
-/// </summary>
-public class SimaLandConnector : IOrderConnector
-{
-    private readonly IHttpClientFactory _httpFactory;
-    private readonly IConfiguration _cfg;
-    private readonly SettingsService _settings;
-    private readonly ILogger<SimaLandConnector> _log;
-    private readonly int _paymentTypeId;
-    private readonly int _deliveryTypeId;
-    private readonly QPlannerDbContext _db;
-
-    public SimaLandConnector(
-        QPlannerDbContext db,
-        IHttpClientFactory httpFactory,
-        IConfiguration cfg,
-        SettingsService settings,
-        ILogger<SimaLandConnector> log)
-    {
-        _db = db;
-        _httpFactory = httpFactory;
-        _cfg = cfg;
-        _settings = settings;
-        _log = log;
-        _paymentTypeId = settings.GetAsync<int>("SimaLand:PaymentTypeId");
-        _deliveryTypeId = settings.GetAsync<int>("SimaLand:DeliveryTypeId");
-    }
-
-    public async Task<CreateOrderResponse> CreateOrderAsync(List<ItemDto> items)
-    {
-   var token = _cfg.GetValue<string>("SimaLand:SyncToken");
-    var userId = _settings.GetAsync<int>("SimaLand:UserId");
-    var comment = _settings.GetAsync<string>("SimaLand:DefaultComment");
-    var settlementId = _settings.GetAsync("SimaLand:DefaultSettlementId");
-    var pickupId = _settings.GetAsync<int>("SimaLand:JpPickupId");
-
-    using var client = new HttpClient { BaseAddress = new Uri("https://www.sima-land.ru/api/v3/") };
-    client.DefaultRequestHeaders.Add("x-api-key", token);
-    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-    // 0. Проверка, есть ли уже активная закупка в базе
-    var currentPurchase = await _db.Set<ActiveJpPurchase>()
-        .OrderByDescending(x => x.CreatedAt)
-        .FirstOrDefaultAsync(x => !x.IsClosed);
-
-    int jpPurchaseId;
-
-    if (currentPurchase != null)
-    {
-        jpPurchaseId = currentPurchase.JpPurchaseId;
-        Console.WriteLine("[JP-PURCHASE] Reusing existing jp_purchase_id=" + jpPurchaseId);
-    }
-    else
-    {
-        // 1. Создание новой закупки
-        var endTimeStr = _cfg.GetValue<string>("SimaLand:PurchaseEndTime");
-        var endTime = TimeSpan.Parse(endTimeStr);
-        var endedAt = DateTime.UtcNow.Date.Add(endTime).ToString("yyyy-MM-dd HH:mm:ss");
-
-        var createPurchaseResp = await client.PostAsJsonAsync("jp-purchase/", new
-        {
-            user_id = userId,
-            jp_status_id = 1,
-            ended_at = endedAt
-        });
-        var createPurchaseContent = await createPurchaseResp.Content.ReadAsStringAsync();
-        Console.WriteLine("[JP-PURCHASE] Status=" + createPurchaseResp.StatusCode);
-        Console.WriteLine("[JP-PURCHASE] Response=" + createPurchaseContent);
-
-        if (!createPurchaseResp.IsSuccessStatusCode)
-        {
-            try
-            {
-                using var tryDoc = JsonDocument.Parse(createPurchaseContent);
-                if (tryDoc.RootElement.TryGetProperty("id", out var idProp))
-                {
-                    jpPurchaseId = idProp.GetInt32();
-                    _db.Add(new ActiveJpPurchase
-                    {
-                        JpPurchaseId = jpPurchaseId,
-                        CreatedAt = DateTime.UtcNow,
-                        IsClosed = false
-                    });
-                    await _db.SaveChangesAsync();
-                }
-                else
-                {
-                    _log.LogWarning("Failed to create jp-purchase and no id found in response");
-                    return new CreateOrderResponse { OrderId = 0 };
-                }
-            }
-            catch (Exception ex)
-            {
-                _log.LogError(ex, "Error parsing failed jp-purchase response");
-                return new CreateOrderResponse { OrderId = 0 };
-            }
-        }
-        else
-        {
-            using var purchaseDoc = JsonDocument.Parse(createPurchaseContent);
-            jpPurchaseId = purchaseDoc.RootElement.GetProperty("id").GetInt32();
-            _db.Add(new ActiveJpPurchase
-            {
-                JpPurchaseId = jpPurchaseId,
-                CreatedAt = DateTime.UtcNow,
-                IsClosed = false
-            });
-            await _db.SaveChangesAsync();
+            _log.LogError(ex, "Ошибка при создании заявки в SimaLand");
+            // транзакция не коммитится — корзина сохраняет текущее состояние
         }
     }
 
-    // 2. Получаем информацию о товарах
-    var sidSet = items.Select(i => i.Sid).ToList();
-    var products = await _db.Set<product>()
-        .Where(p => sidSet.Contains(p.sid.ToString()))
-        .ToDictionaryAsync(p => p.sid.ToString(), p => new {
-            MinQty = p.qty_multiplier ?? 1,
-            Balance = p.balance ?? 0
-        });
+    /// <summary>
+    /// Собирает и отправляет POST /order/ — новую заявку.
+    /// </summary>
+    private async Task<CreateOrderResponse> CreateOrderAsync(
+        List<OrderEntity> orders,
+        CancellationToken ct = default)
 
-    // 3. Фильтруем и округляем кол-во по мультипликатору
-    var filteredItems = items
-        .Select(i => new {
-            Sid = i.Sid,
-            Qty = (int)Math.Ceiling((double)i.Qty / products[i.Sid].MinQty) * products[i.Sid].MinQty
-        })
-        .Where(x => products[x.Sid].Balance >= x.Qty && products[x.Sid].Balance > 0)
-        .ToList();
 
-    if (!filteredItems.Any())
     {
-        _log.LogWarning("No valid items for jp-request");
-        return new CreateOrderResponse { OrderId = 0 };
+        var groups = orders
+            .GroupBy(o => o.Article)
+            .Select(g => new { Sid = long.Parse(g.Key), Qty = g.Count() })
+            .ToList();
+
+
+        
+        var client = _httpFactory.CreateClient("SimaLand");
+
+        // --- 1) Получаем settlement_id по городу ---
+        // Предполагаем, что у OrderEntity есть поле DeliveryCity
+        string cityName = orders.First().Address?.Split(',').First() ?? "";
+        int settlementId = await GetSettlementIdAsync(client, cityName, ct);
+
+        // --- 2) Получаем список складов и берём первый warehouse_id ---
+        var warehouses = await client.GetFromJsonAsync<List<WarehouseDto>>("warehouses", ct);
+        int warehouseId = warehouses?.FirstOrDefault()?.Id
+                          ?? throw new InvalidOperationException("Нет доступных складов");
+
+        // --- 3) Формируем тело заявки ---
+        var payload = new
+        {
+            settlement_id    = settlementId,
+            warehouse_id     = warehouseId,
+            payment_type_id  = _paymentTypeId,
+            delivery_type_id = _deliveryTypeId,
+
+            // список позиций
+            items = groups.Select(g => new {
+                item_sid = g.Sid,
+                qty      = g.Qty
+            }).ToArray()
+        };
+
+        // --- 4) Отправляем POST /order/ ---
+        var resp = await client.PostAsJsonAsync("order/", payload, ct);
+        resp.EnsureSuccessStatusCode();
+
+        // --- 5) Десериализуем ID новой заявки ---
+        var create = await resp.Content.ReadFromJsonAsync<CreateOrderResponse>(cancellationToken: ct);
+        if (create == null || create.OrderId <= 0)
+            throw new InvalidOperationException("Непредвиденный ответ при создании заказа");
+
+        return create;
     }
 
-    // 4. Создание заявки (jp-request)
-    var payload = new
+    /// <summary>
+    /// GET /settlement/?name={city} → settlement_id
+    /// </summary>
+    private async Task<int> GetSettlementIdAsync(
+        HttpClient client,
+        string      cityName,
+        CancellationToken ct)
     {
-        items_data = filteredItems.Select(i => new { item_sid = i.Sid, qty = i.Qty }).ToArray(),
-        contact_name = _cfg.GetValue<string>("SimaLand:ContactName"),
-        contact_email = _cfg.GetValue<string>("SimaLand:ContactEmail"),
-        contact_phone = _cfg.GetValue<string>("SimaLand:ContactPhone"),
-        settlement_id = settlementId,
-        jp_purchase_id = jpPurchaseId,
-        comment = comment
-    };
+        var url = $"settlement/?name={Uri.EscapeDataString(cityName)}";
+        var resp = await client.GetAsync(url, ct);
+        resp.EnsureSuccessStatusCode();
 
-    var response = await client.PostAsJsonAsync("order/checkout-jp-request-by-products/", payload);
-    var content = await response.Content.ReadAsStringAsync();
-    Console.WriteLine("[JP-REQUEST] Status=" + response.StatusCode);
-    Console.WriteLine("[JP-REQUEST] Response=" + content);
-    _log.LogInformation("[JP-REQUEST] Status={Status}, Response={Response}", response.StatusCode, content);
+        // ожидаем: [{ "id": 123, "name":"Москва", … }]
+        var arr = await resp.Content.ReadFromJsonAsync<List<SettlementDto>>(cancellationToken: ct);
+        return arr?.FirstOrDefault()?.Id
+               ?? throw new InvalidOperationException($"Город '{cityName}' не найден");
+    }
 
-    if (!response.IsSuccessStatusCode)
-        return new CreateOrderResponse { OrderId = 0 };
 
-    using var orderDoc = JsonDocument.Parse(content);
-    var orderId = orderDoc.RootElement.GetProperty("jp_order").GetProperty("order_id").GetInt32();
+    // DTO-ответы API
+    private class WarehouseDto
+    {
+        public int    Id   { get; set; }
+        public string Name { get; set; } = null!;
+    }
 
-    return new CreateOrderResponse { OrderId = orderId };
+    private class SettlementDto
+    {
+        public int    Id   { get; set; }
+        public string Name { get; set; } = null!;
+    }
+
+    public class CreateOrderResponse
+    {
+        [JsonPropertyName("order_id")]
+        public long OrderId { get; set; }
     }
 }

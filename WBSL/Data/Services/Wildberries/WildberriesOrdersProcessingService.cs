@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Collections.Concurrent;
+using System.Text.Json;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Shared.Enums;
@@ -18,14 +19,20 @@ public class WildberriesOrdersProcessingService : WildberriesBaseService
     private readonly ILogger<WildberriesOrdersProcessingService> _logger;
     private static readonly SemaphoreSlim _runGuard = new(1, 1);
 
+    private static readonly ConcurrentDictionary<long, string> _orderSaveErrors
+        = new ConcurrentDictionary<long, string>();
+
     public WildberriesOrdersProcessingService(
         IServiceScopeFactory scopeFactory,
         PlatformHttpClientFactory httpFactory,
         ILogger<WildberriesOrdersProcessingService> logger) : base(httpFactory){
         _scopeFactory = scopeFactory;
-        _httpFactory = httpFactory;
-        _logger = logger;
+        _httpFactory  = httpFactory;
+        _logger       = logger;
     }
+
+    public IReadOnlyDictionary<long, string> GetOrderSaveErrors()
+        => _orderSaveErrors.ToDictionary(kv => kv.Key, kv => kv.Value);
 
     /// <summary>
     /// Основная точка входа для Hangfire.
@@ -65,20 +72,20 @@ public class WildberriesOrdersProcessingService : WildberriesBaseService
     /// </summary>
     private async Task<List<OrderDto>> FetchOrdersByAsync(){
         using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
+        var       db    = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
 
         // Получаем список Wildberries-аккаунтов
         var accounts = await db.external_accounts
-            .Where(x => x.platform == ExternalAccountType.Wildberries.ToString()
-                        && x.warehouseid.HasValue)
-            .Select(x => new{ x.id, WarehouseId = x.warehouseid!.Value })
-            .ToListAsync();
-        
+                               .Where(x => x.platform == ExternalAccountType.Wildberries.ToString()
+                                           && x.warehouseid.HasValue)
+                               .Select(x => new{ x.id, WarehouseId = x.warehouseid!.Value })
+                               .ToListAsync();
+
         // 2) Группируем accountId по warehouseId
         var byWarehouse = accounts
-            .GroupBy(a => a.WarehouseId)
-            .ToDictionary(g => g.Key, g => g.Select(a => a.id).ToList());
-        
+                          .GroupBy(a => a.WarehouseId)
+                          .ToDictionary(g => g.Key, g => g.Select(a => a.id).ToList());
+
         // var accountWarehousePairs = await db.Set<ExternalAccountWarehouse>()
         //     .Where(x => x.ExternalAccount.platform == ExternalAccountType.Wildberries.ToString())
         //     .Select(x => new { x.ExternalAccountId, x.WarehouseId })
@@ -92,8 +99,8 @@ public class WildberriesOrdersProcessingService : WildberriesBaseService
         //         g => g.Select(x => x.ExternalAccountId).Distinct().ToList()
         //     );
 
-        var allOrders = new List<OrderDto>();
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var       allOrders = new List<OrderDto>();
+        using var cts       = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
         foreach (var (warehouseId, accountIds) in byWarehouse){
             // найдём первый «живой» клиент
@@ -116,8 +123,8 @@ public class WildberriesOrdersProcessingService : WildberriesBaseService
             }
             catch (Exception ex){
                 _logger.LogWarning(ex,
-                    "Ошибка при запросе заказов для склада {WarehouseId}, аккаунты {AccountIds}",
-                    warehouseId, string.Join(",", accountIds));
+                                   "Ошибка при запросе заказов для склада {WarehouseId}, аккаунты {AccountIds}",
+                                   warehouseId, string.Join(",", accountIds));
                 continue;
             }
 
@@ -138,16 +145,17 @@ public class WildberriesOrdersProcessingService : WildberriesBaseService
             }
             catch (Exception ex){
                 _logger.LogWarning(ex,
-                    "Не удалось десериализовать ответ для склада {WarehouseId}", warehouseId);
+                                   "Не удалось десериализовать ответ для склада {WarehouseId}", warehouseId);
                 continue;
             }
 
             if (wrapper?.Orders is{ Count: > 0 } orders)
                 allOrders.AddRange(orders);
         }
+
         var distinct = allOrders
-            .DistinctBy(o => o.Id)
-            .ToList();
+                       .DistinctBy(o => o.Id)
+                       .ToList();
         return distinct;
     }
 
@@ -155,48 +163,79 @@ public class WildberriesOrdersProcessingService : WildberriesBaseService
     /// Сохраняет список заказов в базу, преобразуя DTO в сущности.
     /// </summary>
     private async Task SaveOrdersAsync(IEnumerable<OrderDto> orders){
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
+        _orderSaveErrors.Clear();
+
+        using var scope           = _scopeFactory.CreateScope();
+        var       db              = scope.ServiceProvider.GetRequiredService<QPlannerDbContext>();
+        var       incomingNmIds   = orders.Select(o => o.NmId).Distinct().ToList();
+        var       incomingChrtIds = orders.Select(o => o.ChrtId).Distinct().ToList();
+
+        // 2) Спрашиваем БД только про эти Id
+        var validNmIds = await db.WbProductCards
+                                 .AsNoTracking()
+                                 .Where(p => incomingNmIds.Contains(p.NmID))
+                                 .Select(p => p.NmID)
+                                 .ToListAsync();
+        var validNmSet = validNmIds.ToHashSet();
+
+        var validChrtIds = await db.WbSizes
+                                   .AsNoTracking()
+                                   .Where(s => incomingChrtIds.Contains(s.ChrtID))
+                                   .Select(s => s.ChrtID)
+                                   .ToListAsync();
+        var validChrtSet = validChrtIds.ToHashSet();
 
         foreach (var dto in orders){
+            if (!validNmSet.Contains(dto.NmId)){
+                _orderSaveErrors[dto.Id] =
+                    $"Пропущен: нет WbProductCard с NmId={dto.NmId}";
+                continue;
+            }
+
+            if (!validChrtSet.Contains(dto.ChrtId)){
+                _orderSaveErrors[dto.Id] =
+                    $"Пропущен: нет WbSize с ChrtId={dto.ChrtId}";
+                continue;
+            }
+
             // Здесь вы можете делать Upsert: либо Add, либо Update, если уже есть
             var existing = await db.Orders.FindAsync(dto.Id);
             if (existing != null){
                 // Обновляем поля
-                existing.Price = dto.Price;
-                existing.ConvertedPrice = dto.ConvertedPrice;
-                existing.CurrencyCode = dto.CurrencyCode;
+                existing.Price                 = dto.Price;
+                existing.ConvertedPrice        = dto.ConvertedPrice;
+                existing.CurrencyCode          = dto.CurrencyCode;
                 existing.ConvertedCurrencyCode = dto.ConvertedCurrencyCode;
-                existing.IsZeroOrder = dto.IsZeroOrder;
+                existing.IsZeroOrder           = dto.IsZeroOrder;
                 // ... и другие поля по необходимости
                 db.Orders.Update(existing);
             }
             else{
                 var entity = new OrderEntity{
-                    Id = dto.Id,
-                    Address = dto.Address?.ToString(),
-                    Status = OrderStatus.New,
-                    SupplyId = null,
-                    UserId = dto.UserId,
-                    SalePrice = dto.SalePrice,
-                    DeliveryType = dto.DeliveryType,
-                    Comment = dto.Comment,
-                    OrderUid = dto.OrderUid,
-                    Article = dto.Article,
-                    CreatedAt = dto.CreatedAt,
-                    WarehouseId = dto.WarehouseId,
-                    Rid = dto.Rid,
-                    NmId = dto.NmId,
-                    ChrtId = dto.ChrtId,
-                    Price = dto.Price,
-                    ConvertedPrice = dto.ConvertedPrice,
-                    CurrencyCode = dto.CurrencyCode,
+                    Id                    = dto.Id,
+                    Address               = dto.Address?.ToString(),
+                    Status                = OrderStatus.New,
+                    SupplyId              = null,
+                    UserId                = dto.UserId,
+                    SalePrice             = dto.SalePrice,
+                    DeliveryType          = dto.DeliveryType,
+                    Comment               = dto.Comment,
+                    OrderUid              = dto.OrderUid,
+                    Article               = dto.Article,
+                    CreatedAt             = dto.CreatedAt,
+                    WarehouseId           = dto.WarehouseId,
+                    Rid                   = dto.Rid,
+                    NmId                  = dto.NmId,
+                    ChrtId                = dto.ChrtId,
+                    Price                 = dto.Price,
+                    ConvertedPrice        = dto.ConvertedPrice,
+                    CurrencyCode          = dto.CurrencyCode,
                     ConvertedCurrencyCode = dto.ConvertedCurrencyCode,
-                    CargoType = dto.CargoType,
-                    IsZeroOrder = dto.IsZeroOrder,
-                    Offices = dto.Offices,
-                    Skus = dto.Skus,
-                    IsB2B = dto.Options.IsB2B
+                    CargoType             = dto.CargoType,
+                    IsZeroOrder           = dto.IsZeroOrder,
+                    Offices               = dto.Offices,
+                    Skus                  = dto.Skus,
+                    IsB2B                 = dto.Options.IsB2B
                 };
                 db.Orders.Add(entity);
             }

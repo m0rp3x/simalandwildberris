@@ -18,9 +18,8 @@ using WBSL.Data.Services;
 using WBSL.Data.Services.Simaland;
 using WBSL.Data.Services.Wildberries;
 using WBSL.Services;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using WBSL.Data.Services.EventBus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +32,7 @@ builder.Services.AddDbContext<QPlannerDbContext>(options =>
 // регистрируем фабрику — с контекстом в Scoped/Transient и опциями в Singleton
 
 NpgsqlConnection.GlobalTypeMapper.EnableDynamicJson();
+
 // Hangfire
 builder.Services.AddHangfireWithJobs(builder.Configuration);
 builder.Services.AddCoreAdmin();
@@ -80,6 +80,13 @@ builder.Services.AddScoped<PlatformHttpClientFactory>(sp =>
         sp.GetRequiredService<AccountTokenService>(),
         sp.GetRequiredService<IHttpContextAccessor>()));
 
+builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
+
+builder.Services.AddScoped<OrderCreatedHandler>();
+builder.Services.AddScoped<IEventHandler<OrderCreatedEvent>, OrderCreatedHandler>();
+
+builder.Services.AddTransient<JobSchedulerService>();
+
 
 builder.Services.AddScoped<AccountTokenService>();
 builder.Services.AddScoped<WildberriesService>();
@@ -101,7 +108,9 @@ builder.Services.AddScoped<CreateOrderCartService>();
 // Регистрируем SimaLandConnector как реализацию IOrderConnector
 builder.Services.AddScoped<IOrderConnector, SimaLandConnector>();builder.Services.AddScoped<ExcelUpdateService>();
 
+
 builder.Services.AddScoped<SimalandClientService>();
+builder.Services.AddSingleton<BalanceThreshold>();
 
 builder.Services.AddSingleton<BalanceUpdateScheduler>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<BalanceUpdateScheduler>());
@@ -115,7 +124,6 @@ builder.Services.AddScoped<WildberriesOrdersProcessingService>();
 builder.Services.AddScoped<WildberriesSupplyService>();
 builder.Services.AddScoped<WildberriesStickersService>();
 
-builder.Services.AddTransient<JobSchedulerService>();
 
 builder.Services
     .AddHttpClient("SimaLand", client => {
@@ -136,6 +144,9 @@ builder.Services
 
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
+// builder.Logging
+//        .AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning)
+//        .AddFilter("System.Net.Http.HttpClient.Wildberries",             LogLevel.Warning);
 
 builder.Services.AddHttpClient("Wildberries",
         client => {
@@ -245,5 +256,8 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(WBSL.Client._Imports).Assembly);
+
+var bus = app.Services.GetRequiredService<IEventBus>();
+bus.Subscribe<OrderCreatedEvent, OrderCreatedHandler>();
 
 app.Run();

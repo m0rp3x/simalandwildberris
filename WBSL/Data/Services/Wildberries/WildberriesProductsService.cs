@@ -30,7 +30,7 @@ public class WildberriesProductsService : WildberriesBaseService
         _scopeFactory = scopeFactory;
     }
 
-    [DisableConcurrentExecution(timeoutInSeconds: 600)]
+    [DisableConcurrentExecution(timeoutInSeconds: 60)]
     public async Task<List<ProductsSyncResult>> SyncProductsAsync(){
         var externalAccounts = await _db.external_accounts
                                         .Where(x => x.platform == ExternalAccountType.Wildberries.ToString())
@@ -150,11 +150,12 @@ public class WildberriesProductsService : WildberriesBaseService
             await ProcessSizesAndSkusAsync(db, productsToSave);
 
             await UpsertProductCardsAsync(db, productsToSave, externalAccountId, syncStartedAt);
+
+            db.ChangeTracker.Clear();
+
             await LinkSizesToProductsAsync(db, productsToSave);
             await LinkCharacteristicsAsync(db, productsToSave);
             await transaction.CommitAsync();
-
-            db.ChangeTracker.Clear();
             // var existingProductIds = await db.WbProductCards
             //                                  .Where(p => productsToSave.Select(x => x.NmID).Contains(p.NmID))
             //                                  .Select(p => p.NmID)
@@ -245,42 +246,55 @@ public class WildberriesProductsService : WildberriesBaseService
 
     private async Task UpsertProductCardsAsync(
         QPlannerDbContext db,
-        List<WbProductCard> products,
+        List<WbProductCard> productsDto,
         int accountId,
         DateTime syncAt){
-        var ids = products.Select(p => p.NmID).ToList();
+        var allNmIds = productsDto.Select(p => p.NmID).ToList();
         var existIds = await db.WbProductCards
-                               .Where(p => ids.Contains(p.NmID))
+                               .Where(p => allNmIds.Contains(p.NmID))
                                .Select(p => p.NmID)
                                .ToListAsync();
+        var newEntities = productsDto
+                          .Where(p => !existIds.Contains(p.NmID))
+                          .Select(dto => new WbProductCard{
+                              NmID               = dto.NmID,
+                              ImtID              = dto.ImtID,
+                              NmUUID             = dto.NmUUID,
+                              SubjectID          = dto.SubjectID,
+                              SubjectName        = dto.SubjectName,
+                              VendorCode         = dto.VendorCode,
+                              Brand              = dto.Brand,
+                              Title              = dto.Title,
+                              Description        = dto.Description,
+                              NeedKiz            = dto.NeedKiz,
+                              CreatedAt          = dto.CreatedAt,
+                              UpdatedAt          = dto.UpdatedAt,
+                              externalaccount_id = accountId,
+                              LastSeenAt         = syncAt,
+                          })
+                          .ToList();
 
-        var newCards = products
-                       .Where(p => !existIds.Contains(p.NmID))
-                       .ToList();
-        var updCards = products
-                       .Where(p => existIds.Contains(p.NmID))
-                       .ToList();
+        if (newEntities.Any())
+            await db.WbProductCards.AddRangeAsync(newEntities);
 
-        foreach (var p in newCards){
-            p.externalaccount_id           = accountId;
-            p.LastSeenAt                   = syncAt;
-            p.WbProductCardCharacteristics = new List<WbProductCardCharacteristic>();
-            p.SizeChrts                    = new List<WbSize>();
-            p.WbPhotos                     = new List<WbPhoto>();
-        }
+        var existingEntities = await db.WbProductCards
+                                       .Where(p => existIds.Contains(p.NmID))
+                                       .ToListAsync();
 
-        if (newCards.Any())
-            await db.WbProductCards.AddRangeAsync(newCards);
-
-        // Существующие — грузим из БД, обновляем поля
-        var existEntities = await db.WbProductCards
-                                    .Where(p => existIds.Contains(p.NmID))
-                                    .ToListAsync();
-
-        foreach (var upd in updCards){
-            var e = existEntities.First(p => p.NmID == upd.NmID);
-            e.externalaccount_id = accountId;
-            e.LastSeenAt         = syncAt;
+        foreach (var dto in productsDto.Where(p => existIds.Contains(p.NmID))){
+            var ent = existingEntities.First(e => e.NmID == dto.NmID);
+            ent.ImtID              = dto.ImtID;
+            ent.NmUUID             = dto.NmUUID;
+            ent.SubjectID          = dto.SubjectID;
+            ent.SubjectName        = dto.SubjectName;
+            ent.VendorCode         = dto.VendorCode;
+            ent.Brand              = dto.Brand;
+            ent.Title              = dto.Title;
+            ent.Description        = dto.Description;
+            ent.NeedKiz            = dto.NeedKiz;
+            ent.UpdatedAt          = dto.UpdatedAt;
+            ent.externalaccount_id = accountId;
+            ent.LastSeenAt         = syncAt;
         }
 
         await db.SaveChangesAsync();
@@ -326,26 +340,40 @@ public class WildberriesProductsService : WildberriesBaseService
     /// </summary>
     private async Task LinkSizesToProductsAsync(
         QPlannerDbContext db,
-        List<WbProductCard> products){
-        var tuples = products
-                     .SelectMany(p => p.SizeChrts.Select(s => (ProductNmID: p.NmID, SizeChrID: s.ChrtID)))
-                     .Distinct()
-                     .ToList();
+        List<WbProductCard> incomingProducts){
+        var incomingMap = incomingProducts
+            .ToDictionary(
+                p => p.NmID,
+                p => p.SizeChrts.Select(s => s.ChrtID).Distinct().ToList()
+            );
 
-        if (!tuples.Any())
-            return;
+        // 2) Собираем все NmID и все ChrtID
+        var nmids      = incomingMap.Keys.ToList();
+        var allChrtIds = incomingMap.Values.SelectMany(x => x).Distinct().ToList();
 
-        var valuesClause = string.Join(",", tuples
-                                           .Select(t => $"({t.ProductNmID},{t.SizeChrID})"));
+        // 3) Загружаем нужные объекты из БД ОДНИМ махом
+        var cards = await db.WbProductCards
+                            .Where(c => nmids.Contains(c.NmID))
+                            .Include(c => c.SizeChrts)
+                            .ToListAsync();
 
-        // 3) Выполняем INSERT … ON CONFLICT DO NOTHING
-        var sql = $@"
-INSERT INTO ""WbProductCardSizes"" (""ProductNmID"", ""SizeChrtID"")
-VALUES {valuesClause}
-ON CONFLICT (""ProductNmID"", ""SizeChrtID"") DO NOTHING;";
+        var sizesById = await db.WbSizes
+                                .Where(s => allChrtIds.Contains(s.ChrtID))
+                                .ToDictionaryAsync(s => s.ChrtID);
+        
+        foreach (var card in cards){
+            card.SizeChrts.Clear();
+            
+            foreach (var chrtId in incomingMap[card.NmID]){
+                if (sizesById.TryGetValue(chrtId, out var size))
+                    card.SizeChrts.Add(size);
+                // иначе: можно залогировать, что такого размера нет в справочнике
+            }
+        }
 
-        await db.Database.ExecuteSqlRawAsync(sql);
+        await db.SaveChangesAsync();
     }
+
 
     private async Task ProcessCharacteristicsAsync(
         QPlannerDbContext db,

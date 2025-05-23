@@ -39,9 +39,14 @@ public class RateLimitedAuthHandler : DelegatingHandler
                                          _ => new RollingWindowRateLimiter(
                                              TimeSpan.FromSeconds(_timeRequestLimit), _requestLimit));
         var circuitBreaker = GetCircuitBreaker(clientName);
-        if (circuitBreaker.IsOpen)
-            throw new CircuitBrokenException($"API {clientName} is temporarily unavailable");
-
+        if (circuitBreaker.IsOpen){
+            var wait = circuitBreaker.GetRemainingBlockTime();
+            if (wait > TimeSpan.Zero){
+                await Task.Delay(wait, ct);
+                circuitBreaker.Reset();
+            }
+        }
+        
         await limiter.WaitAsync(ct);
 
         HttpResponseMessage response;
@@ -50,26 +55,33 @@ public class RateLimitedAuthHandler : DelegatingHandler
         }
         catch (HttpRequestException ex){
             circuitBreaker.RecordFailure();
-            
-            if (retryCount < MaxRetries)
-            {
+
+            if (retryCount < MaxRetries){
                 // случайный джиттер, чтобы уменьшить «бомбёжку»
-                var delay = Backoff[Math.Min(retryCount, Backoff.Length - 1)]
-                            + TimeSpan.FromMilliseconds(new Random().Next(0,500));
-                await Task.Delay(delay, ct);
+                var jittered = AddJitter(Backoff[Math.Min(retryCount, Backoff.Length - 1)]);
+                await Task.Delay(jittered, ct);
                 return await SendWithRetriesAsync(request, ct, retryCount + 1);
             }
-            
+
             throw;
         }
 
         if (response.StatusCode == HttpStatusCode.TooManyRequests && retryCount < MaxRetries){
-            var retryAfter = response.Headers.RetryAfter?.Delta
+            TimeSpan retryAfter;
+            Console.Write($"[RateLimitedAuthHandler] Retry after");
+            if (response.Headers.TryGetValues("X-Ratelimit-Retry", out var vals)
+                && int.TryParse(vals.First(), out var secs)){
+                Console.WriteLine($" {secs}s");
+                retryAfter = TimeSpan.FromSeconds(secs);
+            }
+            else{
+                retryAfter = response.Headers.RetryAfter?.Delta
                              ?? Backoff[Math.Min(retryCount, Backoff.Length - 1)];
+            }
+            
+            circuitBreaker.ForceOpen(retryAfter);
 
             await Task.Delay(retryAfter, ct);
-
-            // рекурсивно вызываем с увеличенным счётчиком
             return await SendWithRetriesAsync(request, ct, retryCount + 1);
         }
 
@@ -84,6 +96,9 @@ public class RateLimitedAuthHandler : DelegatingHandler
 
         return response;
     }
+
+    private TimeSpan AddJitter(TimeSpan baseDelay)
+        => baseDelay + TimeSpan.FromMilliseconds(new Random().Next(0, 500));
 
     private CircuitBreakerState GetCircuitBreaker(string clientName)
         => _circuitBreakers.GetOrAdd(clientName, _ => new CircuitBreakerState(
@@ -114,6 +129,16 @@ public class RateLimitedAuthHandler : DelegatingHandler
             _failures     = 0;
             _blockedUntil = null;
         }
+        public void ForceOpen(TimeSpan duration)
+        {
+            _blockedUntil = DateTime.UtcNow.Add(duration);
+        }
+
+        // Сколько осталось ждать
+        public TimeSpan GetRemainingBlockTime()
+            => _blockedUntil.HasValue
+                ? _blockedUntil.Value - DateTime.UtcNow
+                : TimeSpan.Zero;
     }
 
     public class RollingWindowRateLimiter
