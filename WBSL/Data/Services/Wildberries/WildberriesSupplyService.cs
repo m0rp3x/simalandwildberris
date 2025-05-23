@@ -22,9 +22,9 @@ public class WildberriesSupplyService
         QPlannerDbContext db,
         PlatformHttpClientFactory httpFactory,
         ILogger<WildberriesSupplyService> logger){
-        _db = db;
+        _db          = db;
         _httpFactory = httpFactory;
-        _logger = logger;
+        _logger      = logger;
     }
 
     /// <summary>
@@ -36,60 +36,112 @@ public class WildberriesSupplyService
     /// <param name="ct">Канал отмены.</param>
     public async Task<SupplyResult> CreateSupplyAndAttachOrderAsync(
         DateTime date,
-        long orderId,
+        List<long> orderIds,
         CancellationToken ct = default){
         // 1) Получить и проверить заказ
-        var order = await GetOrderAsync(orderId, ct);
-        if (order.Status != OrderStatus.New)
-            throw new InvalidOperationException($"Order {orderId} имеет статус {order.Status}, ожидался New.");
+        var orders = await GetOrdersAsync(orderIds, ct);
 
-        // 2) Найти валидный клиент по складу заказа
-        var client = await GetValidClientForWarehouseAsync(order.WarehouseId, ct);
+        var validOrders   = orders.Where(o => o.Status == OrderStatus.New).ToList();
+        var skippedOrders = orders.Where(o => o.Status != OrderStatus.New).ToList();
+
+        if (!validOrders.Any()){
+            return new SupplyResult{
+                Success   = false,
+                SupplyId  = null,
+                ErrorCode = "NO_VALID_ORDERS",
+                Message =
+                    $"Нет заказов в статусе New, будут пропущены: {string.Join(", ", skippedOrders.Select(o => $"{o.Id}({o.Status})"))}"
+            };
+        }
+
+        var client = await GetValidClientForWarehouseAsync(validOrders[0].WarehouseId, ct);
 
         // 3) Создать поставку в WB
         var supplyId = await CreateSupplyAsync(client, date, ct);
 
         // 4) Добавить сборочное задание (сам order) к поставке
-        var addResult = await TryAddOrderToSupplyAsync(client, supplyId, orderId, ct);
-        if (!addResult.Success){
+        var attachResults = new List<(long OrderId, bool Success, string? ErrorCode, string? Message)>();
+        
+        foreach (var skip in skippedOrders)
+        {
+            attachResults.Add((skip.Id, false, "INVALID_STATUS", $"Пропущен, статус={skip.Status}"));
+        }
+        
+        // 5) Цикл: добавляем каждый заказ в поставку
+        foreach (var order in validOrders){
+            var addResult = await TryAddOrderToSupplyAsync(client, supplyId, order.Id, ct);
+            if (!addResult.Success){
+                attachResults.Add((order.Id, false, addResult.ErrorCode, addResult.Message));
+                continue;
+            }
+
+            order.SupplyId = supplyId;
+            order.Status   = OrderStatus.Confirm;
+            attachResults.Add((order.Id, true, null, null));
+        }
+
+        try{
+            _db.Orders.UpdateRange(orders);
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex){
+            _logger.LogError(ex, "Ошибка при массовом обновлении заказов в БД для supply {SupplyId}", supplyId);
             return new SupplyResult{
-                Success = false,
-                SupplyId = supplyId,
-                ErrorCode = addResult.ErrorCode,
-                Message = addResult.Message
+                Success   = false,
+                SupplyId  = supplyId,
+                DbUpdated = false,
+                ErrorCode = "DB_BATCH_ERROR",
+                Message   = ex.Message
             };
         }
 
-        bool dbOk = false;
-        string? dbError = null;
-        try{
-            order.SupplyId = supplyId;
-            order.Status = OrderStatus.Confirm;
-            _db.Orders.Update(order);
-            await _db.SaveChangesAsync(ct);
-            dbOk = true;
-        }
-        catch (Exception ex){
-            _logger.LogError(ex, "Ошибка при обновлении статуса заказа {OrderId} в БД", orderId);
-            dbError = ex.Message;
+        // 8) Формируем общий SupplyResult: успешен, если все added = true
+        var allOk = attachResults.All(r => r.Success);
+        if (!allOk){
+            // можно вернуть подробный лог ошибок в Message
+            var errors = attachResults
+                         .Where(r => !r.Success)
+                         .Select(r => $"{r.OrderId}:{r.ErrorCode}")
+                         .ToList();
+            return new SupplyResult{
+                Success   = false,
+                SupplyId  = supplyId,
+                DbUpdated = true,
+                ErrorCode = "PARTIAL_FAIL",
+                Message   = $"Не удалось добавить заказы: {string.Join(", ", errors)}"
+            };
         }
 
-        _logger.LogInformation("Order {OrderId} успешно привязан к поставке {SupplyId}", orderId, supplyId);
+        _logger.LogInformation(
+            "Заказы [{OrderIds}] успешно привязаны к поставке {SupplyId}",
+            string.Join(", ", orderIds), supplyId);
+
         return new SupplyResult{
-            Success = true, // WB OK
-            SupplyId = supplyId,
-            DbUpdated = dbOk, // true если БД сохранилась
-            ErrorCode = dbOk ? null : "DB_ERROR",
-            Message = dbOk ? null : dbError
+            Success   = true, // WB OK
+            SupplyId  = supplyId,
+            DbUpdated = true
         };
     }
 
     /// <summary>
     /// Извлекает OrderEntity из БД, либо кидает, если не найден.
     /// </summary>
-    private async Task<OrderEntity> GetOrderAsync(long orderId, CancellationToken ct){
-        var order = await _db.Orders.FirstOrDefaultAsync(x=> x.Id == orderId, ct);
-        return order ?? throw new InvalidOperationException($"Order {orderId} не найден в базе.");
+    private async Task<List<OrderEntity>> GetOrdersAsync(
+        List<long> orderIds,
+        CancellationToken ct){
+        var orders = await _db.Orders
+                              .Where(x => orderIds.Contains(x.Id))
+                              .ToListAsync(ct);
+
+        // Проверяем, что ни один из запрошенных заказов не пропал
+        var foundIds = orders.Select(o => o.Id).ToHashSet();
+        var missing  = orderIds.Where(id => !foundIds.Contains(id)).ToList();
+        if (missing.Any()){
+            throw new InvalidOperationException(
+                $"Заказы {string.Join(", ", missing)} не найдены в базе.");
+        }
+
+        return orders;
     }
 
     /// <summary>
@@ -131,14 +183,14 @@ public class WildberriesSupplyService
         if (!resp.IsSuccessStatusCode){
             var body = await resp.Content.ReadAsStringAsync(ct);
             _logger.LogError("CreateSupplyAsync failed ({Status}): {Body}",
-                resp.StatusCode, body);
+                             resp.StatusCode, body);
             throw new InvalidOperationException(
                 $"CreateSupplyAsync returned {(int)resp.StatusCode}");
         }
 
         // Ответ JSON: { "id": "WB-GI-1234567" }
-        var json = await resp.Content.ReadAsStringAsync(ct);
-        using var doc = JsonDocument.Parse(json);
+        var       json = await resp.Content.ReadAsStringAsync(ct);
+        using var doc  = JsonDocument.Parse(json);
         if (!doc.RootElement.TryGetProperty("id", out var idProp))
             throw new InvalidOperationException("Response has no 'id' field");
 
@@ -157,7 +209,7 @@ public class WildberriesSupplyService
         string supplyId,
         long orderId,
         CancellationToken ct){
-        var url = $"/api/v3/supplies/{supplyId}/orders/{orderId}";
+        var url     = $"/api/v3/supplies/{supplyId}/orders/{orderId}";
         var payload = new{ orderId };
         var req = new HttpRequestMessage(HttpMethod.Patch, url){
             Content = JsonContent.Create(payload)
@@ -167,19 +219,19 @@ public class WildberriesSupplyService
         if (resp.StatusCode == HttpStatusCode.Conflict){
             var err = await resp.Content.ReadFromJsonAsync<WildberriesErrorResponse>(cancellationToken: ct);
             return new SupplyResult{
-                Success = false,
+                Success   = false,
                 ErrorCode = err?.Code,
-                Message = err?.Message,
-                SupplyId = supplyId
+                Message   = err?.Message,
+                SupplyId  = supplyId
             };
         }
 
         if (!resp.IsSuccessStatusCode){
             return new SupplyResult{
-                Success = false,
+                Success   = false,
                 ErrorCode = resp.StatusCode.ToString(),
-                Message = $"HTTP {(int)resp.StatusCode}",
-                SupplyId = supplyId
+                Message   = $"HTTP {(int)resp.StatusCode}",
+                SupplyId  = supplyId
             };
         }
 

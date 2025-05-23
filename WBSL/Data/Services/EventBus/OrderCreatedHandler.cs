@@ -4,8 +4,8 @@ namespace WBSL.Data.Services.EventBus;
 
 public class OrderCreatedEvent
 {
-    public long OrderId { get; }
-    public OrderCreatedEvent(long orderId) => OrderId = orderId;
+    public List<long> OrderIds { get; }
+    public OrderCreatedEvent(List<long> orderIds) => OrderIds = orderIds;
 }
 
 public class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
@@ -17,7 +17,7 @@ public class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
     public Task HandleAsync(OrderCreatedEvent @event, CancellationToken ct = default)
         => _supply.CreateSupplyAndAttachOrderAsync(
             date: DateTime.UtcNow, 
-            orderId: @event.OrderId,
+            orderIds: @event.OrderIds,
             ct: ct 
         );
 }
